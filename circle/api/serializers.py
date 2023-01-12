@@ -13,7 +13,13 @@ from circle.models import (
 )
 
 
-class CircleSerializer(FlexFieldsModelSerializer):
+class BaseSerializer(FlexFieldsModelSerializer):
+    def create(self, validated_data):
+        validated_data["owner_id"] = self.context["request"].user_id
+        return super().create(validated_data)
+
+
+class CircleSerializer(BaseSerializer):
     class Meta:
         model = Circle
         fields = "__all__"
@@ -97,8 +103,6 @@ class CircleHierarchySerializer(FlexFieldsModelSerializer):
         fields = (
             "id",
             "name",
-            "image",
-            "post_level",
             "parent",
             "sub_circle_count",
             "level",

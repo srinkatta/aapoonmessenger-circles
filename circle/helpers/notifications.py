@@ -16,7 +16,7 @@ def app_notification(topic_name, message_from, message, xml):
 
     group = Circle.objects.get(room_id=topic_name)
     message_from = message_from + "@" + settings.XMPP_HOST
-    # TODO: get user details from user microservie
+    # TODO: get user details from user microservice
     from_user = message_from
 
     title = from_user.name + " " + "in" + " " + '"' + group.name + '"'

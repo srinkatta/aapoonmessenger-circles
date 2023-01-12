@@ -3,6 +3,8 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import AccessToken
 
+from circle.services.user import User
+
 
 class ExtraJWTAuthentication(JWTAuthentication):
     def authenticate(self, request):
@@ -16,7 +18,17 @@ class ExtraJWTAuthentication(JWTAuthentication):
             decoded_token = AccessToken(auth_token)
             # set user details in request
             request.user_id = decoded_token["user_id"]
-            # TODO: get user details from user microservice
+            request.authenticated = False
+            try:
+                user_service = User()
+                user = user_service.details(user_id=request.user_id)
+                request.first_name = user.get("first_name")
+                request.last_name = user.get("last_name")
+                request.jid = user.get("jid")
+                request.authenticated = True
+            except Exception as exc:
+                print(exc)
+
             return None, decoded_token
         except TokenError as exc:
             raise exceptions.AuthenticationFailed(exc)

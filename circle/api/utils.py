@@ -33,3 +33,12 @@ def get_all_children(circle, include_self=True):
     children = Circle.objects.raw(query)
     child_ids = [child.id for child in children]
     return Circle.objects.filter(id__in=child_ids)
+
+
+def logged_user_info(request) -> dict:
+    return {
+        "id": request.user_id,
+        "first_name": request.user_id,
+        "last_name": request.last_name,
+        "jid": request.jid,
+    }

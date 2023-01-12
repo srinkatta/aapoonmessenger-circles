@@ -21,12 +21,15 @@ load_dotenv()
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-ad-+*-)0ttwemmapec3k8xgm6+g1f-a=^j50su_k0w^q6e9-rq"
+"""
+NOTE: Make sure this(SECRET) is same as user microservice otherwise authentication will fail
+"""
+SECRET_KEY = os.environ.get("SECRET")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
 
 
 # Application definition
@@ -80,11 +83,14 @@ WSGI_APPLICATION = "circle_service.wsgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "ENGINE": "django.db.backends.mysql",
+        "NAME": os.environ["DB_NAME"],
+        "USER": os.environ["DB_USER"],
+        "PASSWORD": os.environ["DB_PASSWORD"],
+        "HOST": os.environ["DB_HOST"],
+        "PORT": os.environ["DB_PORT"],
     }
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/4.1/ref/settings/#auth-password-validators
@@ -133,6 +139,7 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework.authentication.SessionAuthentication",
         "rest_framework.authentication.BasicAuthentication",
+        # "rest_framework_simplejwt.authentication.JWTAuthentication",
         "circle.middleware.authentication_middleware.ExtraJWTAuthentication",
     ),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
@@ -151,5 +158,7 @@ SPECTACULAR_SETTINGS = {
 XMPP_AUTHORIZATION = os.environ["XMPP_AUTHORIZATION"]
 XMPP_HOST = os.environ["XMPP_HOST"]
 XMPP_PORT = "5280"
-XMPP_SERVER_URL = f"https://{XMPP_HOST}:{XMPP_HOST}/"
+XMPP_SERVER_URL = f"https://{XMPP_HOST}:{XMPP_PORT}/"
 FCM_API_KEY = os.environ["FCM_API_KEY"]
+USER_MICROSERVICE_URL = os.environ["USER_MICROSERVICE_URL"]
+USER_MICROSERVICE_API_KEY = os.environ["USER_MICROSERVICE_API_KEY"]

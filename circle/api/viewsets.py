@@ -17,12 +17,13 @@ from circle.api.serializers import (
     SubscriptionPlanSerializer,
     TopicSerializer,
 )
-from circle.api.utils import get_all_children, get_level
+from circle.api.utils import get_all_children, get_level, logged_user_info
 from circle.helpers.ejjaberd import (
     create_xmpp_room,
     destroy_room,
     member_xmpp_room_subscribe,
 )
+from circle.middleware.permissions import Authenticate
 from circle.models import (
     AppBranding,
     Circle,
@@ -33,6 +34,7 @@ from circle.models import (
     SubscriptionPlan,
     Topic,
 )
+from circle.services.user import User
 
 
 class BaseCircleViewSet(viewsets.ModelViewSet):
@@ -51,6 +53,7 @@ class BaseCircleViewSet(viewsets.ModelViewSet):
     def get_serializer_context(self):
         context = super().get_serializer_context()
         context["circle_id"] = self.kwargs.get("circle_id")
+        context["request"] = self.request
         return context
 
 
@@ -60,10 +63,10 @@ class CircleViewSet(BaseCircleViewSet):
     """
 
     serializer_class = CircleSerializer
-    permission_classes = (permissions.AllowAny,)
+    permission_classes = (Authenticate,)
 
     def get_queryset(self):
-        return Circle.objects.all()
+        return Circle.objects.filter(owner_id=self.request.user_id)
 
     def hierarchy_limit(self, parent_id):
         parent_circle = Circle.objects.get(id=parent_id)
@@ -85,14 +88,14 @@ class CircleViewSet(BaseCircleViewSet):
             self.create_parent_circle(**data)
 
     def circle_add_user(self, circle, user, role):
-        if not CircleSubscriberRole.objects.filter(user_id=user.id, circle=circle):
+        if not CircleSubscriberRole.objects.filter(user_id=user["id"], circle=circle):
             circle_role = CircleSubscriberRole(
                 circle=circle, user_id=user["id"], role=role
             )
             circle_role.save()
 
             # User subscribe to XMPP room
-            member_xmpp_room_subscribe(user_jid=user["jid"], room_id=circle.room_id)
+            # member_xmpp_room_subscribe(user_jid=user["jid"], room_id=circle.room_id)
 
     def circle_add_default_admins(self, circle, parent):
         default_admins = CircleSubscriberRole.objects.filter(
@@ -106,8 +109,9 @@ class CircleViewSet(BaseCircleViewSet):
         for admin in admins:
             if not CircleSubscriberRole.objects.filter(user_id=admin, circle=parent):
                 role = CircleRole.objects.get(name="Default Admin")
-                # TODO: get user details from user service by using user id
-                user = {}  # user details from user service
+                # TODO: test
+                user_service = User()
+                user = user_service.details(user_id=admin)
                 # Adding all hidden/default admins to circle and xmpp_room
                 self.circle_add_user(
                     circle,
@@ -116,8 +120,9 @@ class CircleViewSet(BaseCircleViewSet):
                 )
 
     def circle_add_parent_default_admins(self, parent: Circle, user):
-        # TODO: get user details from user service
-        user = {"id": 1, "name": "", "jid": ""}
+        user_service = User()
+        user = user_service.details(user_id=user["id"])
+
         parent_circles = parent.get_parent_circles()
         for circle in parent_circles:
             parent = Circle.objects.get(id=circle.id)
@@ -129,9 +134,9 @@ class CircleViewSet(BaseCircleViewSet):
 
             if user["id"] not in super_admins:
                 for admin in super_admins:
-                    # TODO: get admin details from user service
-                    admin = {"id": 1, "name": "", "jid": ""}
-                    self.circle_add_user(circle, admin, role=role)
+                    user_service = User()
+                    user = user_service.details(user_id=admin)
+                    self.circle_add_user(circle, user, role=role)
 
     def get_circle_with_level(self, circles):
         circles_with_level = {}
@@ -144,7 +149,6 @@ class CircleViewSet(BaseCircleViewSet):
         return circles_with_level
 
     def create(self, request, *args, **kwargs):
-        breakpoint()
         serializer = self.get_serializer(
             data=request.data, context={"request": request}
         )
@@ -153,13 +157,12 @@ class CircleViewSet(BaseCircleViewSet):
 
         if parent:
             # Child circle limit
-            limit = self.hierarchy_limit(parent)
+            limit = self.hierarchy_limit(parent.id)
             if limit:
                 return Response(
                     {"data": "You reached the maximum limit of 8 child circles."},
                     status=400,
                 )
-            parent = Circle.objects.get(id=parent)
 
             circle = serializer.save()
 
@@ -168,13 +171,14 @@ class CircleViewSet(BaseCircleViewSet):
 
             # Add Owner to circle and add to xmpp_room
             role = CircleRole.objects.get(name="Chief Admin")
-            self.circle_add_user(circle, request.user, role)
+            user_info = logged_user_info(request)
+            self.circle_add_user(circle, user_info, role)
 
             # Add default admins to circle and xmpp_room
             self.circle_add_default_admins(circle, parent)
 
             # Adding all admins of parent groups as default admin of this circle
-            self.circle_add_parent_default_admins(parent, request.user)
+            self.circle_add_parent_default_admins(parent, user_info)
 
         else:
             circle = serializer.save()
@@ -184,7 +188,8 @@ class CircleViewSet(BaseCircleViewSet):
 
             # Add Owner to circle and add to xmpp_room
             role = CircleRole.objects.get(name="Chief Admin")
-            self.circle_add_user(circle, request.user, role)
+            user_info = logged_user_info(request)
+            self.circle_add_user(circle, user_info, role)
 
         return Response(serializer.data)
 
@@ -310,7 +315,7 @@ class CircleViewSet(BaseCircleViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             circles = circles.filter(parent=int(parent))
-        serializer = CircleHierarchySerializer(circles)
+        serializer = CircleHierarchySerializer(circles, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -320,7 +325,7 @@ class CircleRoleViewSet(BaseCircleViewSet):
     """
 
     serializer_class = CircleRoleSerializer
-    permission_classes = (permissions.AllowAny,)
+    permission_classes = (Authenticate,)
 
     def get_queryset(self):
         return CircleRole.objects.all()
@@ -332,7 +337,7 @@ class CircleSubscriberRoleViewSet(viewsets.ModelViewSet):
     """
 
     serializer_class = CircleSubscriberRoleSerializer
-    permission_classes = (permissions.AllowAny,)
+    permission_classes = (Authenticate,)
 
     def get_queryset(self):
         return CircleSubscriberRole.objects.all()
@@ -344,7 +349,7 @@ class SubscriptionPlanViewSet(viewsets.ModelViewSet):
     """
 
     serializer_class = SubscriptionPlanSerializer
-    permission_classes = (permissions.AllowAny,)
+    permission_classes = (Authenticate,)
 
     def get_queryset(self):
         return SubscriptionPlan.objects.all()
@@ -356,7 +361,7 @@ class CustomerViewSet(viewsets.ModelViewSet):
     """
 
     serializer_class = CustomerSerializer
-    permission_classes = (permissions.AllowAny,)
+    permission_classes = (Authenticate,)
 
     def get_queryset(self):
         return Customer.objects.all()
@@ -368,7 +373,7 @@ class AppBrandingViewSet(viewsets.ModelViewSet):
     """
 
     serializer_class = AppBrandingSerializer
-    permission_classes = (permissions.AllowAny,)
+    permission_classes = (Authenticate,)
 
     def get_queryset(self):
         return AppBranding.objects.all()
@@ -380,7 +385,7 @@ class CustomFieldViewSet(viewsets.ModelViewSet):
     """
 
     serializer_class = CustomFieldSerializer
-    permission_classes = (permissions.AllowAny,)
+    permission_classes = (Authenticate,)
 
     def get_queryset(self):
         return CustomField.objects.all()
@@ -392,7 +397,7 @@ class TopicViewSet(viewsets.ModelViewSet):
     """
 
     serializer_class = TopicSerializer
-    permission_classes = (permissions.AllowAny,)
+    permission_classes = (Authenticate,)
 
     def get_queryset(self):
         return Topic.objects.all()
