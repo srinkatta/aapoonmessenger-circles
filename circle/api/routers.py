@@ -9,6 +9,13 @@ from circle.api.direct_message.viewsets import (
     XMPPMessageViewSet,
     XMPPMonthlyChatViewSet,
 )
+from circle.api.media.viewsets import (
+    GroupImageUploadViewSet,
+    ChatImageUploadViewSet,
+    ChatVideoUploadViewSet,
+    ChatDocumentsUploadViewSet,
+    ChatAudioUploadViewSet,
+)
 from circle.api.viewsets import (
     AppBrandingViewSet,
     CircleRoleViewSet,
@@ -18,17 +25,22 @@ from circle.api.viewsets import (
     CustomFieldViewSet,
     SubscriptionPlanViewSet,
     TopicViewSet,
+    CirclePermissionViewSet,
 )
 
 router = routers.SimpleRouter()
 router.register(r"circle", CircleViewSet, basename="circle"),
-router.register(
-    r"circle/(?P<circle_id>\d+)/role", CircleRoleViewSet, basename="circle-role"
-)
+router.register(r"circle/role", CircleRoleViewSet, basename="circle-role")
 router.register(
     r"circle/(?P<circle_id>\d+)/assign-role",
     CircleSubscriberRoleViewSet,
     basename="circles-subscriber-role",
+),
+
+router.register(
+    r"circle/(?P<circle_id>\d+)/permissions",
+    CirclePermissionViewSet,
+    basename="circle-permissions",
 ),
 router.register(
     r"subscription-plan", SubscriptionPlanViewSet, basename="subscription-plan"
@@ -43,6 +55,22 @@ router.register(
 router.register(r"topic", TopicViewSet, basename="topic"),
 router.register(r"messages", XMPPMessageViewSet, basename="xmpp_messages")
 router.register(r"get_messages", XMPPMessageFilterViewSet, basename="get_messages")
+
+router.register(
+    r"s3groupimageparams", GroupImageUploadViewSet, basename="s3groupimageparams"
+)
+router.register(
+    r"s3chatimageparams", ChatImageUploadViewSet, basename="s3chatimageparams"
+)
+router.register(
+    r"s3chatvideoparams", ChatVideoUploadViewSet, basename="s3chatvideoparams"
+)
+router.register(
+    r"s3chatdocsparams", ChatDocumentsUploadViewSet, basename="s3chatdocsparams"
+)
+router.register(
+    r"s3chataudioparams", ChatAudioUploadViewSet, basename="s3chataudioparams"
+)
 
 urlpatterns = [
     path(r"", include(router.urls)),

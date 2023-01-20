@@ -16,6 +16,8 @@ from circle.api.serializers import (
     CustomFieldSerializer,
     SubscriptionPlanSerializer,
     TopicSerializer,
+    CirclePermissionSerializer,
+    CircleListSerializer,
 )
 from circle.api.utils import get_all_children, get_level, logged_user_info
 from circle.helpers.ejjaberd import (
@@ -33,6 +35,7 @@ from circle.models import (
     CustomField,
     SubscriptionPlan,
     Topic,
+    CirclePermission,
 )
 from circle.services.user import User
 
@@ -64,6 +67,12 @@ class CircleViewSet(BaseCircleViewSet):
 
     serializer_class = CircleSerializer
     permission_classes = (Authenticate,)
+
+    def get_serializer_class(self):
+        if self.request.method == "GET":
+            return CircleListSerializer
+        else:
+            return CircleSerializer
 
     def get_queryset(self):
         return Circle.objects.filter(owner_id=self.request.user_id)
@@ -331,7 +340,19 @@ class CircleRoleViewSet(BaseCircleViewSet):
         return CircleRole.objects.all()
 
 
-class CircleSubscriberRoleViewSet(viewsets.ModelViewSet):
+class CirclePermissionViewSet(BaseCircleViewSet):
+    """
+    Viewset to create, list, update and delete circle roles.
+    """
+
+    serializer_class = CirclePermissionSerializer
+    permission_classes = (Authenticate,)
+
+    def get_queryset(self):
+        return CirclePermission.objects.filter(circle=self.circle_id)
+
+
+class CircleSubscriberRoleViewSet(BaseCircleViewSet):
     """
     Viewset to create, list, update and delete circle subscriber roles.
     """
@@ -340,7 +361,7 @@ class CircleSubscriberRoleViewSet(viewsets.ModelViewSet):
     permission_classes = (Authenticate,)
 
     def get_queryset(self):
-        return CircleSubscriberRole.objects.all()
+        return CircleSubscriberRole.objects.filter(circle=self.circle_id)
 
 
 class SubscriptionPlanViewSet(viewsets.ModelViewSet):
