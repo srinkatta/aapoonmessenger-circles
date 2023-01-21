@@ -5,6 +5,7 @@ from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from circle.api.serializers import (
     AppBrandingSerializer,
@@ -179,7 +180,7 @@ class CircleViewSet(BaseCircleViewSet):
             create_xmpp_room(circle)
 
             # Add Owner to circle and add to xmpp_room
-            role = CircleRole.objects.get(name="Chief Admin")
+            role = CircleRole.objects.get(role=10)
             user_info = logged_user_info(request)
             self.circle_add_user(circle, user_info, role)
 
@@ -196,7 +197,7 @@ class CircleViewSet(BaseCircleViewSet):
             create_xmpp_room(circle)
 
             # Add Owner to circle and add to xmpp_room
-            role = CircleRole.objects.get(name="Chief Admin")
+            role = CircleRole.objects.get(role=10)
             user_info = logged_user_info(request)
             self.circle_add_user(circle, user_info, role)
 
@@ -262,7 +263,7 @@ class CircleViewSet(BaseCircleViewSet):
         ):
             query = request.GET.get("level", 0)
             circles = get_all_children(circle, include_self=True)
-            circles_with_level = self.get_groups_with_level(circles)
+            circles_with_level = self.get_circle_with_level(circles)
             try:
                 final_circles = circles_with_level[int(query)]
                 final_circles = [circle.id for circle in final_circles]
@@ -283,7 +284,7 @@ class CircleViewSet(BaseCircleViewSet):
             name = name.lower()
 
             circles = get_all_children(circle, include_self=True)
-            circles_with_level = self.get_groups_with_level(circles)
+            circles_with_level = self.get_circle_with_level(circles)
             try:
                 final_circles = circles_with_level[int(query)]
                 final_circles = [circle.id for circle in final_circles]
@@ -313,7 +314,7 @@ class CircleViewSet(BaseCircleViewSet):
             parent = request.GET.get("parent")
 
             circles = get_all_children(circle, include_self=True)
-            circles_with_level = self.get_groups_with_level(circles)
+            circles_with_level = self.get_circle_with_level(circles)
             try:
                 final_circles = circles_with_level[int(query)]
                 final_circles = [circle.id for circle in final_circles]
@@ -422,3 +423,84 @@ class TopicViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return Topic.objects.all()
+
+
+def transfer_hierarchy(circle, user):
+    role = CircleRole.objects.get(name="Chief Admin")
+    chief_admin = CircleSubscriberRole.objects.filter(circle=circle, role=role)
+    chief_admin.update(
+        role__name="Moderator"
+    )  # Todo : For now after transfer cheif admin becomes moderator
+
+    circle_role = CircleSubscriberRole.objects.filter(user_id=user["id"], circle=circle)
+    if not circle_role:
+        CircleSubscriberRole.objects.create(
+            user_id=user["id"],
+            role__name="Chief Admin",
+        )
+
+    else:
+        circle_role.role = "CHIEF ADMIN"
+        circle_role.save()
+
+    # Update circle properties
+    circle_properties_update(circle)
+    return True
+
+
+class HierarchyTransferAPIView(APIView):
+    permission_classes = (Authenticate,)
+
+    def post(self, request):
+        circle_id = request.data["circle_id"]
+        to_user = request.data["to_user"]
+        user = User.objects.get(id=to_user)
+        circle = Circle.objects.filter(id=circle_id)
+
+        if circle[0].parent is None:
+            childrens = circle | get_all_children(circle[0], include_self=True)
+            for children in childrens:
+                transfer_hierarchy(children, user)
+        else:
+            parents = (
+                Circle.objects.filter(id=circle[0].parent.id)
+                | circle[0].parent.get_parent_circles()
+            )
+            if parents:
+                root_parent = parents[0]
+                childrens = parents[0] | get_all_children(
+                    root_parent, include_self=True
+                )
+                for children in childrens:
+                    transfer_hierarchy(children, user)
+
+        return Response({"data": "Hierarchy Transferred"}, status=200)
+
+
+class HierarchyDeleteAPIView(APIView):
+    permission_classes = (Authenticate,)
+
+    def post(self, request):
+        circle_id = request.data["circle_id"]
+        circle = Circle.objects.filter(id=circle_id)
+
+        if circle[0].parent is None:
+            childrens = circle | get_all_children(circle[0], include_self=True)
+            for child in childrens:
+                destroy_room(child.room_id)
+                child.delete()
+
+        else:
+            parents = (
+                Circle.objects.filter(pk=circle[0].parent.id)
+                | circle[0].parent.get_parent_circles()
+            )
+
+            if parents:
+                root_parent = parents[0]
+                childrens = parents[0] | get_all_children(
+                    root_parent, include_self=True
+                )
+                [child.delete() for child in childrens]
+
+        return Response({"data": "Hierarchy Deleted"}, status=200)

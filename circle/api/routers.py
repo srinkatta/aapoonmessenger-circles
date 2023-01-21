@@ -9,13 +9,13 @@ from circle.api.direct_message.viewsets import (
     XMPPMessageViewSet,
     XMPPMonthlyChatViewSet,
 )
-from circle.api.media.viewsets import (
-    GroupImageUploadViewSet,
-    ChatImageUploadViewSet,
-    ChatVideoUploadViewSet,
-    ChatDocumentsUploadViewSet,
-    ChatAudioUploadViewSet,
-)
+# from circle.api.media.viewsets import (
+#     GroupImageUploadViewSet,
+#     ChatImageUploadViewSet,
+#     ChatVideoUploadViewSet,
+#     ChatDocumentsUploadViewSet,
+#     ChatAudioUploadViewSet,
+# )
 from circle.api.viewsets import (
     AppBrandingViewSet,
     CircleRoleViewSet,
@@ -26,6 +26,8 @@ from circle.api.viewsets import (
     SubscriptionPlanViewSet,
     TopicViewSet,
     CirclePermissionViewSet,
+    HierarchyDeleteAPIView,
+    HierarchyTransferAPIView,
 )
 
 router = routers.SimpleRouter()
@@ -56,21 +58,21 @@ router.register(r"topic", TopicViewSet, basename="topic"),
 router.register(r"messages", XMPPMessageViewSet, basename="xmpp_messages")
 router.register(r"get_messages", XMPPMessageFilterViewSet, basename="get_messages")
 
-router.register(
-    r"s3groupimageparams", GroupImageUploadViewSet, basename="s3groupimageparams"
-)
-router.register(
-    r"s3chatimageparams", ChatImageUploadViewSet, basename="s3chatimageparams"
-)
-router.register(
-    r"s3chatvideoparams", ChatVideoUploadViewSet, basename="s3chatvideoparams"
-)
-router.register(
-    r"s3chatdocsparams", ChatDocumentsUploadViewSet, basename="s3chatdocsparams"
-)
-router.register(
-    r"s3chataudioparams", ChatAudioUploadViewSet, basename="s3chataudioparams"
-)
+# router.register(
+#     r"s3groupimageparams", GroupImageUploadViewSet, basename="s3groupimageparams"
+# )
+# router.register(
+#     r"s3chatimageparams", ChatImageUploadViewSet, basename="s3chatimageparams"
+# )
+# router.register(
+#     r"s3chatvideoparams", ChatVideoUploadViewSet, basename="s3chatvideoparams"
+# )
+# router.register(
+#     r"s3chatdocsparams", ChatDocumentsUploadViewSet, basename="s3chatdocsparams"
+# )
+# router.register(
+#     r"s3chataudioparams", ChatAudioUploadViewSet, basename="s3chataudioparams"
+# )
 
 urlpatterns = [
     path(r"", include(router.urls)),
@@ -86,4 +88,7 @@ urlpatterns = [
         name="xmpp_chat",
     ),
     path(r"delete_chat/", XMPPDeleteDMViewSet.as_view(), name="delete_chat"),
+    # hierarchy
+    path(r"hierarchy_delete/", HierarchyDeleteAPIView.as_view(), name="hierarchy_delete"),
+    path(r"hierarchy_transfer/", HierarchyTransferAPIView.as_view(), name="hierarchy_transfer"),
 ]
