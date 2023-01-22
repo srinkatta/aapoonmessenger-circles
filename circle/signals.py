@@ -23,3 +23,12 @@ def create_link(circle):
         if not Circle.objects.filter(link=link_name).exists():
             circle.link = link_name
         circle.save()
+
+
+@receiver(post_save, sender=Circle)
+def circle_properties(sender, instance, created=False, **kwargs):
+    """
+    When a group is created, calculate & save it's properties
+    """
+    if created:
+        circle_properties_update(instance)
