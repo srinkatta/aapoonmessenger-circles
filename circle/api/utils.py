@@ -47,11 +47,9 @@ def get_all_children(circle, include_self=True):
 def logged_user_info(request) -> dict:
     return {
         "id": request.user_id,
-        # "first_name": request.user_id,
-        "first_name": "Ali",  # request.last_name,
-        "last_name": "khan",  # request.last_name,
-        "jid": "test1223",  # request.last_name,
-        # "jid": request.jid,
+        "first_name": request.last_name,
+        "last_name": request.last_name,
+        "jid": request.jid,
     }
 
 
@@ -90,6 +88,7 @@ def get_gensis_circle_id(instance):
 
 
 def get_hierarchy_status(circle):  # Todo : refactor the function
+    # TODO: Praveen fix this
     if not circle.parent:
         user_service = User()
         user = user_service.details(user_id=circle.owner_id)

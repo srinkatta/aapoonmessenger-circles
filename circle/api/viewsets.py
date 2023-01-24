@@ -476,7 +476,7 @@ class HierarchyTransferAPIView(APIView):
     def post(self, request):
         circle_id = request.data["circle_id"]
         to_user = request.data["to_user"]
-        user = User.objects.get(id=to_user)  # TODO: Fix this
+        user = User.objects.get(id=to_user)  # TODO: Praveen Fix this
         circle = Circle.objects.filter(id=circle_id)
 
         if circle[0].parent is None:
