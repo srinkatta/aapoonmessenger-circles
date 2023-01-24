@@ -20,7 +20,12 @@ from circle.api.serializers import (
     CirclePermissionSerializer,
     CircleListSerializer,
 )
-from circle.api.utils import get_all_children, get_level, logged_user_info
+from circle.api.utils import (
+    get_all_children,
+    get_level,
+    logged_user_info,
+    circle_properties_update,
+)
 from circle.helpers.ejjaberd import (
     create_xmpp_room,
     destroy_room,
@@ -70,6 +75,7 @@ class CircleViewSet(BaseCircleViewSet):
     permission_classes = (Authenticate,)
 
     def get_serializer_class(self):
+        print(self.request.method)
         if self.request.method == "GET":
             return CircleListSerializer
         else:
@@ -118,7 +124,7 @@ class CircleViewSet(BaseCircleViewSet):
 
         for admin in admins:
             if not CircleSubscriberRole.objects.filter(user_id=admin, circle=parent):
-                role = CircleRole.objects.get(name="Default Admin")
+                role = CircleRole.objects.get(role=CircleRole.DEFAULT_ADMIN)
                 # TODO: test
                 user_service = User()
                 user = user_service.details(user_id=admin)
@@ -137,7 +143,7 @@ class CircleViewSet(BaseCircleViewSet):
         for circle in parent_circles:
             parent = Circle.objects.get(id=circle.id)
 
-            role = CircleRole.objects.get(name="Admin")
+            role = CircleRole.objects.get(role=CircleRole.ADMIN)
             super_admins = CircleSubscriberRole.objects.filter(
                 role=role, circle=parent
             ).values_list("user_id", flat=True)
@@ -180,7 +186,7 @@ class CircleViewSet(BaseCircleViewSet):
             create_xmpp_room(circle)
 
             # Add Owner to circle and add to xmpp_room
-            role = CircleRole.objects.get(role=10)
+            role = CircleRole.objects.get(role=CircleRole.ADMIN)
             user_info = logged_user_info(request)
             self.circle_add_user(circle, user_info, role)
 
@@ -197,21 +203,28 @@ class CircleViewSet(BaseCircleViewSet):
             create_xmpp_room(circle)
 
             # Add Owner to circle and add to xmpp_room
-            role = CircleRole.objects.get(role=10)
+            role = CircleRole.objects.get(role=CircleRole.ADMIN)
             user_info = logged_user_info(request)
             self.circle_add_user(circle, user_info, role)
 
         return Response(serializer.data)
+
+    def retrieve(self, request, *args, **kwargs):
+        circle = self.get_object()
+        serializer = CircleSerializer(circle, context={"request": request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def destroy(self, request, pk=None, *args, **kwargs):
         try:
             circle = self.get_object()
             room_id = circle.room_id
         except Circle.DoesNotExist:
-            return Response(status=400)
+            return Response(status=status.HTTP_404_NOT_FOUND)
         circle.delete()
         destroy_room(room_id)
-        return Response({"data": "Circle Deleted Successfully"}, status=200)
+        return Response(
+            {"data": "Circle Deleted Successfully"}, status=status.HTTP_200_OK
+        )
 
     @extend_schema(
         parameters=[
@@ -328,6 +341,15 @@ class CircleViewSet(BaseCircleViewSet):
         serializer = CircleHierarchySerializer(circles, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @action(
+        detail=True,
+        methods=["GET"],
+    )
+    def info(self, request, pk=None):
+        circle = self.get_object()
+        serializer = CircleSerializer(circle, context={"request": request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
 
 class CircleRoleViewSet(BaseCircleViewSet):
     """
@@ -426,11 +448,11 @@ class TopicViewSet(viewsets.ModelViewSet):
 
 
 def transfer_hierarchy(circle, user):
-    role = CircleRole.objects.get(name="Chief Admin")
+    role = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
     chief_admin = CircleSubscriberRole.objects.filter(circle=circle, role=role)
     chief_admin.update(
         role__name="Moderator"
-    )  # Todo : For now after transfer cheif admin becomes moderator
+    )  # Todo : For now after transfer chief admin becomes moderator
 
     circle_role = CircleSubscriberRole.objects.filter(user_id=user["id"], circle=circle)
     if not circle_role:
@@ -454,7 +476,7 @@ class HierarchyTransferAPIView(APIView):
     def post(self, request):
         circle_id = request.data["circle_id"]
         to_user = request.data["to_user"]
-        user = User.objects.get(id=to_user)
+        user = User.objects.get(id=to_user)  # TODO: Fix this
         circle = Circle.objects.filter(id=circle_id)
 
         if circle[0].parent is None:
