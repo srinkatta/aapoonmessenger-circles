@@ -10,7 +10,7 @@ from circle.api.direct_message.viewsets import (
     XMPPMonthlyChatViewSet,
 )
 
-from circle.api.media.viewsets import (
+from circle.api.media_views.viewsets import (
     GroupImageUploadViewSet,
     ChatImageUploadViewSet,
     ChatVideoUploadViewSet,
