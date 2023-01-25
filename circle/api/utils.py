@@ -1,4 +1,5 @@
-from circle.models import Circle
+from circle.models import Circle, CircleSubscriberRole
+from circle.services.user import User
 
 
 def get_level(circle):
@@ -46,7 +47,7 @@ def get_all_children(circle, include_self=True):
 def logged_user_info(request) -> dict:
     return {
         "id": request.user_id,
-        "first_name": request.user_id,
+        "first_name": request.last_name,
         "last_name": request.last_name,
         "jid": request.jid,
     }
@@ -86,16 +87,16 @@ def get_gensis_circle_id(instance):
         return instance.id
 
 
-def get_hierarchy_status(request, group):  # Todo : refactor the function
-    if group.parent is None:
-        user_info = logged_user_info(request)
-        # admin = group.groupusers.filter(users_id=tenantuser.id)
-        # cheif_admin = admin[0].role if admin else ""
-        childrens = get_all_children(group, include_self=True)
+def get_hierarchy_status(circle):  # Todo : refactor the function
+    # TODO: Praveen fix this
+    if not circle.parent:
+        user_service = User()
+        user = user_service.details(user_id=circle.owner_id)
+        childrens = get_all_children(circle, include_self=True)
 
         if len(childrens) >= 1:
             for children in childrens:
-                child = children.groupusers.filter(users_id=tenantuser.id)
+                child = children.groupusers.filter(users_id=user["id"])
                 tuser_role = child[0].role if child else ""
                 tenantuser_role = [
                     True if tuser_role == 10 and cheif_admin == 10 else False
@@ -103,16 +104,16 @@ def get_hierarchy_status(request, group):  # Todo : refactor the function
             if False in tenantuser_role:
                 hierarchy = [
                     True
-                    if cheif_admin == 10 and children.created_by == tenantuser
+                    if cheif_admin == 10 and children.owner_id == tenantuser
                     else False
                     for children in childrens
                 ]
                 for children in childrens:
-                    if children.created_by == group.created_by:
+                    if children.owner_id == circle.owner_id:
                         if False in hierarchy:
                             return False
                         return True
-                    if children.created_by != group.created_by:
+                    if children.owner_id != circle.owner_id:
                         if False in hierarchy:
                             return False
                         return True
@@ -121,7 +122,7 @@ def get_hierarchy_status(request, group):  # Todo : refactor the function
             return True
         return False
     parents = (
-        Groups.objects.filter(pk=group.parentId.pk) | group.parentId.get_parentGroups()
+        Circle.objects.filter(pk=group.parentId.pk) | group.parentId.get_parentGroups()
     )
     if parents:
         root_parent = parents[0]
@@ -137,17 +138,16 @@ def get_hierarchy_status(request, group):  # Todo : refactor the function
         return False
 
 
-def update_parent_hierarchy(parent_group):
+def update_parent_hierarchy(parent):
     if parent:
-        # parent.hierarchy = get_hierarchy_status(parent)
-        parent.subcircle_count = get_sub_circle_count(parent)
+        parent.sub_circle_count = get_sub_circle_count(parent)
         parent.total_children_count = get_total_count(parent)
         parent.save()
 
 
-def circle_properties_update(request, instance):
+def circle_properties_update(instance):
     instance.gensis_circle_id = get_gensis_circle_id(instance)
-    instance.hierarchy = get_hierarchy_status(request, instance)
+    # instance.hierarchy = get_hierarchy_status(instance)
     instance.subcircle_count = get_sub_circle_count(instance)
     instance.total_children_count = get_total_count(instance)
     instance.circle_users_count = get_circle_users_count(instance)
