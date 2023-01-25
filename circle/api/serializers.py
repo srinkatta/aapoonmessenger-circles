@@ -517,3 +517,8 @@ class CircleHierarchySerializer(CircleListSerializer):
     def get_sub_circle_count(self, circle):
         circles = Circle.objects.filter(parent=circle.id)
         return circles.count()
+
+
+class HierarchyTransferSerializer(serializers.Serializer):
+    to_user = serializers.CharField(required=True)
+    circle_id = serializers.CharField(required=True)

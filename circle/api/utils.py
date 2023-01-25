@@ -22,7 +22,7 @@ def get_maximum_level(circle, count):
 
 def get_all_children(circle, include_self=True):
     query = f"""
-        with recursive group_hierarchy (id, name, parent) as
+        with recursive group_hierarchy (id, name, parent_id) as
         (
           select     id,
                      name,
@@ -88,20 +88,22 @@ def get_gensis_circle_id(instance):
 
 
 def get_hierarchy_status(circle):  # Todo : refactor the function
-    # TODO: Praveen fix this
     if not circle.parent:
         user_service = User()
         user = user_service.details(user_id=circle.owner_id)
+
+        # Todo : Get logged in user & based on logged user get hierarchy
+
         childrens = get_all_children(circle, include_self=True)
 
         if len(childrens) >= 1:
             for children in childrens:
-                child = children.groupusers.filter(users_id=user["id"])
-                tuser_role = child[0].role if child else ""
-                tenantuser_role = [
-                    True if tuser_role == 10 and cheif_admin == 10 else False
+                child = CircleSubscriberRole.objects.filter(users_id=user["id"], circle=children)
+                child_role = child[0].role if child else ""
+                user_role = [
+                    True if child_role == "" and cheif_admin == 10 else False
                 ]
-            if False in tenantuser_role:
+            if False in user_role:
                 hierarchy = [
                     True
                     if cheif_admin == 10 and children.owner_id == tenantuser
@@ -152,4 +154,4 @@ def circle_properties_update(instance):
     instance.total_children_count = get_total_count(instance)
     instance.circle_users_count = get_circle_users_count(instance)
     instance.save()
-    update_parent_hierarchy(instance.parent)
+    update_parent_hierarchy(instance.parent)   # parent id

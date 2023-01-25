@@ -19,6 +19,7 @@ from circle.api.serializers import (
     TopicSerializer,
     CirclePermissionSerializer,
     CircleListSerializer,
+    HierarchyTransferSerializer,
 )
 from circle.api.utils import (
     get_all_children,
@@ -186,7 +187,7 @@ class CircleViewSet(BaseCircleViewSet):
             create_xmpp_room(circle)
 
             # Add Owner to circle and add to xmpp_room
-            role = CircleRole.objects.get(role=CircleRole.ADMIN)
+            role = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
             user_info = logged_user_info(request)
             self.circle_add_user(circle, user_info, role)
 
@@ -448,17 +449,19 @@ class TopicViewSet(viewsets.ModelViewSet):
 
 
 def transfer_hierarchy(circle, user):
-    role = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
-    chief_admin = CircleSubscriberRole.objects.filter(circle=circle, role=role)
-    chief_admin.update(
-        role__name="Moderator"
-    )  # Todo : For now after transfer chief admin becomes moderator
 
-    circle_role = CircleSubscriberRole.objects.filter(user_id=user["id"], circle=circle)
+    role = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
+    moderator = CircleRole.objects.get(role=CircleRole.MODERATOR)
+
+    chief_admin = CircleSubscriberRole.objects.filter(circle=circle, role=role)
+    chief_admin.update(role=moderator)  # Todo : For now after transfer chief admin becomes moderator
+
+    circle_role = CircleSubscriberRole.objects.filter(user_id=user, circle=circle)
     if not circle_role:
         CircleSubscriberRole.objects.create(
-            user_id=user["id"],
-            role__name="Chief Admin",
+            user_id=user,
+            circle=circle,
+            role=role,
         )
 
     else:
@@ -472,17 +475,19 @@ def transfer_hierarchy(circle, user):
 
 class HierarchyTransferAPIView(APIView):
     permission_classes = (Authenticate,)
+    serializer_class = HierarchyTransferSerializer
 
     def post(self, request):
         circle_id = request.data["circle_id"]
         to_user = request.data["to_user"]
-        user = User.objects.get(id=to_user)  # TODO: Praveen Fix this
+        user_service = User()                              
+        user = user_service.details(user_id=to_user)
         circle = Circle.objects.filter(id=circle_id)
 
         if circle[0].parent is None:
             childrens = circle | get_all_children(circle[0], include_self=True)
             for children in childrens:
-                transfer_hierarchy(children, user)
+                transfer_hierarchy(children, user["id"])
         else:
             parents = (
                 Circle.objects.filter(id=circle[0].parent.id)
@@ -494,7 +499,7 @@ class HierarchyTransferAPIView(APIView):
                     root_parent, include_self=True
                 )
                 for children in childrens:
-                    transfer_hierarchy(children, user)
+                    transfer_hierarchy(children, user["id"])
 
         return Response({"data": "Hierarchy Transferred"}, status=200)
 
