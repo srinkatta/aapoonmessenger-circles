@@ -1,7 +1,7 @@
 from rest_flex_fields import FlexFieldsModelSerializer
 from rest_framework import serializers
 
-from circle.api.utils import get_all_children
+from circle.api.utils import get_all_children, get_maximum_level
 from circle.models import (
     AppBranding,
     Circle,
@@ -21,7 +21,12 @@ class BaseSerializer(FlexFieldsModelSerializer):
         return super().create(validated_data)
 
 
-class CircleListSerializer(BaseSerializer):
+class BaseCircleSerializer(BaseSerializer):
+    is_owner = serializers.SerializerMethodField()
+    is_admin = serializers.SerializerMethodField()
+    is_moderator = serializers.SerializerMethodField()
+    is_default_admin = serializers.SerializerMethodField()
+    is_user = serializers.SerializerMethodField()
     level = serializers.SerializerMethodField()
     created_by = serializers.SerializerMethodField()
     user_exit = serializers.SerializerMethodField()
@@ -35,11 +40,13 @@ class CircleListSerializer(BaseSerializer):
     pin_new_messages = serializers.SerializerMethodField()
     post_messages = serializers.SerializerMethodField()
     circle_moderation = serializers.SerializerMethodField()
-    total_count = serializers.SerializerMethodField()
+    # total_count = serializers.SerializerMethodField()
 
+    max_level = serializers.SerializerMethodField()
     circle_admins_count = serializers.SerializerMethodField()
+    circle_users_count = serializers.SerializerMethodField()
+    sub_circle_count = serializers.SerializerMethodField()
     circle_users = serializers.SerializerMethodField()
-
     archive_admin = serializers.SerializerMethodField()
     archive_moderator = serializers.SerializerMethodField()
     assign_moderator_in_sub_circles = serializers.SerializerMethodField()
@@ -56,15 +63,25 @@ class CircleListSerializer(BaseSerializer):
     post_level = serializers.SerializerMethodField()
     shuffle_circles = serializers.SerializerMethodField()
     user_join_permissions = serializers.SerializerMethodField()
-    sub_group_status = serializers.SerializerMethodField()
-    # topic = serializers.SerializerMethodField()
 
     class Meta:
         model = Circle
         fields = (
             "created_at",
             "updated_at",
-            "total_count",
+            "id",
+            "name",
+            "description",
+            "image",
+            "circle_type",
+            # "role",
+            "link",
+            "room_id",
+            "privacy",
+            "parent",
+            "circle_users",
+            "gensis_circle_id",
+            # "total_count",
             "circle_moderation",
             "post_messages",
             "pin_new_messages",
@@ -77,29 +94,85 @@ class CircleListSerializer(BaseSerializer):
             "change_circle_info",
             "user_exit",
             "created_by",
-            "total_children_count",
+            # "total_children_count",
             "sub_circle_count",
+            "circle_admins_count",
             "circle_users_count",
-            "hierarchy",
-            # "max_level",
+            "max_level",
             "level",
             "hierarchy",
-            "hierarchy",
-            "id",
-            "name",
-            "description",
-            "image",
-            "circle_type",
-            # "role",
-            "link",
-            "room_id",
-            "privacy",
-            "parent",
-            "gensis_circle_id",
+            "archive_admin",
+            "archive_moderator",
+            "assign_moderator_in_sub_circles",
+            "backup_circle",
+            "ban_users",
+            "delete_messages",
+            "delete_sub_circles",
+            "filter_members",
+            "link_expire_time",
+            "link_expired",
+            "mhl",
+            "pin_message_id",
+            "pin_message_text",
+            "user_join_permissions",
+            "post_level",
+            "shuffle_circles",
+            "topic",
+            "sub_circle_status",
+            "is_owner",
+            "is_admin",
+            "is_default_admin",
+            "is_moderator",
+            "is_user",
         )
         extra_kwargs = {
             "id": {"read_only": True},
         }
+
+    def get_is_owner(self, circle):
+        user_id = self.context["request"].user_id
+        circle_role = CircleSubscriberRole.objects.filter(
+            circle=circle, user_id=user_id
+        ).first()
+        if circle_role and circle_role.role.role == CircleRole.CHIEF_ADMIN:
+            return True
+        return False
+
+    def get_is_admin(self, circle):
+        user_id = self.context["request"].user_id
+        circle_role = CircleSubscriberRole.objects.filter(
+            circle=circle, user_id=user_id
+        ).first()
+        if circle_role and circle_role.role.role == CircleRole.ADMIN:
+            return True
+        return False
+
+    def get_is_default_admin(self, circle):
+        user_id = self.context["request"].user_id
+        circle_role = CircleSubscriberRole.objects.filter(
+            circle=circle, user_id=user_id
+        ).first()
+        if circle_role and circle_role.role.role == CircleRole.DEFAULT_ADMIN:
+            return True
+        return False
+
+    def get_is_moderator(self, circle):
+        user_id = self.context["request"].user_id
+        circle_role = CircleSubscriberRole.objects.filter(
+            circle=circle, user_id=user_id
+        ).first()
+        if circle_role and circle_role.role.role == CircleRole.MODERATOR:
+            return True
+        return False
+
+    def get_is_user(self, circle):
+        user_id = self.context["request"].user_id
+        circle_role = CircleSubscriberRole.objects.filter(
+            circle=circle, user_id=user_id
+        ).first()
+        if not circle_role:
+            return True
+        return False
 
     def get_created_by(self, circle):
         return circle.owner_id
@@ -114,12 +187,109 @@ class CircleListSerializer(BaseSerializer):
         return len(parents)
 
     def get_total_count(self, circle):
-        # total_count = get_all_children(group, include_self=False) | 0
-        return 0
+        total_count = get_all_children(circle, include_self=True)
+        return total_count.count()
+
+    def get_total_children_count(self, circle):
+        total_children_count = get_all_children(circle, include_self=False)
+        return total_children_count.count()
+
+    def get_sub_circle_count(self, circle):
+        sub_circles = Circle.objects.filter(parent=circle.id)
+        return sub_circles.count()
 
     def get_circle_moderation(self, circle):
         permission = circle.permissions.get()
         return permission.circle_moderation
+
+    def get_circle_users(self, circle):
+        circle_role = (
+            CircleSubscriberRole.objects.filter(circle=circle)
+            .values_list("user_id", flat=True)
+            .distinct()
+        )
+        circle_users = circle_role.exclude(role__role=CircleRole.DEFAULT_ADMIN)
+        return circle_users
+
+    def get_max_level(self, circle, count=0):
+        return get_maximum_level(circle, count)
+
+    def get_circle_users_count(self, circle):
+        circle_users_count = self.get_circle_users(circle)
+        return circle_users_count.count()
+
+    def get_circle_admins_count(self, circle):
+        circle_admins = (
+            CircleSubscriberRole.objects.filter(circle=circle)
+            .values_list("user_id", flat=True)
+            .distinct()
+        )
+        admins = circle_admins.exclude(role__name="Moderator")
+        return admins.count()
+
+    def get_archive_admin(self, circle):
+        permission = circle.permissions.get()
+        return permission.archive_admin
+
+    def get_archive_moderator(self, circle):
+        permission = circle.permissions.get()
+        return permission.archive_moderator
+
+    def get_assign_moderator_in_sub_circles(self, circle):
+        permission = circle.permissions.get()
+        return permission.assign_moderator_in_sub_circles
+
+    def get_user_join_permissions(self, circle):
+        permission = circle.permissions.get()
+        return permission.user_join_permissions
+
+    def get_backup_circle(self, circle):
+        permission = circle.permissions.get()
+        return permission.backup_circle
+
+    def get_ban_users(self, circle):
+        permission = circle.permissions.get()
+        return permission.ban_users
+
+    def get_delete_messages(self, circle):
+        permission = circle.permissions.get()
+        return permission.delete_messages
+
+    def get_delete_sub_circles(self, circle):
+        permission = circle.permissions.get()
+        return permission.delete_sub_circles
+
+    def get_filter_members(self, circle):
+        permission = circle.permissions.get()
+        return permission.filter_members
+
+    def get_link_expire_time(self, circle):
+        permission = circle.permissions.get()
+        return permission.link_expire_time
+
+    def get_link_expired(self, circle):
+        permission = circle.permissions.get()
+        return permission.link_expired
+
+    def get_mhl(self, circle):
+        permission = circle.permissions.get()
+        return permission.mhl
+
+    def get_pin_message_text(self, circle):
+        permission = circle.permissions.get()
+        return permission.pin_message_text
+
+    def get_pin_message_id(self, circle):
+        permission = circle.permissions.get()
+        return permission.pin_message_id
+
+    def get_shuffle_circles(self, circle):
+        permission = circle.permissions.get()
+        return permission.shuffle_circles
+
+    def get_post_level(self, circle):
+        permission = circle.permissions.get()
+        return permission.post_level
 
     def get_post_messages(self, circle):
         permission = circle.permissions.get()
@@ -162,7 +332,43 @@ class CircleListSerializer(BaseSerializer):
         return permission.change_circle_info
 
 
-class CircleSerializer(BaseSerializer):
+class CircleListSerializer(BaseCircleSerializer):
+    class Meta:
+        model = Circle
+        fields = (
+            "id",
+            "name",
+            "description",
+            "image",
+            "circle_type",
+            "link",
+            "room_id",
+            "privacy",
+            "parent",
+            "gensis_circle_id",
+            "hierarchy",
+            "level",
+            "user_exit",
+            "change_circle_info",
+            "invite_users_via_link",
+            "circle_privacy_change",
+            "add_delete_user",
+            "add_delete_other_admins",
+            "add_delete_moderator",
+            "create_sub_circles",
+            "pin_new_messages",
+            "post_messages",
+            "circle_moderation",
+            "sub_circle_count",
+            "created_by",
+            "circle_users_count",
+        )
+        extra_kwargs = {
+            "id": {"read_only": True},
+        }
+
+
+class CircleSerializer(BaseCircleSerializer):
     class Meta:
         model = Circle
         fields = "__all__"
@@ -243,7 +449,7 @@ class TopicSerializer(FlexFieldsModelSerializer):
         }
 
 
-class CircleHierarchySerializer(FlexFieldsModelSerializer):
+class CircleHierarchySerializer(CircleListSerializer):
     sub_circles = serializers.SerializerMethodField()
     level = serializers.SerializerMethodField()
     gensis_circle_id = serializers.SerializerMethodField()
@@ -262,6 +468,45 @@ class CircleHierarchySerializer(FlexFieldsModelSerializer):
             "max_level",
             "sub_circles",
             "room_id",
+            "privacy",
+            "parent",
+            "gensis_circle_id",
+            "circle_moderation",
+            "post_messages",
+            "pin_new_messages",
+            "create_sub_circles",
+            "add_delete_moderator",
+            "add_delete_other_admins",
+            "add_delete_user",
+            "circle_privacy_change",
+            "invite_users_via_link",
+            "change_circle_info",
+            "user_exit",
+            "created_by",
+            "sub_circle_count",
+            "circle_admins_count",
+            "circle_users_count",
+            "max_level",
+            "level",
+            "hierarchy",
+            "archive_admin",
+            "archive_moderator",
+            "assign_moderator_in_sub_circles",
+            "backup_circle",
+            "ban_users",
+            "delete_messages",
+            "delete_sub_circles",
+            "filter_members",
+            "link_expire_time",
+            "link_expired",
+            "mhl",
+            "pin_message_id",
+            "pin_message_text",
+            "user_join_permissions",
+            "post_level",
+            "shuffle_circles",
+            "topic",
+            "sub_circle_status",
         )
 
     def get_sub_circles(self, circle):

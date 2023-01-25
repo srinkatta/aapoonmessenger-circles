@@ -9,6 +9,7 @@ from circle.api.direct_message.viewsets import (
     XMPPMessageViewSet,
     XMPPMonthlyChatViewSet,
 )
+
 from circle.api.media.viewsets import (
     GroupImageUploadViewSet,
     ChatImageUploadViewSet,
@@ -26,6 +27,8 @@ from circle.api.viewsets import (
     SubscriptionPlanViewSet,
     TopicViewSet,
     CirclePermissionViewSet,
+    HierarchyDeleteAPIView,
+    HierarchyTransferAPIView,
 )
 
 router = routers.SimpleRouter()
@@ -86,4 +89,13 @@ urlpatterns = [
         name="xmpp_chat",
     ),
     path(r"delete_chat/", XMPPDeleteDMViewSet.as_view(), name="delete_chat"),
+    # hierarchy
+    path(
+        r"hierarchy_delete/", HierarchyDeleteAPIView.as_view(), name="hierarchy_delete"
+    ),
+    path(
+        r"hierarchy_transfer/",
+        HierarchyTransferAPIView.as_view(),
+        name="hierarchy_transfer",
+    ),
 ]

@@ -82,10 +82,10 @@ class Circle(BaseTimeStampedModel):
 
 
 class CircleRole(BaseTimeStampedModel):
-    DEFAULT_ADMIN = 0
-    CHIEF_ADMIN = 10
-    ADMIN = 20
-    MODERATOR = 30
+    DEFAULT_ADMIN = "Default Admin"
+    CHIEF_ADMIN = "Chief Admin"
+    ADMIN = "Admin"
+    MODERATOR = "Moderator"
     CIRCLE_ROLE_CHOICES = [
         (DEFAULT_ADMIN, "Default Admin"),
         (CHIEF_ADMIN, "Chief Admin"),
