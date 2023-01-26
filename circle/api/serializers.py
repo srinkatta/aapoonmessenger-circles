@@ -377,6 +377,19 @@ class CircleSerializer(BaseCircleSerializer):
         }
 
 
+class CircleUpdateSerializer(BaseCircleSerializer):
+    circle_users = serializers.ListField(required=False)
+    user_ids = serializers.ListField(required=False)
+    leave = serializers.BooleanField(default=False)
+
+    class Meta:
+        model = Circle
+        fields = "__all__"
+        extra_kwargs = {
+            "id": {"read_only": True},
+        }
+
+
 class CircleRoleSerializer(FlexFieldsModelSerializer):
     class Meta:
         model = CircleRole

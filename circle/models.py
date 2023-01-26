@@ -65,7 +65,7 @@ class Circle(BaseTimeStampedModel):
     topic = models.ManyToManyField(Topic, blank=True)
 
     def __str__(self):
-        return f"{self.name}"
+        return f"ID: {self.id}, Name: {self.name}"
 
     def set_sites(self, value):
         self.sites = json.dumps(value)
