@@ -16,6 +16,9 @@ class User:
     def __init__(self):
         self.base_url = settings.USER_MICROSERVICE_URL
         self.user_detail_service_url = f"{self.base_url}api/users/user_details/"
+        self.user_detail_phone_service_url = (
+            f"{self.base_url}api/users/user_details/phone/"
+        )
         self.headers = {"Authorization": settings.USER_MICROSERVICE_API_KEY}
 
     def details(self, user_id: int = None, user_jid: int | uuid.UUID = None) -> Dict:  # type: ignore
@@ -24,6 +27,22 @@ class User:
         try:
             response: Response = requests.post(
                 self.user_detail_service_url,
+                json=request_data,
+                headers=self.headers,
+            )
+            response.raise_for_status()
+            user_detail = self._prepare_response_body(response)
+        except (requests.exceptions.RequestException, requests.exceptions.HTTPError):
+            user_detail = {}
+        finally:
+            return user_detail
+
+    def get_details_from_phone(self, phone_number: str = "") -> Dict:
+        request_data: dict = {"phone_number": phone_number}
+        user_detail = {}
+        try:
+            response: Response = requests.post(
+                self.user_detail_phone_service_url,
                 json=request_data,
                 headers=self.headers,
             )
