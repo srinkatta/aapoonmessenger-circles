@@ -92,7 +92,7 @@ class CircleRole(BaseTimeStampedModel):
         (CHIEF_ADMIN, "Chief Admin"),
         (ADMIN, "Admin"),
         (MODERATOR, "Moderator"),
-        (MODERATOR, "Member"),
+        (MEMBER, "Member"),
     ]
 
     name = models.CharField(max_length=255)
