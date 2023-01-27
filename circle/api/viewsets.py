@@ -108,8 +108,8 @@ class CircleViewSet(BaseCircleViewSet):
             self.create_parent_circle(**data)
 
     def circle_add_user(self, circle, user, role: CircleRole | int):
-        if role == 40:
-            member_xmpp_room_subscribe(user_jid=user["jid"], room_id=circle.room_id)
+        # if role == 40:
+        #     member_xmpp_room_subscribe(user_jid=user["jid"], room_id=circle.room_id)
         if not role == 40 and not CircleSubscriberRole.objects.filter(
             user_id=user["id"], circle=circle
         ):
@@ -262,7 +262,7 @@ class CircleViewSet(BaseCircleViewSet):
                 user = user_service.get_details_from_phone(phone_number=connected)
 
                 if is_user:
-                    role = 40
+                    role = CircleRole.objects.get(role=CircleRole.MEMBER)
                     self.circle_add_user(circle, user, role=role)
                 elif is_default_admin:
                     role = CircleRole.objects.get(role=CircleRole.DEFAULT_ADMIN)
