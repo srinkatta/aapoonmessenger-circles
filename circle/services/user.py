@@ -21,7 +21,7 @@ class User:
         )
         self.headers = {"Authorization": settings.USER_MICROSERVICE_API_KEY}
 
-    def details(self, user_id: int = None, user_jid: int | uuid.UUID = None) -> Dict:  # type: ignore
+    def details(self, user_id: int = None, user_jid=None) -> Dict:  # type: ignore
         request_data: dict = self._prepare_request(user_id, user_jid)
         user_detail = {}
         try:
