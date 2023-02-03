@@ -65,7 +65,7 @@ class Circle(BaseTimeStampedModel):
     topic = models.ManyToManyField(Topic, blank=True)
 
     def __str__(self):
-        return f"{self.name}"
+        return f"ID: {self.id}, Name: {self.name}"
 
     def set_sites(self, value):
         self.sites = json.dumps(value)
@@ -86,11 +86,13 @@ class CircleRole(BaseTimeStampedModel):
     CHIEF_ADMIN = "Chief Admin"
     ADMIN = "Admin"
     MODERATOR = "Moderator"
+    MEMBER = "Member"
     CIRCLE_ROLE_CHOICES = [
         (DEFAULT_ADMIN, "Default Admin"),
         (CHIEF_ADMIN, "Chief Admin"),
         (ADMIN, "Admin"),
         (MODERATOR, "Moderator"),
+        (MEMBER, "Member"),
     ]
 
     name = models.CharField(max_length=255)
