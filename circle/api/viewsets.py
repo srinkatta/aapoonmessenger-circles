@@ -22,6 +22,7 @@ from circle.api.serializers import (
     CirclePermissionSerializer,
     CircleListSerializer,
     CircleUpdateSerializer,
+    CircleSubscriberRoleInputSerializer,
 )
 from circle.api.utils import (
     get_all_children,
@@ -441,9 +442,15 @@ class CirclePermissionViewSet(BaseCircleViewSet):
 
     serializer_class = CirclePermissionSerializer
     permission_classes = (Authenticate,)
+    http_method_names = ("get", "post")
 
     def get_queryset(self):
         return CirclePermission.objects.filter(circle=self.circle_id)
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset().first()
+        serializer = self.get_serializer(queryset)
+        return Response(serializer.data)
 
 
 class CircleSubscriberRoleViewSet(BaseCircleViewSet):
@@ -451,11 +458,25 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
     Viewset to create, list, update and delete circle subscriber roles.
     """
 
-    serializer_class = CircleSubscriberRoleSerializer
     permission_classes = (Authenticate,)
+    http_method_names = ("get", "post")
+
+    def get_serializer_class(self):
+        if self.request.method == "GET":
+            return CircleSubscriberRoleSerializer
+        else:
+            return CircleSubscriberRoleInputSerializer
 
     def get_queryset(self):
         return CircleSubscriberRole.objects.filter(circle=self.circle_id)
+
+    def create(self, request, *args, **kwargs):
+        # TODO: remove user by User_id
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        record = serializer.save()
+        response = CircleSubscriberRoleSerializer(record).data
+        return Response(response, status=status.HTTP_201_CREATED)
 
 
 class SubscriptionPlanViewSet(viewsets.ModelViewSet):

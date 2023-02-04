@@ -9,6 +9,7 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 
 from circle.api.direct_message.serializers import (
     ArchiveChatSerializer,
@@ -163,7 +164,7 @@ class MuteMessageView(APIView):
             {"data": "Field missing in Query params."}, status=status.HTTP_200_OK
         )
 
-    def post(self, request, domain):
+    def post(self, request):
         data = request.data
         sender = data.get("sender_id")
         sender = str(sender) + "@" + settings.XMPP_HOST
@@ -259,6 +260,46 @@ class XMPPChatViewSet(viewsets.ViewSet, CustomPagination):
 
         return []
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="type",
+                description="type",
+                required=False,
+                type=str,
+            ),
+            OpenApiParameter(
+                name="conference_id",
+                description="conference_id",
+                required=False,
+                type=str,
+            ),
+            OpenApiParameter(
+                name="peer",
+                description="Peer",
+                required=False,
+                type=str,
+            ),
+            OpenApiParameter(
+                name="username",
+                description="username",
+                required=False,
+                type=str,
+            ),
+            OpenApiParameter(
+                name="length",
+                description="length",
+                required=False,
+                type=str,
+            ),
+            OpenApiParameter(
+                name="timestamp",
+                description="timestamp",
+                required=False,
+                type=str,
+            ),
+        ],
+    )
     def list(self, request):
         # Timestamp and Length
         timestamp = request.query_params.get("timestamp")
@@ -343,6 +384,28 @@ class XMPPMonthlyChatViewSet(viewsets.ViewSet, CustomPagination):
 
         return archive_sort
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="username",
+                description="username",
+                required=True,
+                type=str,
+            ),
+            OpenApiParameter(
+                name="length",
+                description="length",
+                required=False,
+                type=str,
+            ),
+            OpenApiParameter(
+                name="offset",
+                description="offset",
+                required=False,
+                type=int,
+            ),
+        ],
+    )
     def list(self, request):
         username = request.query_params.get("username")
         length = request.query_params.get("length")
@@ -363,7 +426,6 @@ class XMPPMonthlyChatViewSet(viewsets.ViewSet, CustomPagination):
             + ";"
         )
         try:
-
             archive_data = self.fetch_archive_data(query=q, username=username)
             archive_chat = self.fetch_archive_chat(archive_data)
 
