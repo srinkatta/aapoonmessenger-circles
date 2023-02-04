@@ -9,7 +9,6 @@ from circle.api.direct_message.viewsets import (
     XMPPMessageViewSet,
     XMPPMonthlyChatViewSet,
 )
-
 from circle.api.media_views.viewsets import (
     GroupImageUploadViewSet,
     ChatImageUploadViewSet,
@@ -19,7 +18,6 @@ from circle.api.media_views.viewsets import (
 )
 from circle.api.viewsets import (
     AppBrandingViewSet,
-    CircleRoleViewSet,
     CircleSubscriberRoleViewSet,
     CircleViewSet,
     CustomerViewSet,
@@ -33,7 +31,6 @@ from circle.api.viewsets import (
 
 router = routers.SimpleRouter()
 router.register(r"circle", CircleViewSet, basename="circle"),
-router.register(r"circle/role", CircleRoleViewSet, basename="circle-role")
 router.register(
     r"circle/(?P<circle_id>\d+)/assign-role",
     CircleSubscriberRoleViewSet,

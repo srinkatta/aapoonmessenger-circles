@@ -1,3 +1,5 @@
+from enum import Enum
+
 from rest_flex_fields import FlexFieldsModelSerializer
 from rest_framework import serializers
 
@@ -399,13 +401,44 @@ class CircleRoleSerializer(FlexFieldsModelSerializer):
         }
 
 
+class CircleSubscriberRoleInputSerializer(serializers.Serializer):
+    role = serializers.IntegerField()
+    user_id = serializers.CharField()
+
+    def validate(self, attrs):
+        role_dict = {
+            0: "Default Admin",
+            10: "Chief Admin",
+            20: "Admin",
+            30: "Moderator",
+            40: "Member",
+        }
+
+        role = attrs["role"]
+        try:
+            role = CircleRole.objects.get(role=role_dict[role])
+        except CircleRole.DoesNotExist:
+            raise serializers.ValidationError("Role does not exist")
+        attrs["role"] = role
+        attrs["circle_id"] = self.context["circle_id"]
+        return attrs
+
+    def create(self, validated_data):
+        return CircleSubscriberRole.objects.create(**validated_data)
+
+
 class CircleSubscriberRoleSerializer(FlexFieldsModelSerializer):
+    role = serializers.SerializerMethodField()
+
     class Meta:
         model = CircleSubscriberRole
         fields = "__all__"
         extra_kwargs = {
             "id": {"read_only": True},
         }
+
+    def get_role(self, instance):
+        return instance.role.role
 
 
 class CirclePermissionSerializer(FlexFieldsModelSerializer):
