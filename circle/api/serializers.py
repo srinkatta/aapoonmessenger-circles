@@ -1,5 +1,3 @@
-from enum import Enum
-
 from rest_flex_fields import FlexFieldsModelSerializer
 from rest_framework import serializers
 
@@ -15,6 +13,14 @@ from circle.models import (
     Topic,
     CirclePermission,
 )
+
+role_dict = {
+    0: "Default Admin",
+    10: "Chief Admin",
+    20: "Admin",
+    30: "Moderator",
+    40: "Member",
+}
 
 
 class BaseSerializer(FlexFieldsModelSerializer):
@@ -406,14 +412,6 @@ class CircleSubscriberRoleInputSerializer(serializers.Serializer):
     user_id = serializers.CharField()
 
     def validate(self, attrs):
-        role_dict = {
-            0: "Default Admin",
-            10: "Chief Admin",
-            20: "Admin",
-            30: "Moderator",
-            40: "Member",
-        }
-
         role = attrs["role"]
         try:
             role = CircleRole.objects.get(role=role_dict[role])

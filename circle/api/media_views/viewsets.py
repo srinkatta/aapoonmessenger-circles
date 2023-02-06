@@ -15,7 +15,7 @@ class GroupImageUploadViewSet(GenericViewSet):
     permission_classes = (Authenticate,)
 
     def list(self, request):
-        key = "group/%s/${filename}" % str(uuid.uuid1())
+        key = "%s/circle/${filename}" % request.jid
         serializer = self.serializer_class(
             key=key, content_type="image/png/jpeg/jpg/gif"
         )
@@ -27,7 +27,7 @@ class ChatImageUploadViewSet(GenericViewSet):
     permission_classes = (Authenticate,)
 
     def list(self, request):
-        key = "chat/images/%s/${filename}" % str(uuid.uuid1())
+        key = "%s/chat/images/${filename}" % request.jid
         serializer = self.serializer_class(
             key=key, content_type="image/png/jpeg/jpg/gif"
         )
@@ -39,7 +39,7 @@ class ChatVideoUploadViewSet(GenericViewSet):
     permission_classes = (Authenticate,)
 
     def list(self, request):
-        key = "chat/videos/%s/${filename}" % str(uuid.uuid1())
+        key = "%s/chat/videos/${filename}" % request.jid
         serializer = self.serializer_class(
             key=key, content_type="image/png/jpeg/jpg/gif"
         )
@@ -51,7 +51,7 @@ class ChatDocumentsUploadViewSet(GenericViewSet):
     permission_classes = (Authenticate,)
 
     def list(self, request):
-        key = "chat/documents/%s/${filename}" % str(uuid.uuid1())
+        key = "%s/chat/documents/${filename}" % request.jid
         serializer = self.serializer_class(
             key=key, content_type="image/png/jpeg/jpg/gif"
         )
@@ -63,7 +63,7 @@ class ChatAudioUploadViewSet(GenericViewSet):
     permission_classes = (Authenticate,)
 
     def list(self, request):
-        key = "chat/audios/%s/${filename}" % str(uuid.uuid1())
+        key = "%s/chat/audios/${filename}" % request.jid
         serializer = self.serializer_class(
             key=key, content_type="image/png/jpeg/jpg/gif"
         )

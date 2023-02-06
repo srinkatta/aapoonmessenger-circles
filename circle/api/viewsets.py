@@ -3,7 +3,8 @@ from typing import List
 from django.db.models import F, Func, Q, Value
 from django.db.models.functions import Lower
 from drf_spectacular.utils import OpenApiParameter, extend_schema
-from rest_framework import permissions, status, viewsets
+from loguru import logger
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
@@ -49,6 +50,14 @@ from circle.models import (
     CirclePermission,
 )
 from circle.services.user import User
+
+role_dict = {
+    0: "Default Admin",
+    10: "Chief Admin",
+    20: "Admin",
+    30: "Moderator",
+    40: "Member",
+}
 
 
 class BaseCircleViewSet(viewsets.ModelViewSet):
@@ -254,29 +263,20 @@ class CircleViewSet(BaseCircleViewSet):
         if circle_users:
             user_service = User()
             for circle_user in circle_users:
-                is_owner = circle_user.get("is_owner")
-                is_admin = circle_user.get("is_admin")
-                is_moderator = circle_user.get("is_moderator")
-                is_default_admin = circle_user.get("is_default_admin")
-                is_user = circle_user.get("is_user")
+                role = circle_user.get("role")
                 connected = circle_user.get("connected")
                 user = user_service.get_details_from_phone(phone_number=connected)
 
-                if is_user:
-                    role = CircleRole.objects.get(role=CircleRole.MEMBER)
+                try:
+                    logger.info("Adding new user to circle")
+                    role = CircleRole.objects.get(role=role_dict[role])
                     self.circle_add_user(circle, user, role=role)
-                elif is_default_admin:
-                    role = CircleRole.objects.get(role=CircleRole.DEFAULT_ADMIN)
-                    self.circle_add_user(circle, user, role=role)
-                elif is_moderator:
-                    role = CircleRole.objects.get(role=CircleRole.MODERATOR)
-                    self.circle_add_user(circle, user, role=role)
-                elif is_admin and not is_owner:
-                    role = CircleRole.objects.get(role=CircleRole.ADMIN)
-                    self.circle_add_user(circle, user, role=role)
-                elif is_owner:
-                    role = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
-                    self.circle_add_user(circle, user, role=role)
+                except CircleRole.DoesNotExist as exc:
+                    logger.error("Error while adding new user to circle")
+                    logger.exception(exc)
+                except Exception as exc:
+                    logger.error("Error while adding new user to circle")
+                    logger.exception(exc)
 
         # Delete User:
         leave = serializer.validated_data.get("leave")
