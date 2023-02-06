@@ -23,6 +23,8 @@ from circle.api.serializers import (
     CircleListSerializer,
     CircleUpdateSerializer,
     CircleSubscriberRoleInputSerializer,
+    HierarchyTransferSerializer,
+    HierarchyDeleteSerializer,
 )
 from circle.api.utils import (
     get_all_children,
@@ -156,7 +158,7 @@ class CircleViewSet(BaseCircleViewSet):
         for circle in parent_circles:
             parent = Circle.objects.get(id=circle.id)
 
-            role = CircleRole.objects.get(role=CircleRole.ADMIN)
+            role = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
             super_admins = CircleSubscriberRole.objects.filter(
                 role=role, circle=parent
             ).values_list("user_id", flat=True)
@@ -213,7 +215,7 @@ class CircleViewSet(BaseCircleViewSet):
             create_xmpp_room(circle)
 
             # Add Owner to circle and add to xmpp_room
-            role = CircleRole.objects.get(role=CircleRole.ADMIN)
+            role = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
             user_info = logged_user_info(request)
             self.circle_add_user(circle, user_info, role)
 
@@ -230,7 +232,7 @@ class CircleViewSet(BaseCircleViewSet):
             create_xmpp_room(circle)
 
             # Add Owner to circle and add to xmpp_room
-            role = CircleRole.objects.get(role=CircleRole.ADMIN)
+            role = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
             user_info = logged_user_info(request)
             self.circle_add_user(circle, user_info, role)
 
@@ -541,20 +543,21 @@ class TopicViewSet(viewsets.ModelViewSet):
 
 def transfer_hierarchy(circle, user):
     role = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
+    member = CircleRole.objects.get(role=CircleRole.MEMBER)
+
     chief_admin = CircleSubscriberRole.objects.filter(circle=circle, role=role)
-    chief_admin.update(
-        role__name="Moderator"
-    )  # Todo : For now after transfer chief admin becomes moderator
+    chief_admin.update(role=member)
 
     circle_role = CircleSubscriberRole.objects.filter(user_id=user["id"], circle=circle)
     if not circle_role:
         CircleSubscriberRole.objects.create(
             user_id=user["id"],
-            role__name="Chief Admin",
+            role=role,
+            circle=circle
         )
 
     else:
-        circle_role.role = "CHIEF ADMIN"
+        circle_role.role.role = role
         circle_role.save()
 
     # Update circle properties
@@ -564,11 +567,13 @@ def transfer_hierarchy(circle, user):
 
 class HierarchyTransferAPIView(APIView):
     permission_classes = (Authenticate,)
+    serializer_class = HierarchyTransferSerializer
 
     def post(self, request):
         circle_id = request.data["circle_id"]
         to_user = request.data["to_user"]
-        user = User.objects.get(id=to_user)  # TODO: Praveen Fix this
+        user_service = User()
+        user = user_service.details(user_id=to_user)
         circle = Circle.objects.filter(id=circle_id)
 
         if circle[0].parent is None:
@@ -593,6 +598,7 @@ class HierarchyTransferAPIView(APIView):
 
 class HierarchyDeleteAPIView(APIView):
     permission_classes = (Authenticate,)
+    serializer_class = HierarchyDeleteSerializer
 
     def post(self, request):
         circle_id = request.data["circle_id"]

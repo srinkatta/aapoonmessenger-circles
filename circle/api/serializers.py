@@ -48,7 +48,7 @@ class BaseCircleSerializer(BaseSerializer):
     circle_admins_count = serializers.SerializerMethodField()
     circle_users_count = serializers.SerializerMethodField()
     sub_circle_count = serializers.SerializerMethodField()
-    circle_users = serializers.SerializerMethodField()
+    # circle_users = serializers.SerializerMethodField()
     archive_admin = serializers.SerializerMethodField()
     archive_moderator = serializers.SerializerMethodField()
     assign_moderator_in_sub_circles = serializers.SerializerMethodField()
@@ -65,6 +65,7 @@ class BaseCircleSerializer(BaseSerializer):
     post_level = serializers.SerializerMethodField()
     shuffle_circles = serializers.SerializerMethodField()
     user_join_permissions = serializers.SerializerMethodField()
+    role = serializers.SerializerMethodField()
 
     class Meta:
         model = Circle
@@ -76,12 +77,12 @@ class BaseCircleSerializer(BaseSerializer):
             "description",
             "image",
             "circle_type",
-            # "role",
+            "role",
             "link",
             "room_id",
             "privacy",
             "parent",
-            "circle_users",
+            # "circle_users",
             "gensis_circle_id",
             # "total_count",
             "circle_moderation",
@@ -130,6 +131,24 @@ class BaseCircleSerializer(BaseSerializer):
         extra_kwargs = {
             "id": {"read_only": True},
         }
+
+    def get_role(self, circle):
+        user_id = self.context["request"].user_id
+        circle_role = CircleSubscriberRole.objects.filter(
+            circle=circle, user_id=user_id
+        ).first()
+        if circle_role:
+            role = circle_role.role.role
+            if role == "Default Admin":
+                return 0
+            if role == "Chief Admin":
+                return 10
+            if role == "Admin":
+                return 20
+            if role == "Moderator":
+                return 30
+            if role == "Member":
+                return 40
 
     def get_is_owner(self, circle):
         user_id = self.context["request"].user_id
@@ -347,6 +366,7 @@ class CircleListSerializer(BaseCircleSerializer):
             "room_id",
             "privacy",
             "parent",
+            "role",
             "gensis_circle_id",
             "hierarchy",
             "level",
@@ -563,3 +583,12 @@ class CircleHierarchySerializer(CircleListSerializer):
     def get_sub_circle_count(self, circle):
         circles = Circle.objects.filter(parent=circle.id)
         return circles.count()
+
+
+class HierarchyTransferSerializer(serializers.Serializer):
+    to_user = serializers.CharField(required=True)
+    circle_id = serializers.CharField(required=True)
+
+
+class HierarchyDeleteSerializer(serializers.Serializer):
+    circle_id = serializers.CharField(required=True)
