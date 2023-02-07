@@ -23,6 +23,7 @@ inflection==0.5.1
 isort==5.11.4
 jmespath==1.0.1
 jsonschema==4.17.3
+loguru==0.6.0
 mypy-extensions==0.4.3
 mysqlclient==2.1.1
 oauthlib==3.2.2
