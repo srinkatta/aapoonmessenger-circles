@@ -15,7 +15,9 @@ class GroupImageUploadViewSet(GenericViewSet):
     permission_classes = (Authenticate,)
 
     def list(self, request):
-        key = "%s/circle/${filename}" % request.jid
+        user_jid = request.jid
+        uuid_jid = user_jid.split("@")[0]
+        key = "%s/circle/${filename}" % uuid_jid
         serializer = self.serializer_class(
             key=key, content_type="image/png/jpeg/jpg/gif"
         )
@@ -27,7 +29,9 @@ class ChatImageUploadViewSet(GenericViewSet):
     permission_classes = (Authenticate,)
 
     def list(self, request):
-        key = "%s/chat/images/${filename}" % request.jid
+        user_jid = request.jid
+        uuid_jid = user_jid.split("@")[0]
+        key = "%s/chat/images/${filename}" % uuid_jid
         serializer = self.serializer_class(
             key=key, content_type="image/png/jpeg/jpg/gif"
         )
@@ -39,7 +43,9 @@ class ChatVideoUploadViewSet(GenericViewSet):
     permission_classes = (Authenticate,)
 
     def list(self, request):
-        key = "%s/chat/videos/${filename}" % request.jid
+        user_jid = request.jid
+        uuid_jid = user_jid.split("@")[0]
+        key = "%s/chat/videos/${filename}" % uuid_jid
         serializer = self.serializer_class(
             key=key, content_type="image/png/jpeg/jpg/gif"
         )
@@ -51,7 +57,9 @@ class ChatDocumentsUploadViewSet(GenericViewSet):
     permission_classes = (Authenticate,)
 
     def list(self, request):
-        key = "%s/chat/documents/${filename}" % request.jid
+        user_jid = request.jid
+        uuid_jid = user_jid.split("@")[0]
+        key = "%s/chat/documents/${filename}" % uuid_jid
         serializer = self.serializer_class(
             key=key, content_type="image/png/jpeg/jpg/gif"
         )
@@ -63,7 +71,9 @@ class ChatAudioUploadViewSet(GenericViewSet):
     permission_classes = (Authenticate,)
 
     def list(self, request):
-        key = "%s/chat/audios/${filename}" % request.jid
+        user_jid = request.jid
+        uuid_jid = user_jid.split("@")[0]
+        key = "%s/chat/audios/${filename}" % uuid_jid
         serializer = self.serializer_class(
             key=key, content_type="image/png/jpeg/jpg/gif"
         )
