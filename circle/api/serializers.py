@@ -440,7 +440,11 @@ class CircleSubscriberRoleInputSerializer(serializers.Serializer):
         except CircleRole.DoesNotExist:
             raise serializers.ValidationError("Role does not exist")
         attrs["role"] = role
-        # attrs["circle_id"] = self.context["circle_id"]
+        connected = attrs.get("connected", "")
+        user_id = attrs.get("user_id", "")
+
+        if not user_id and not connected:
+            raise serializers.ValidationError("user_id or connected field is required")
         return attrs
 
     def create(self, validated_data):

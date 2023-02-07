@@ -474,14 +474,6 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
         return CircleSubscriberRole.objects.filter(circle=self.circle_id)
 
     def create(self, request, *args, **kwargs):
-        connected = request.data.get("connected", "")
-        user_id = request.data.get("user_id", "")
-
-        if not user_id and not connected:
-            return Response(
-                {"Data": "user_id or connected field is required"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
 
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -490,6 +482,8 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
         role = validated_data.get("role")
 
         circle = Circle.objects.filter(id=request.data.get("circle")).first()
+        user_id = validated_data.get("user_id")
+        connected = validated_data.get("connected")
         user_service = User()
         if user_id:
             for user in user_id:
@@ -511,11 +505,11 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
             circle=circle, user_id=user["id"]
         )
         if not subscriber:
-            circle_role = CircleSubscriberRole.objects.create(
+            CircleSubscriberRole.objects.create(
                 circle=circle, user_id=user["id"], role=role
             )
-        if subscriber:
-            circle_role = CircleSubscriberRole.objects.filter(
+        else:
+            CircleSubscriberRole.objects.filter(
                 circle=circle, user_id=user["id"]
             ).update(role=role)
 
