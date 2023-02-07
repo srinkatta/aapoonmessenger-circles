@@ -23,7 +23,7 @@ def get_maximum_level(circle, count):
 
 def get_all_children(circle, include_self=True):
     query = f"""
-        with recursive group_hierarchy (id, name, parent) as
+        with recursive group_hierarchy (id, name, parent_id) as
         (
           select     id,
                      name,
