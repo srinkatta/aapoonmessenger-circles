@@ -422,8 +422,10 @@ class CircleRoleSerializer(FlexFieldsModelSerializer):
 
 
 class CircleSubscriberRoleInputSerializer(serializers.Serializer):
+    circle = serializers.CharField()
     role = serializers.IntegerField()
-    user_id = serializers.CharField()
+    user_id = serializers.ListField(required=False)
+    connected = serializers.ListField(required=False)
 
     def validate(self, attrs):
         role_dict = {
@@ -440,7 +442,7 @@ class CircleSubscriberRoleInputSerializer(serializers.Serializer):
         except CircleRole.DoesNotExist:
             raise serializers.ValidationError("Role does not exist")
         attrs["role"] = role
-        attrs["circle_id"] = self.context["circle_id"]
+        # attrs["circle_id"] = self.context["circle_id"]
         return attrs
 
     def create(self, validated_data):

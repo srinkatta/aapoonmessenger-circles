@@ -461,6 +461,7 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
     """
 
     permission_classes = (Authenticate,)
+    serializer_class = CircleSubscriberRoleInputSerializer
     http_method_names = ("get", "post")
 
     def get_serializer_class(self):
@@ -473,12 +474,50 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
         return CircleSubscriberRole.objects.filter(circle=self.circle_id)
 
     def create(self, request, *args, **kwargs):
-        # TODO: remove user by User_id
-        serializer = self.get_serializer(data=request.data)
+        connected = request.data.get("connected", "")
+        user_id = request.data.get("user_id", "")
+
+        if not user_id and not connected:
+            return Response(
+                {"Data": "user_id or connected field is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
-        record = serializer.save()
-        response = CircleSubscriberRoleSerializer(record).data
-        return Response(response, status=status.HTTP_201_CREATED)
+
+        validated_data = serializer.validated_data
+        role = validated_data.get("role")
+
+        circle = Circle.objects.filter(id=request.data.get("circle")).first()
+        user_service = User()
+        if user_id:
+            for user in user_id:
+                user = user_service.details(user_id=user)
+                self.subscribe_role_circle(circle, user, role)
+
+        if connected:
+            for conn in connected:
+                user = user_service.get_details_from_phone(phone_number=conn)
+                self.subscribe_role_circle(circle, user, role)
+
+        return Response(
+            {"Data": "User successfully added to circle"}, status=status.HTTP_200_OK
+        )
+
+    def subscribe_role_circle(self, circle, user, role):
+
+        subscriber = CircleSubscriberRole.objects.filter(
+            circle=circle, user_id=user["id"]
+        )
+        if not subscriber:
+            circle_role = CircleSubscriberRole.objects.create(
+                circle=circle, user_id=user["id"], role=role
+            )
+        if subscriber:
+            circle_role = CircleSubscriberRole.objects.filter(
+                circle=circle, user_id=user["id"]
+            ).update(role=role)
 
 
 class SubscriptionPlanViewSet(viewsets.ModelViewSet):
@@ -551,9 +590,7 @@ def transfer_hierarchy(circle, user):
     circle_role = CircleSubscriberRole.objects.filter(user_id=user["id"], circle=circle)
     if not circle_role:
         CircleSubscriberRole.objects.create(
-            user_id=user["id"],
-            role=role,
-            circle=circle
+            user_id=user["id"], role=role, circle=circle
         )
 
     else:
