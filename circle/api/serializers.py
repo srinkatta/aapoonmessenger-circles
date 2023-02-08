@@ -1,7 +1,14 @@
+from urllib.parse import urlparse
+
 from rest_flex_fields import FlexFieldsModelSerializer
 from rest_framework import serializers
 
-from circle.api.utils import get_all_children, get_maximum_level
+from circle.api.utils import (
+    get_all_children,
+    get_maximum_level,
+    s3_url_extract,
+    clear_bucket_from_path,
+)
 from circle.models import (
     AppBranding,
     Circle,
@@ -24,6 +31,19 @@ role_dict = {
 
 
 class BaseSerializer(FlexFieldsModelSerializer):
+    def cloudfront_cdn(self, logo):
+        parsed_url = urlparse(logo)
+        s3_url = s3_url_extract(logo)
+        key = clear_bucket_from_path(parsed_url.path)
+        logo = s3_url + key
+        return logo
+
+    def validate(self, attrs):
+        image = attrs.get("image")
+        if image:
+            attrs["image"] = self.cloudfront_cdn(image)
+        return attrs
+
     def create(self, validated_data):
         validated_data["owner_id"] = self.context["request"].user_id
         return super().create(validated_data)
@@ -511,6 +531,19 @@ class CustomFieldSerializer(FlexFieldsModelSerializer):
 
 
 class TopicSerializer(FlexFieldsModelSerializer):
+    def cloudfront_cdn(self, logo):
+        parsed_url = urlparse(logo)
+        s3_url = s3_url_extract(logo)
+        key = clear_bucket_from_path(parsed_url.path)
+        logo = s3_url + key
+        return logo
+
+    def validate(self, attrs):
+        image = attrs.get("image")
+        if image:
+            attrs["image"] = self.cloudfront_cdn(image)
+        return attrs
+
     class Meta:
         model = Topic
         fields = "__all__"
