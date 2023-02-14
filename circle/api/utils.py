@@ -98,7 +98,6 @@ def get_gensis_circle_id(instance):
 
 
 def get_hierarchy_status(circle, user_id):
-    breakpoint()
     if not circle.parent:
         admin = CircleSubscriberRole.objects.filter(circle=circle, user_id=user_id)
 

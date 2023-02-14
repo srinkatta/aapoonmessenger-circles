@@ -430,6 +430,10 @@ class CircleUpdateSerializer(BaseCircleSerializer):
         }
 
 
+class CircleLeaveSerializer(serializers.Serializer):
+    user_ids = serializers.ListField(required=False)
+
+
 class CircleRoleSerializer(FlexFieldsModelSerializer):
     class Meta:
         model = CircleRole
@@ -439,11 +443,10 @@ class CircleRoleSerializer(FlexFieldsModelSerializer):
         }
 
 
-class CircleSubscriberRoleInputSerializer(serializers.Serializer):
-    circle = serializers.CharField()
+class CircleAddUserInputSerializer(serializers.Serializer):
     role = serializers.IntegerField()
-    user_id = serializers.ListField(required=False)
-    connected = serializers.ListField(required=False)
+    user_id = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    connected = serializers.CharField(required=False, allow_null=True, allow_blank=True)
 
     def validate(self, attrs):
         role = attrs["role"]
@@ -461,6 +464,14 @@ class CircleSubscriberRoleInputSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         return CircleSubscriberRole.objects.create(**validated_data)
+
+
+class CircleSubscriberRoleInputSerializer(serializers.Serializer):
+    users = serializers.ListField(child=CircleAddUserInputSerializer())
+
+    def validate(self, attrs):
+        attrs["circle_id"] = self.context["circle_id"]
+        return attrs
 
 
 class CircleSubscriberRoleSerializer(FlexFieldsModelSerializer):
