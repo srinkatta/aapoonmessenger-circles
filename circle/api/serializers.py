@@ -21,14 +21,6 @@ from circle.models import (
     CirclePermission,
 )
 
-role_dict = {
-    0: "Default Admin",
-    10: "Chief Admin",
-    20: "Admin",
-    30: "Moderator",
-    40: "Member",
-}
-
 
 class BaseSerializer(FlexFieldsModelSerializer):
     def cloudfront_cdn(self, logo):
@@ -456,7 +448,7 @@ class CircleSubscriberRoleInputSerializer(serializers.Serializer):
     def validate(self, attrs):
         role = attrs["role"]
         try:
-            role = CircleRole.objects.get(role=role_dict[role])
+            role = CircleRole.objects.get(role=role)
         except CircleRole.DoesNotExist:
             raise serializers.ValidationError("Role does not exist")
         attrs["role"] = role
@@ -567,7 +559,6 @@ class CircleHierarchySerializer(CircleListSerializer):
             "parent",
             "sub_circle_count",
             "level",
-            "gensis_circle_id",
             "max_level",
             "sub_circles",
             "room_id",
@@ -620,6 +611,19 @@ class CircleHierarchySerializer(CircleListSerializer):
     def get_sub_circle_count(self, circle):
         circles = Circle.objects.filter(parent=circle.id)
         return circles.count()
+
+    def get_gensis_circle_id(self, circle):
+        if not circle.parent:
+            return circle.id
+        parents = (
+            Circle.objects.filter(pk=circle.parent.pk)
+            | circle.parent.get_parent_circles()
+        )
+        if parents:
+            root_parent = parents[0]
+            return root_parent.id
+        else:
+            return circle.id
 
 
 class HierarchyTransferSerializer(serializers.Serializer):

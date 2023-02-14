@@ -53,14 +53,6 @@ from circle.models import (
 )
 from circle.services.user import User
 
-role_dict = {
-    0: "Default Admin",
-    10: "Chief Admin",
-    20: "Admin",
-    30: "Moderator",
-    40: "Member",
-}
-
 
 class BaseCircleViewSet(viewsets.ModelViewSet):
     """
@@ -91,7 +83,6 @@ class CircleViewSet(BaseCircleViewSet):
     permission_classes = (Authenticate,)
 
     def get_serializer_class(self):
-        print(self.request.method)
         if self.request.method == "GET":
             return CircleListSerializer
         else:
@@ -131,7 +122,7 @@ class CircleViewSet(BaseCircleViewSet):
             circle_role.save()
 
             # User subscribe to XMPP room
-            member_xmpp_room_subscribe(user_jid=user["jid"], room_id=circle.room_id)
+            # member_xmpp_room_subscribe(user_jid=user["jid"], room_id=circle.room_id)
         else:
             CircleSubscriberRole.objects.filter(
                 user_id=user["id"], circle=circle
@@ -271,7 +262,7 @@ class CircleViewSet(BaseCircleViewSet):
 
                 try:
                     logger.info("Adding new user to circle")
-                    role = CircleRole.objects.get(role=role_dict[role])
+                    role = CircleRole.objects.get(role=role)
                     self.circle_add_user(circle, user, role=role)
                 except CircleRole.DoesNotExist as exc:
                     logger.error("Error while adding new user to circle")
@@ -290,7 +281,7 @@ class CircleViewSet(BaseCircleViewSet):
 
     def destroy(self, request, pk=None, *args, **kwargs):
         try:
-            circle = self.get_object()
+            circle = self.get_circle()
             room_id = circle.room_id
         except Circle.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
@@ -299,6 +290,10 @@ class CircleViewSet(BaseCircleViewSet):
         return Response(
             {"data": "Circle Deleted Successfully"}, status=status.HTTP_200_OK
         )
+
+    def get_circle(self, circle_id):
+        circle = get_object_or_404(Circle, pk=circle_id)
+        return circle
 
     @extend_schema(
         parameters=[
@@ -329,7 +324,7 @@ class CircleViewSet(BaseCircleViewSet):
     )
     def hierarchy(self, request, pk=None):
         circles = []
-        circle = self.get_object()
+        circle = self.get_circle(pk)
 
         if "name" in request.GET and "level" not in request.GET:
             name = request.GET.get("name").strip()
@@ -412,7 +407,13 @@ class CircleViewSet(BaseCircleViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             circles = circles.filter(parent=int(parent))
-        serializer = CircleHierarchySerializer(circles, many=True)
+
+        if circles:
+            """Check if any query param was used (in that case we filter circle and append to list)"""
+            serializer = CircleHierarchySerializer(circles, many=True)
+        else:
+            """otherwise we use the circle given in the url"""
+            serializer = CircleHierarchySerializer(circle)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @action(
