@@ -26,6 +26,7 @@ from circle.api.serializers import (
     CircleSubscriberRoleInputSerializer,
     HierarchyTransferSerializer,
     HierarchyDeleteSerializer,
+    CircleLeaveSerializer,
 )
 from circle.api.utils import (
     get_all_children,
@@ -53,14 +54,6 @@ from circle.models import (
 )
 from circle.services.user import User
 
-role_dict = {
-    0: "Default Admin",
-    10: "Chief Admin",
-    20: "Admin",
-    30: "Moderator",
-    40: "Member",
-}
-
 
 class BaseCircleViewSet(viewsets.ModelViewSet):
     """
@@ -74,6 +67,9 @@ class BaseCircleViewSet(viewsets.ModelViewSet):
 
     def get_circle(self):
         return get_object_or_404(Circle.objects.all(), id=self.circle_id)
+
+    def get_circle_by_id(self, pk):
+        return get_object_or_404(Circle, id=pk)
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -91,7 +87,6 @@ class CircleViewSet(BaseCircleViewSet):
     permission_classes = (Authenticate,)
 
     def get_serializer_class(self):
-        print(self.request.method)
         if self.request.method == "GET":
             return CircleListSerializer
         else:
@@ -248,12 +243,13 @@ class CircleViewSet(BaseCircleViewSet):
         return Response(serializer.data)
 
     def retrieve(self, request, *args, **kwargs):
-        circle = self.get_object()
+        circle = self.get_circle_by_id(kwargs.get("pk"))
+
         serializer = CircleSerializer(circle, context={"request": request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def update(self, request, *args, **kwargs):
-        circle = self.get_object()
+        circle = self.get_circle_by_id(kwargs.get("pk"))
         serializer = CircleUpdateSerializer(
             circle, context={"request": request}, data=request.data
         )
@@ -271,7 +267,7 @@ class CircleViewSet(BaseCircleViewSet):
 
                 try:
                     logger.info("Adding new user to circle")
-                    role = CircleRole.objects.get(role=role_dict[role])
+                    role = CircleRole.objects.get(role=role)
                     self.circle_add_user(circle, user, role=role)
                 except CircleRole.DoesNotExist as exc:
                     logger.error("Error while adding new user to circle")
@@ -290,7 +286,7 @@ class CircleViewSet(BaseCircleViewSet):
 
     def destroy(self, request, pk=None, *args, **kwargs):
         try:
-            circle = self.get_object()
+            circle = self.get_circle_by_id(kwargs.get("pk"))
             room_id = circle.room_id
         except Circle.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
@@ -329,7 +325,7 @@ class CircleViewSet(BaseCircleViewSet):
     )
     def hierarchy(self, request, pk=None):
         circles = []
-        circle = self.get_object()
+        circle = self.get_circle_by_id(pk)
 
         if "name" in request.GET and "level" not in request.GET:
             name = request.GET.get("name").strip()
@@ -412,7 +408,13 @@ class CircleViewSet(BaseCircleViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             circles = circles.filter(parent=int(parent))
-        serializer = CircleHierarchySerializer(circles, many=True)
+
+        if circles:
+            """Check if any query param was used (in that case we filter circle and append to list)"""
+            serializer = CircleHierarchySerializer(circles, many=True)
+        else:
+            """otherwise we use the circle given in the url"""
+            serializer = CircleHierarchySerializer(circle)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @action(
@@ -420,9 +422,34 @@ class CircleViewSet(BaseCircleViewSet):
         methods=["GET"],
     )
     def info(self, request, pk=None):
-        circle = self.get_object()
+        circle = self.get_circle_by_id(pk)
         serializer = CircleSerializer(circle, context={"request": request})
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(
+        detail=True,
+        methods=["PUT"],
+        url_path="delete/members",
+        serializer_class=CircleLeaveSerializer,
+    )
+    def delete_members(self, request, pk=None):
+        """
+        Remove/unsub users from a circle
+
+        `Payload` \n
+        `user_ids`: [] # list of user_ids (QA can get it from admin panel under `CircleSubscriberRole`
+        """
+        circle = self.get_circle_by_id(pk)
+        serializer = CircleLeaveSerializer(
+            data=request.data, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        user_ids = serializer.validated_data.get("user_ids")
+        if user_ids:
+            self.remove_users_from_circle(circle, user_ids)
+        return Response(
+            {"data": "users deleted successfully"}, status=status.HTTP_200_OK
+        )
 
 
 class CircleRoleViewSet(BaseCircleViewSet):
@@ -474,33 +501,33 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
         return CircleSubscriberRole.objects.filter(circle=self.circle_id)
 
     def create(self, request, *args, **kwargs):
-
-        serializer = self.serializer_class(data=request.data)
+        serializer = self.serializer_class(
+            data=request.data, context={"request": request, "circle_id": self.circle_id}
+        )
         serializer.is_valid(raise_exception=True)
 
         validated_data = serializer.validated_data
-        role = validated_data.get("role")
 
         circle = Circle.objects.filter(id=request.data.get("circle")).first()
-        user_id = validated_data.get("user_id")
-        connected = validated_data.get("connected")
+        users = validated_data.get("users")
         user_service = User()
-        if user_id:
-            for user in user_id:
-                user = user_service.details(user_id=user)
+        for user in users:
+            role = user.get("role")
+            user_id = user.get("user_id")
+            connected = user.get("connected")
+            if user_id:
+                user = user_service.details(user_id=user_id)
                 self.subscribe_role_circle(circle, user, role)
 
-        if connected:
-            for conn in connected:
-                user = user_service.get_details_from_phone(phone_number=conn)
+            if connected:
+                user = user_service.get_details_from_phone(phone_number=connected)
                 self.subscribe_role_circle(circle, user, role)
 
         return Response(
-            {"Data": "User successfully added to circle"}, status=status.HTTP_200_OK
+            {"data": "Users successfully added to circle"}, status=status.HTTP_200_OK
         )
 
     def subscribe_role_circle(self, circle, user, role):
-
         subscriber = CircleSubscriberRole.objects.filter(
             circle=circle, user_id=user["id"]
         )
@@ -508,6 +535,8 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
             CircleSubscriberRole.objects.create(
                 circle=circle, user_id=user["id"], role=role
             )
+            # User subscribe to XMPP room
+            member_xmpp_room_subscribe(user_jid=user["jid"], room_id=circle.room_id)
         else:
             CircleSubscriberRole.objects.filter(
                 circle=circle, user_id=user["id"]
@@ -586,10 +615,9 @@ def transfer_hierarchy(circle, user):
         CircleSubscriberRole.objects.create(
             user_id=user["id"], role=role, circle=circle
         )
-
     else:
-        circle_role.role.role = role
-        circle_role.save()
+        circle_role[0].role.role = role
+        circle_role[0].save()
 
     # Update circle properties
     circle_properties_update(circle)
@@ -601,28 +629,37 @@ class HierarchyTransferAPIView(APIView):
     serializer_class = HierarchyTransferSerializer
 
     def post(self, request):
-        circle_id = request.data["circle_id"]
-        to_user = request.data["to_user"]
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        circle_id = serializer.validated_data["circle_id"]
+        to_user = serializer.validated_data["to_user"]
         user_service = User()
         user = user_service.details(user_id=to_user)
-        circle = Circle.objects.filter(id=circle_id)
+        try:
+            circle = Circle.objects.get(id=circle_id)
+        except Circle.DoesNotExist as exc:
+            logger.error("No circle found")
+            logger.exception(exc)
+            return Response(
+                {"data": "No circle found"}, status=status.HTTP_404_NOT_FOUND
+            )
 
-        if circle[0].parent is None:
-            childrens = circle | get_all_children(circle[0], include_self=True)
-            for children in childrens:
-                transfer_hierarchy(children, user)
+        if circle.parent is None:
+            children = Circle.objects.filter(id=circle.id) | get_all_children(
+                circle, include_self=True
+            )
+            for child in children:
+                transfer_hierarchy(child, user)
         else:
             parents = (
-                Circle.objects.filter(id=circle[0].parent.id)
-                | circle[0].parent.get_parent_circles()
+                Circle.objects.filter(id=circle.parent.id)
+                | circle.parent.get_parent_circles()
             )
             if parents:
-                root_parent = parents[0]
-                childrens = parents[0] | get_all_children(
-                    root_parent, include_self=True
-                )
-                for children in childrens:
-                    transfer_hierarchy(children, user)
+                root_parent = parents
+                children = parents | get_all_children(root_parent, include_self=True)
+                for child in children:
+                    transfer_hierarchy(child, user)
 
         return Response({"data": "Hierarchy Transferred"}, status=200)
 

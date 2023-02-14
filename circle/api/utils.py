@@ -101,7 +101,7 @@ def get_hierarchy_status(circle, user_id):
     if not circle.parent:
         admin = CircleSubscriberRole.objects.filter(circle=circle, user_id=user_id)
 
-        chief_admin = admin[0].role if admin else ""
+        chief_admin = admin[0].role.role if admin else ""
         childrens = get_all_children(circle, include_self=True)
 
         if len(childrens) >= 1:
@@ -110,7 +110,7 @@ def get_hierarchy_status(circle, user_id):
                 child = CircleSubscriberRole.objects.filter(
                     circle=children, user_id=user_id
                 )
-                tuser_role = child[0].role if child else ""
+                tuser_role = child[0].role.role if child else ""
                 user_role = [True if tuser_role == 10 and chief_admin == 10 else False]
             if False in user_role:
                 hierarchy = [
@@ -151,6 +151,7 @@ def get_hierarchy_status(circle, user_id):
 
 def update_parent_hierarchy(parent):
     if parent:
+        parent.hierarchy = get_hierarchy_status(parent, parent.owner_id)
         parent.sub_circle_count = get_sub_circle_count(parent)
         parent.total_children_count = get_total_count(parent)
         parent.save()

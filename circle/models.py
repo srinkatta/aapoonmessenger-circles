@@ -82,23 +82,14 @@ class Circle(BaseTimeStampedModel):
 
 
 class CircleRole(BaseTimeStampedModel):
-    DEFAULT_ADMIN = "Default Admin"
-    CHIEF_ADMIN = "Chief Admin"
-    ADMIN = "Admin"
-    MODERATOR = "Moderator"
-    MEMBER = "Member"
-    CIRCLE_ROLE_CHOICES = [
-        (DEFAULT_ADMIN, "Default Admin"),
-        (CHIEF_ADMIN, "Chief Admin"),
-        (ADMIN, "Admin"),
-        (MODERATOR, "Moderator"),
-        (MEMBER, "Member"),
-    ]
+    DEFAULT_ADMIN = 0
+    CHIEF_ADMIN = 10
+    ADMIN = 20
+    MODERATOR = 30
+    MEMBER = 40
 
     name = models.CharField(max_length=255)
-    role = models.CharField(
-        max_length=255, choices=CIRCLE_ROLE_CHOICES, default=CHIEF_ADMIN
-    )
+    role = models.IntegerField(default=10)
     permissions = models.CharField(max_length=200, blank=True, null=True)
 
     def set_permissions(self, value):
@@ -109,6 +100,14 @@ class CircleRole(BaseTimeStampedModel):
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        from django.core.exceptions import ValidationError
+
+        if self.role not in [0, 10, 20, 30, 40]:
+            raise ValidationError("Invalid Role")
+        else:
+            super(CircleRole, self).save(*args, **kwargs)
 
 
 class CircleSubscriberRole(BaseTimeStampedModel):
