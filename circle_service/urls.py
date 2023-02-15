@@ -11,7 +11,6 @@ from drf_spectacular.views import (
 from circle_service.router_urls import router_urlpatterns
 
 urlpatterns = [
-    path("circles/admin/", admin.site.urls),
     path("api/circles/", include(router_urlpatterns)),
     path("api/circles/schema/", SpectacularAPIView.as_view(), name="schema"),
     # Optional UI:
