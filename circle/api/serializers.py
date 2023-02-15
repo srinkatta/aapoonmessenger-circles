@@ -155,18 +155,7 @@ class BaseCircleSerializer(BaseSerializer):
         circle_role = CircleSubscriberRole.objects.filter(
             circle=circle, user_id=user_id
         ).first()
-        if circle_role:
-            role = circle_role.role.role
-            if role == "Default Admin":
-                return 0
-            if role == "Chief Admin":
-                return 10
-            if role == "Admin":
-                return 20
-            if role == "Moderator":
-                return 30
-            if role == "Member":
-                return 40
+        return circle_role.role.role
 
     def get_is_owner(self, circle):
         user_id = self.context["request"].user_id
