@@ -149,7 +149,7 @@ class CircleViewSet(BaseCircleViewSet):
                 user = user_service.details(user_id=admin)
                 if not user:
                     logger.info(f"Moving to next admin")
-                    logger.error(f"No User exists with the given user_id": {user})
+                    logger.error(f"No User exists with the given user_id: {admin}")
                 else:
                     # Adding all hidden/default admins to circle and xmpp_room
                     self.circle_add_user(
@@ -181,7 +181,9 @@ class CircleViewSet(BaseCircleViewSet):
                         user = user_service.details(user_id=admin)
                         if not user:
                             logger.info(f"Moving to next admin")
-                            logger.error(f"No User exists with the given user_id": {admin})
+                            logger.error(
+                                f"No User exists with the given user_id: {admin}"
+                            )
                         else:
                             self.circle_add_user(circle, user, role=role)
 
@@ -283,7 +285,9 @@ class CircleViewSet(BaseCircleViewSet):
                 user = user_service.get_details_from_phone(phone_number=connected)
 
                 if not user:
-                    logger.error(f"No User exists with the given phone_number": {connected})
+                    logger.error(
+                        f"No User exists with the given phone_number: {connected}"
+                    )
                     logger.info(f"Moving on to the next user")
                 else:
                     try:
@@ -539,7 +543,7 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
             if user_id:
                 user = user_service.details(user_id=user_id)
                 if not user:
-                    logger.error(f"No User exists with the given user_id": {user_id})
+                    logger.error(f"No User exists with the given user_id: {user_id}")
                     logger.info(f"Moving on to the next user")
                 else:
                     self.subscribe_role_circle(circle, user, role)
@@ -547,7 +551,9 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
             if connected:
                 user = user_service.get_details_from_phone(phone_number=connected)
                 if not user:
-                    logger.error(f"No User exists with the given phone_number": {connected})
+                    logger.error(
+                        f"No User exists with the given phone_number: {connected}"
+                    )
                     logger.info(f"Moving on to the next user")
                 else:
                     self.subscribe_role_circle(circle, user, role)
@@ -665,10 +671,8 @@ class HierarchyTransferAPIView(APIView):
         user_service = User()
         user = user_service.details(user_id=to_user)
         if not user:
-            logger.error(f"No User exists with the given user_id": {to_user})
-            return Response(
-                {"data": "No user found"}, status=status.HTTP_404_NOT_FOUND
-            )
+            logger.error(f"No User exists with the given user_id: {to_user}")
+            return Response({"data": "No user found"}, status=status.HTTP_404_NOT_FOUND)
 
         try:
             circle = Circle.objects.get(id=circle_id)
