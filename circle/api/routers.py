@@ -1,4 +1,5 @@
 from django.urls import include, path
+from django.contrib import admin
 from rest_framework import routers
 
 from circle.api.direct_message.viewsets import (
@@ -73,6 +74,7 @@ router.register(
 )
 
 urlpatterns = [
+    path("admin/", admin.site.urls),
     path(r"", include(router.urls)),
     path(r"mute_messages/", MuteMessageView.as_view()),
     path(
