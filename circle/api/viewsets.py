@@ -453,6 +453,16 @@ class CircleViewSet(BaseCircleViewSet):
 
     @action(
         detail=True,
+        methods=["GET"],
+    )
+    def users(self, request, pk=None):
+        circle = self.get_circle_by_id(pk)
+        circle_users = CircleSubscriberRole.objects.filter(circle=circle)
+        serializer = CircleSubscriberRoleSerializer(circle_users, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(
+        detail=True,
         methods=["PUT"],
         url_path="delete/members",
         serializer_class=CircleLeaveSerializer,
