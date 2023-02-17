@@ -152,31 +152,45 @@ class CircleViewSet(BaseCircleViewSet):
                 # TODO: test
                 user_service = User()
                 user = user_service.details(user_id=admin)
-                # Adding all hidden/default admins to circle and xmpp_room
-                self.circle_add_user(
-                    circle,
-                    user,
-                    role=role,
-                )
+                if not user:
+                    logger.info(f"Moving to next admin")
+                    logger.error(f"No User exists with the given user_id: {admin}")
+                else:
+                    # Adding all hidden/default admins to circle and xmpp_room
+                    self.circle_add_user(
+                        circle,
+                        user,
+                        role=role,
+                    )
 
     def circle_add_parent_default_admins(self, parent: Circle, user):
         user_service = User()
         user = user_service.details(user_id=user["id"])
 
-        parent_circles = parent.get_parent_circles()
-        for circle in parent_circles:
-            parent = Circle.objects.get(id=circle.id)
+        if not user:
+            logger.info(f"Moving to next admin")
+            logger.error(f"No User exists with the given user_id")
+        else:
+            parent_circles = parent.get_parent_circles()
+            for circle in parent_circles:
+                parent = Circle.objects.get(id=circle.id)
 
-            role = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
-            super_admins = CircleSubscriberRole.objects.filter(
-                role=role, circle=parent
-            ).values_list("user_id", flat=True)
+                role = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
+                super_admins = CircleSubscriberRole.objects.filter(
+                    role=role, circle=parent
+                ).values_list("user_id", flat=True)
 
-            if user["id"] not in super_admins:
-                for admin in super_admins:
-                    user_service = User()
-                    user = user_service.details(user_id=admin)
-                    self.circle_add_user(circle, user, role=role)
+                if user["id"] not in super_admins:
+                    for admin in super_admins:
+                        user_service = User()
+                        user = user_service.details(user_id=admin)
+                        if not user:
+                            logger.info(f"Moving to next admin")
+                            logger.error(
+                                f"No User exists with the given user_id: {admin}"
+                            )
+                        else:
+                            self.circle_add_user(circle, user, role=role)
 
     def get_circle_with_level(self, circles):
         circles_with_level = {}
@@ -199,8 +213,13 @@ class CircleViewSet(BaseCircleViewSet):
             ).delete()
             for user in user_ids:
                 user_service = User()
+                logger.info(f"user_id: {user}")
                 user = user_service.details(user_id=user)
-                member_xmpp_room_unsubscribe(user["jid"], circle.room_id)
+                if not user:
+                    logger.info(f"Moving to next admin")
+                    logger.error(f"No User exists with the given user_id")
+                else:
+                    member_xmpp_room_unsubscribe(user["jid"], circle.room_id)
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(
@@ -270,16 +289,22 @@ class CircleViewSet(BaseCircleViewSet):
                 connected = circle_user.get("connected")
                 user = user_service.get_details_from_phone(phone_number=connected)
 
-                try:
-                    logger.info("Adding new user to circle")
-                    role = CircleRole.objects.get(role=role)
-                    self.circle_add_user(circle, user, role=role)
-                except CircleRole.DoesNotExist as exc:
-                    logger.error("Error while adding new user to circle")
-                    logger.exception(exc)
-                except Exception as exc:
-                    logger.error("Error while adding new user to circle")
-                    logger.exception(exc)
+                if not user:
+                    logger.error(
+                        f"No User exists with the given phone_number: {connected}"
+                    )
+                    logger.info(f"Moving on to the next user")
+                else:
+                    try:
+                        logger.info("Adding new user to circle")
+                        role = CircleRole.objects.get(role=role)
+                        self.circle_add_user(circle, user, role=role)
+                    except CircleRole.DoesNotExist as exc:
+                        logger.error("Error while adding new user to circle")
+                        logger.exception(exc)
+                    except Exception as exc:
+                        logger.error("Error while adding new user to circle")
+                        logger.exception(exc)
 
         # Delete User:
         leave = serializer.validated_data.get("leave")
@@ -291,7 +316,7 @@ class CircleViewSet(BaseCircleViewSet):
 
     def destroy(self, request, pk=None, *args, **kwargs):
         try:
-            circle = self.get_circle_by_id(kwargs.get("pk"))
+            circle = self.get_circle_by_id(pk)
             room_id = circle.room_id
         except Circle.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
@@ -433,6 +458,16 @@ class CircleViewSet(BaseCircleViewSet):
 
     @action(
         detail=True,
+        methods=["GET"],
+    )
+    def users(self, request, pk=None):
+        circle = self.get_circle_by_id(pk)
+        circle_users = CircleSubscriberRole.objects.filter(circle=circle)
+        serializer = CircleSubscriberRoleSerializer(circle_users, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(
+        detail=True,
         methods=["PUT"],
         url_path="delete/members",
         serializer_class=CircleLeaveSerializer,
@@ -522,11 +557,21 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
             connected = user.get("connected")
             if user_id:
                 user = user_service.details(user_id=user_id)
-                self.subscribe_role_circle(circle, user, role)
+                if not user:
+                    logger.error(f"No User exists with the given user_id: {user_id}")
+                    logger.info(f"Moving on to the next user")
+                else:
+                    self.subscribe_role_circle(circle, user, role)
 
             if connected:
                 user = user_service.get_details_from_phone(phone_number=connected)
-                self.subscribe_role_circle(circle, user, role)
+                if not user:
+                    logger.error(
+                        f"No User exists with the given phone_number: {connected}"
+                    )
+                    logger.info(f"Moving on to the next user")
+                else:
+                    self.subscribe_role_circle(circle, user, role)
 
         return Response(
             {"data": "Users successfully added to circle"}, status=status.HTTP_200_OK
@@ -640,6 +685,10 @@ class HierarchyTransferAPIView(APIView):
         to_user = serializer.validated_data["to_user"]
         user_service = User()
         user = user_service.details(user_id=to_user)
+        if not user:
+            logger.error(f"No User exists with the given user_id: {to_user}")
+            return Response({"data": "No user found"}, status=status.HTTP_404_NOT_FOUND)
+
         try:
             circle = Circle.objects.get(id=circle_id)
         except Circle.DoesNotExist as exc:
