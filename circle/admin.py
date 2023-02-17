@@ -8,6 +8,7 @@ from circle.models import (
     CustomField,
     SubscriptionPlan,
     Topic,
+    CircleInvite,
 )
 
 admin.site.register(Circle)
@@ -17,3 +18,4 @@ admin.site.register(Customer)
 admin.site.register(CustomField)
 admin.site.register(SubscriptionPlan)
 admin.site.register(Topic)
+admin.site.register(CircleInvite)

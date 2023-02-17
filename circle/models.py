@@ -240,3 +240,14 @@ class CirclePermission(BaseTimeStampedModel):
 
     def __str__(self):
         return f"Circle: {self.circle} Permissions"
+
+
+class CircleInvite(models.Model):
+    created = models.DateTimeField(auto_now_add=True)
+    sender = models.CharField(max_length=255, null=True, blank=True)
+    recipient = models.CharField(max_length=255, null=True, blank=True)
+    circle = models.ForeignKey(Circle, related_name="invite", on_delete=models.CASCADE)
+    joined = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["-created"]

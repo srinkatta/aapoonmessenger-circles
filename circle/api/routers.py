@@ -28,6 +28,7 @@ from circle.api.viewsets import (
     CirclePermissionViewSet,
     HierarchyDeleteAPIView,
     HierarchyTransferAPIView,
+    CircleInviteViewSet,
 )
 
 router = routers.SimpleRouter()
@@ -71,6 +72,9 @@ router.register(
 )
 router.register(
     r"s3chataudioparams", ChatAudioUploadViewSet, basename="s3chataudioparams"
+)
+router.register(
+    r"circle_invite", CircleInviteViewSet, basename="circle-invite"
 )
 
 urlpatterns = [
