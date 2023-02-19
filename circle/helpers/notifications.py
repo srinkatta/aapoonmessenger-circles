@@ -1,10 +1,13 @@
 import re
 import uuid
+from typing import Dict
 
 from pyfcm import FCMNotification
 
 from circle.models import Circle
+from circle.services.user import User
 from circle_service import settings
+from loguru import logger
 
 
 def app_notification(topic_name, message_from, message, xml):
@@ -14,14 +17,26 @@ def app_notification(topic_name, message_from, message, xml):
     print("dir_name:     ", os.path.dirname(__file__))
     print("Circle Notification")
 
-    group = Circle.objects.get(room_id=topic_name)
+    circle = Circle.objects.get(room_id=topic_name)
     message_from = message_from + "@" + settings.XMPP_HOST
-    # TODO: get user details from user microservice
-    from_user = message_from
 
-    title = from_user.name + " " + "in" + " " + '"' + group.name + '"'
+    user_service = User()
+    from_user: Dict = user_service.details(user_jid=message_from)
+
+    if not from_user:
+        logger.exception(f"No User exists with the given user_jid: {from_user}")
+        return
+
+    title = from_user["name"] + " " + "in" + " " + '"' + circle.name + '"'
     data_message = {"Nick": title, "body": message, "priority": "high"}
-    if group.circle_moderation:
+    try:
+        permission = circle.permissions.get()
+    except Exception as exc:
+        logger.error(f"Error occured at getting permissions for circle: {circle.name}")
+        logger.exception(exc)
+        return
+
+    if permission.circle_moderation:
         ios_topic_name = topic_name + "-" + "moderation" + "-" + "ios"
     else:
         ios_topic_name = topic_name + "-" + "ios"
@@ -29,11 +44,12 @@ def app_notification(topic_name, message_from, message, xml):
 
     body = re.findall(r"<body>(.*?)</body>", xml)
     if body:
+        name = f"{from_user['first_name']} {from_user['last_name']}"
         message_value_dict = {
-            "-6": "%s has replied to a message" % from_user.name,
-            "-1": "%s has forwarded a message" % from_user.name,
-            "-3": "%s has liked a message" % from_user.name,
-            "-4": "%s has disliked a message" % from_user.name,
+            "-6": "%s has replied to a message" % name,
+            "-1": "%s has forwarded a message" % name,
+            "-3": "%s has liked a message" % name,
+            "-4": "%s has disliked a message" % name,
             "2": "Image",
             "3": "Video",
             "4": "Audio",
@@ -117,8 +133,8 @@ def app_notification(topic_name, message_from, message, xml):
 
 
 def notify_dm(
-    tuser=None,
-    from_user=None,
+    tuser: Dict = None,
+    from_user: Dict = None,
     message_from=None,
     message=None,
     xml=None,
@@ -175,29 +191,29 @@ def notify_dm(
                             actual_content = xml[start_index:end_index]
                             updated_content = actual_content.replace("&quot;", '"')
                             xml = xml.replace(actual_content, updated_content)
-
+                name = f"{from_user['first_name']} {from_user['last_name']}"
                 data_message = {
                     "notification": {
                         "click_action": "ReplyOrRead",
                         "xml": xml,
-                        "title": from_user.name,
+                        "title": name,
                         "body": message,
                         "sound": "default",
                     },
-                    "to": tuser.fcm_token,
-                    "Nick": from_user.name,
+                    "to": tuser["fcm_token"],
+                    "Nick": name,
                     "body": message,
                     "priority": "high",
                     "content_available": True,
                 }
                 print(data_message)
-                if tuser.fcm_token and not tuser.apns_token:
-                    token = tuser.fcm_token
+                if tuser["fcm_token"] and not tuser["apns_token"]:
+                    token = tuser["fcm_token"]
                     push_service = FCMNotification(api_key=settings.FCM_API_KEY)
                     print("Result for DM")
                     print("Android")
                     android_data_message = {
-                        "Nick": from_user.name,
+                        "Nick": name,
                         "body": message,
                         "priority": "high",
                     }
@@ -208,12 +224,12 @@ def notify_dm(
                     )
                     print(android_result)
                 else:
-                    token = tuser.fcm_token
+                    token = tuser["fcm_token"]
                     push_service = FCMNotification(api_key=settings.FCM_API_KEY)
                     print("iPhone")
                     result = push_service.notify_single_device(
                         registration_id=token,
-                        message_title=from_user.name,
+                        message_title=name,
                         message_body=message,
                         data_message=data_message,
                         content_available=True,

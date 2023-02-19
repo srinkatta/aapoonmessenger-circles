@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Union
 
 from django.db.models import F, Func, Q, Value
 from django.db.models.functions import Lower
@@ -93,7 +93,14 @@ class CircleViewSet(BaseCircleViewSet):
             return CircleSerializer
 
     def get_queryset(self):
-        return Circle.objects.filter(owner_id=self.request.user_id)
+        privacy = self.request.GET.get("privacy", "")
+        if privacy:
+            queryset = Circle.objects.filter(
+                owner_id=self.request.user_id, privacy=privacy
+            )
+        else:
+            queryset = Circle.objects.filter(owner_id=self.request.user_id)
+        return queryset
 
     def hierarchy_limit(self, parent_id):
         parent_circle = Circle.objects.get(id=parent_id)
@@ -215,6 +222,19 @@ class CircleViewSet(BaseCircleViewSet):
                     logger.error(f"No User exists with the given user_id")
                 else:
                     member_xmpp_room_unsubscribe(user["jid"], circle.room_id)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="privacy",
+                description="Filter by privacy of circle",
+                required=False,
+                type=int,
+            ),
+        ]
+    )
+    def list(self, request, *args, **kwargs):
+        return super(CircleViewSet, self).list(request, *args, **kwargs)
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(
@@ -451,13 +471,34 @@ class CircleViewSet(BaseCircleViewSet):
         serializer = CircleSerializer(circle, context={"request": request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="role",
+                description="Filter by role",
+                required=False,
+                type=Union[str, int],
+            ),
+        ]
+    )
     @action(
         detail=True,
         methods=["GET"],
     )
     def users(self, request, pk=None):
         circle = self.get_circle_by_id(pk)
-        circle_users = CircleSubscriberRole.objects.filter(circle=circle)
+        role = request.GET.get("role", "")
+        if role == "admins":
+            role = [0, 10, 20]
+            circle_users = CircleSubscriberRole.objects.filter(
+                circle=circle, role__role__in=role
+            )
+        elif role:
+            circle_users = CircleSubscriberRole.objects.filter(
+                circle=circle, role__role=role
+            )
+        else:
+            circle_users = CircleSubscriberRole.objects.filter(circle=circle)
         serializer = CircleSubscriberRoleSerializer(circle_users, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -706,7 +747,7 @@ class HierarchyTransferAPIView(APIView):
             )
             if parents:
                 root_parent = parents
-                children = parents | get_all_children(root_parent, include_self=True)
+                children = parents | get_all_children(root_parent[0], include_self=True)
                 for child in children:
                     transfer_hierarchy(child, user)
 
