@@ -9,6 +9,7 @@ from circle.api.direct_message.viewsets import (
     XMPPMessageFilterViewSet,
     XMPPMessageViewSet,
     XMPPMonthlyChatViewSet,
+    NotifyRedirectViewSet,
 )
 from circle.api.media_views.viewsets import (
     GroupImageUploadViewSet,
@@ -92,6 +93,11 @@ urlpatterns = [
         name="xmpp_chat",
     ),
     path(r"delete_chat/", XMPPDeleteDMViewSet.as_view(), name="delete_chat"),
+    path(
+        r"notify_redirect/",
+        NotifyRedirectViewSet.as_view(),
+        name="push_notify_redirect",
+    ),
     # hierarchy
     path(
         r"hierarchy_delete/", HierarchyDeleteAPIView.as_view(), name="hierarchy_delete"

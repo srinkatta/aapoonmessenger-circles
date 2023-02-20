@@ -60,3 +60,15 @@ class ArchiveChatSerializer(serializers.Serializer):
     xml = serializers.CharField(max_length=256)
     username = serializers.CharField(max_length=256)
     user_pic = serializers.URLField(max_length=256)
+
+
+class NotifyRedirectSerializer(serializers.Serializer):
+    body = serializers.CharField(max_length=512)
+    xml = serializers.CharField(max_length=256)
+    from_user = serializers.CharField(
+        max_length=256, label="from", help_text="renamed this `from` to `from_user"
+    )
+    vhost = serializers.CharField(max_length=256)
+    message_id = serializers.CharField(
+        max_length=256, allow_null=True, allow_blank=True
+    )

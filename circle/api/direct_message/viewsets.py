@@ -9,15 +9,17 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from drf_spectacular.utils import extend_schema, OpenApiParameter
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
 
 from circle.api.direct_message.serializers import (
     ArchiveChatSerializer,
     ChatMessageSerializer,
     MuteMessageSerializer,
+    NotifyRedirectSerializer,
 )
 from circle.helpers.notifications import app_notification, notify_dm
 from circle.models import ChatMessage, MuteCoversation
+from circle.services.user import User
 from circle_service import settings
 
 logger = logging.getLogger(__name__)
@@ -467,33 +469,45 @@ class XMPPDeleteDMViewSet(generics.GenericAPIView):
 
 class NotifyRedirectViewSet(generics.GenericAPIView):
     http_method_names = ["post"]
+    serializer_class = NotifyRedirectSerializer
 
     def post(self, request):
+        """
+        Renamed the field `from` to `from_user` because `from` is a reserved keyword and can't be used a variable
+        """
         message = request.data["body"]
         message_from = request.data["from"]
         to = request.data["to"]
         xml = request.data.get("xml")
-
         message_id = request.data.get("message_id")
 
         if "vhost" in request.data:
             if request.data["vhost"] == settings.XMPP_HOST:
-                to = to + "@" + settings.XMPP_HOST
+                to_jid = to + "@" + settings.XMPP_HOST
                 message_from = message_from + "@" + settings.XMPP_HOST
-                to_user = TenantUser._default_manager.get(
-                    jid=to
-                )  # TODO: fetch user details
-                from_user = TenantUser._default_manager.get(
-                    jid=message_from
-                )  # TODO: fetch user details
+                user_service = User()
+                to_user = user_service.details(user_jid=to_jid)
+
+                if not to_user:
+                    logger.error(f"No User exists with the given user_jid: {to_user}")
+                    return Response(
+                        {"data": "No user found"}, status=status.HTTP_404_NOT_FOUND
+                    )
+
+                from_user = user_service.details(user_jid=message_from)
+                if not from_user:
+                    logger.error(f"No User exists with the given user_jid: {from_user}")
+                    return Response(
+                        {"data": "No user found"}, status=status.HTTP_404_NOT_FOUND
+                    )
 
                 # Check for muted conversation
                 if MuteCoversation.objects.filter(
-                    sender_id=from_user.jid, recipient_id=to_user.jid, mute=True
+                    sender_id=message_from, recipient_id=to_jid, mute=True
                 ).exists():
                     print(time.time())
                     mutify = MuteCoversation.objects.filter(
-                        sender_id=from_user.jid, recipient_id=to_user.jid, mute=True
+                        sender_id=message_from, recipient_id=to_jid, mute=True
                     ).first()
                     if time.time() > mutify.mute_time:
                         print("Mute expired")
