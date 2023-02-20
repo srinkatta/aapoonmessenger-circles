@@ -149,7 +149,7 @@ class MuteMessageView(APIView):
     """
 
     permission_classes = (AllowAny,)
-    allowed_methods = ("POST",)
+    allowed_methods = ("POST", "GET")
     serializer_class = MuteMessageSerializer
 
     def get(self, request, *args, **kwargs):
