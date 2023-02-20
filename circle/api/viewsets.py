@@ -27,12 +27,16 @@ from circle.api.serializers import (
     HierarchyTransferSerializer,
     HierarchyDeleteSerializer,
     CircleLeaveSerializer,
+    CircleInviteSerializer,
+    CircleInviteCreateSerializer,
+    CircleInviteUpdateSerializer,
 )
 from circle.api.utils import (
     get_all_children,
     get_level,
     logged_user_info,
     circle_properties_update,
+    CircleInvitePagination,
 )
 from circle.helpers.ejjaberd import (
     create_xmpp_room,
@@ -51,6 +55,7 @@ from circle.models import (
     SubscriptionPlan,
     Topic,
     CirclePermission,
+    CircleInvite,
 )
 from circle.services.user import User
 
@@ -782,3 +787,64 @@ class HierarchyDeleteAPIView(APIView):
                 [child.delete() for child in childrens]
 
         return Response({"data": "Hierarchy Deleted"}, status=200)
+
+
+class CircleInviteViewSet(viewsets.ModelViewSet):
+    permission_classes = (Authenticate,)
+    model = CircleInvite
+    pagination_class = CircleInvitePagination
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return CircleInviteCreateSerializer
+        elif self.action == "update":
+            return CircleInviteUpdateSerializer
+        return CircleInviteSerializer
+
+    def create(self, request):
+        return super(CircleInviteViewSet, self).create(request)
+
+    def list(self, request):
+        params = request.GET
+        invitation_type = params.get("type")
+        joined = params.get("joined")
+        joined = False if joined == "False" or joined == "false" else True
+        circle = params.get("circle")
+        user_info = logged_user_info(request)
+        user_info = user_info["id"]
+        if invitation_type == "sent" and not circle and not joined:
+            invites = CircleInvite.objects.filter(sender=user_info, joined=True)
+        elif invitation_type == "sent" and circle and joined:
+            invites = CircleInvite.objects.filter(
+                sender=user_info, joined=joined, circle=circle
+            )
+        elif invitation_type == "sent" and not circle and joined:
+            invites = CircleInvite.objects.filter(sender=user_info, joined=joined)
+        elif invitation_type == "received" and not circle and not joined:
+            invites = CircleInvite.objects.filter(recipient=user_info, joined=False)
+        elif invitation_type == "received" and circle and joined:
+            invites = CircleInvite.objects.filter(
+                recipient=user_info, joined=joined, circle=circle
+            )
+        elif invitation_type == "received" and not circle and joined:
+            invites = CircleInvite.objects.filter(recipient=user_info, joined=joined)
+        elif joined and circle and not invitation_type:
+            invites = CircleInvite.objects.filter(
+                sender=user_info, joined=True, circle=circle
+            )
+        elif joined and circle:
+            invites = CircleInvite.objects.filter(
+                sender=user_info, joined=False, circle=circle
+            )
+        elif circle and not joined:
+            invites = CircleInvite.objects.filter(
+                sender=user_info, joined=False, circle=circle
+            )
+        else:
+            invites = CircleInvite.objects.filter(sender=user_info)
+        page = self.paginate_queryset(invites)
+        if page is not None:
+            serializer = CircleInviteSerializer(page, many=True)
+        else:
+            serializer = CircleInviteSerializer(page, many=True)
+        return self.get_paginated_response(serializer.data)

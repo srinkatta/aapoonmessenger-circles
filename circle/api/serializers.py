@@ -19,6 +19,7 @@ from circle.models import (
     SubscriptionPlan,
     Topic,
     CirclePermission,
+    CircleInvite,
 )
 
 
@@ -635,3 +636,37 @@ class HierarchyTransferSerializer(serializers.Serializer):
 
 class HierarchyDeleteSerializer(serializers.Serializer):
     circle_id = serializers.CharField(required=True)
+
+
+class CircleInviteCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CircleInvite
+        fields = "__all__"
+
+    def validate(self, attrs):
+        sender = attrs.get("sender")
+        recipient = attrs.get("recipient")
+        circle = attrs.get("circle")
+        if sender == recipient:
+            raise serializers.ValidationError("sender and recipient cannot be same.")
+        if CircleInvite.objects.filter(
+            sender=sender, recipient=recipient, circle=circle
+        ).exists():
+            raise serializers.ValidationError("Invitation already sent.")
+        return attrs
+
+
+class CircleInviteSerializer(serializers.ModelSerializer):
+    sender = serializers.CharField(required=False)
+    recipient = serializers.CharField(required=False)
+    circle = serializers.CharField(required=False)
+
+    class Meta:
+        model = CircleInvite
+        fields = "__all__"
+
+
+class CircleInviteUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CircleInvite
+        fields = "__all__"
