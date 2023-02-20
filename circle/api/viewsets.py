@@ -35,8 +35,7 @@ from circle.api.utils import (
     get_all_children,
     get_level,
     logged_user_info,
-    circle_properties_update,
-    CircleInvitePagination,
+    circle_properties_update
 )
 from circle.helpers.ejjaberd import (
     create_xmpp_room,
