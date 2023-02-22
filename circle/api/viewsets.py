@@ -629,6 +629,11 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
             role = user.get("role")
             user_id = user.get("user_id")
             connected = user.get("connected")
+
+            import phonenumbers
+
+            phone = phonenumbers.parse(f"+{connected}", None)
+
             if user_id:
                 user = user_service.details(user_id=user_id)
                 if not user:
@@ -638,7 +643,9 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
                     self.subscribe_role_circle(circle, user, role)
 
             if connected:
-                user = user_service.get_details_from_phone(phone_number=connected)
+                user = user_service.get_details_from_phone(
+                    country_code=phone.country_code, phone_number=phone.national_number
+                )
                 if not user:
                     logger.error(
                         f"No User exists with the given phone_number: {connected}"
@@ -839,7 +846,7 @@ class CircleInviteViewSet(viewsets.ModelViewSet):
         circle = params.get("circle")
         user_info = self.request.user_id
         if invitation_type == "sent" and not circle and not joined:
-            invites = CircleInvite.objects.filter(sender=user_info, joined=True)
+            invites = CircleInvite.objects.filter(sender=user_info, joined=joined)
         elif invitation_type == "sent" and circle and joined:
             invites = CircleInvite.objects.filter(
                 sender=user_info, joined=joined, circle=circle
@@ -850,8 +857,9 @@ class CircleInviteViewSet(viewsets.ModelViewSet):
             )
         elif invitation_type == "sent" and not circle and joined:
             invites = CircleInvite.objects.filter(sender=user_info, joined=joined)
+
         elif invitation_type == "received" and not circle and not joined:
-            invites = CircleInvite.objects.filter(recipient=user_info, joined=False)
+            invites = CircleInvite.objects.filter(recipient=user_info, joined=joined)
         elif invitation_type == "received" and circle and joined:
             invites = CircleInvite.objects.filter(
                 recipient=user_info, joined=joined, circle=circle
