@@ -30,12 +30,13 @@ from circle.api.serializers import (
     CircleInviteSerializer,
     CircleInviteCreateSerializer,
     CircleInviteUpdateSerializer,
+    CircleInviteResponseSerializer,
 )
 from circle.api.utils import (
     get_all_children,
     get_level,
     logged_user_info,
-    circle_properties_update
+    circle_properties_update,
 )
 from circle.helpers.ejjaberd import (
     create_xmpp_room,
@@ -99,6 +100,10 @@ class CircleViewSet(BaseCircleViewSet):
     def get_queryset(self):
         privacy = self.request.GET.get("privacy", "")
         if privacy:
+            if privacy in ["public", "Public", "1", 1]:
+                privacy = 1
+            if privacy in ["private", "Private", "2", 2]:
+                privacy = 2
             queryset = Circle.objects.filter(
                 owner_id=self.request.user_id, privacy=privacy
             )
@@ -233,7 +238,7 @@ class CircleViewSet(BaseCircleViewSet):
                 name="privacy",
                 description="Filter by privacy of circle",
                 required=False,
-                type=int,
+                type=str,
             ),
         ]
     )
@@ -254,7 +259,9 @@ class CircleViewSet(BaseCircleViewSet):
         qs = circles.annotate(name_lower=Lower("name"))
         circles = qs.filter(name_lower__icontains=name)
         if circles:
-            serializer = CircleListSerializer(circles, many=True, context={'request': request})
+            serializer = CircleListSerializer(
+                circles, many=True, context={"request": request}
+            )
             return Response(serializer.data, status=status.HTTP_200_OK)
 
     def create(self, request, *args, **kwargs):
@@ -498,7 +505,7 @@ class CircleViewSet(BaseCircleViewSet):
                 name="role",
                 description="Filter by role",
                 required=False,
-                type=Union[str, int],
+                type=str,
             ),
         ]
     )
@@ -578,6 +585,16 @@ class CirclePermissionViewSet(BaseCircleViewSet):
         serializer = self.get_serializer(queryset)
         return Response(serializer.data)
 
+    def create(self, request, *args, **kwargs):
+        queryset = self.get_queryset().first()
+        if queryset:
+            serializer = self.get_serializer(queryset, data=request.data)
+        else:
+            serializer = self.get_serializer(queryset)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
 
 class CircleSubscriberRoleViewSet(BaseCircleViewSet):
     """
@@ -605,7 +622,7 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
 
         validated_data = serializer.validated_data
 
-        circle = Circle.objects.filter(id=request.data.get("circle")).first()
+        circle = Circle.objects.filter(id=self.circle_id).first()
         users = validated_data.get("users")
         user_service = User()
         for user in users:
@@ -629,10 +646,8 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
                     logger.info(f"Moving on to the next user")
                 else:
                     self.subscribe_role_circle(circle, user, role)
-
-        return Response(
-            {"data": "Users successfully added to circle"}, status=status.HTTP_200_OK
-        )
+        serializer = CircleListSerializer(circle, context={"request": request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def subscribe_role_circle(self, circle, user, role):
         subscriber = CircleSubscriberRole.objects.filter(
@@ -816,17 +831,13 @@ class CircleInviteViewSet(viewsets.ModelViewSet):
             return CircleInviteUpdateSerializer
         return CircleInviteSerializer
 
-    def create(self, request):
-        return super(CircleInviteViewSet, self).create(request)
-
     def list(self, request):
         params = request.GET
         invitation_type = params.get("type")
         joined = params.get("joined")
         joined = False if joined == "False" or joined == "false" else True
         circle = params.get("circle")
-        user_info = logged_user_info(request)
-        user_info = user_info["id"]
+        user_info = self.request.user_id
         if invitation_type == "sent" and not circle and not joined:
             invites = CircleInvite.objects.filter(sender=user_info, joined=True)
         elif invitation_type == "sent" and circle and joined:
@@ -866,5 +877,7 @@ class CircleInviteViewSet(viewsets.ModelViewSet):
         else:
             invites = CircleInvite.objects.filter(sender=user_info)
 
-        serializer = CircleInviteSerializer(invites, many=True, context={'request': request})
+        serializer = CircleInviteResponseSerializer(
+            invites, many=True, context={"request": request}
+        )
         return Response(serializer.data, status=status.HTTP_200_OK)

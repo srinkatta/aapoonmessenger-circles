@@ -21,6 +21,7 @@ from circle.models import (
     CirclePermission,
     CircleInvite,
 )
+from circle.services.user import User
 
 
 class BaseSerializer(FlexFieldsModelSerializer):
@@ -664,6 +665,32 @@ class CircleInviteSerializer(serializers.ModelSerializer):
     class Meta:
         model = CircleInvite
         fields = "__all__"
+
+
+class CircleInviteResponseSerializer(serializers.ModelSerializer):
+    sender = serializers.SerializerMethodField()
+    recipient = serializers.SerializerMethodField()
+    circle = CircleListSerializer()
+
+    class Meta:
+        model = CircleInvite
+        fields = "__all__"
+
+    def get_sender(self, instance):
+        user_service = User()
+        user = user_service.details(user_id=instance.sender)
+        if not user:
+            return instance.sender
+        else:
+            return user
+
+    def get_recipient(self, instance):
+        user_service = User()
+        user = user_service.details(user_id=instance.recipient)
+        if not user:
+            return instance.sender
+        else:
+            return user
 
 
 class CircleInviteUpdateSerializer(serializers.ModelSerializer):
