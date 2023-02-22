@@ -614,7 +614,11 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
             role = user.get("role")
             user_id = user.get("user_id")
             connected = user.get("connected")
-            connected_country_code = user.get("connected_country_code")
+
+            import phonenumbers
+
+            phone = phonenumbers.parse(f"+{connected}", None)
+
             if user_id:
                 user = user_service.details(user_id=user_id)
                 if not user:
@@ -623,9 +627,9 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
                 else:
                     self.subscribe_role_circle(circle, user, role)
 
-            if connected and connected_country_code:
+            if connected:
                 user = user_service.get_details_from_phone(
-                    phone_number=connected, country_code=connected_country_code
+                    country_code=phone.country_code, phone_number=phone.national_number
                 )
                 if not user:
                     logger.error(
