@@ -439,6 +439,7 @@ class CircleAddUserInputSerializer(serializers.Serializer):
     role = serializers.IntegerField()
     user_id = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     connected = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    connected_country_code = serializers.CharField(required=False, allow_null=True, allow_blank=True)
 
     def validate(self, attrs):
         role = attrs["role"]

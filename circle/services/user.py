@@ -17,7 +17,7 @@ class User:
         self.base_url = settings.USER_MICROSERVICE_URL
         self.user_detail_service_url = f"{self.base_url}api/users/user_details/"
         self.user_detail_phone_service_url = (
-            f"{self.base_url}api/users/user_details/phone/"
+            f"{self.base_url}api/users/user_details_phone/"
         )
         self.headers = {"Authorization": settings.USER_MICROSERVICE_API_KEY}
 
@@ -37,8 +37,13 @@ class User:
         finally:
             return user_detail
 
-    def get_details_from_phone(self, phone_number: str = "") -> Dict:
-        request_data: dict = {"phone_number": phone_number}
+    def get_details_from_phone(
+        self, phone_number: str = "", country_code: str = ""
+    ) -> Dict:
+        request_data: dict = {
+            "phone_number": phone_number,
+            "country_code": country_code,
+        }
         user_detail = {}
         try:
             response: Response = requests.post(
