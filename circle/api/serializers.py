@@ -401,6 +401,17 @@ class CircleListSerializer(BaseCircleSerializer):
         }
 
 
+class CircleInputSerializer(BaseCircleSerializer):
+    branding = serializers.DictField(required=False, allow_null=True, allow_empty=True)
+
+    class Meta:
+        model = Circle
+        fields = "__all__"
+        extra_kwargs = {
+            "id": {"read_only": True},
+        }
+
+
 class CircleSerializer(BaseCircleSerializer):
     class Meta:
         model = Circle

@@ -38,7 +38,7 @@ class Circle(BaseTimeStampedModel):
     privacy = models.CharField(max_length=5, choices=PRIVACY_OPTIONS, default=2)
     room_id = models.UUIDField(default=uuid.uuid4, editable=False)
     is_purchased = models.BooleanField(default=False)
-    branding = models.JSONField(blank=True)
+    branding = models.JSONField(blank=True, null=True)
     is_tenant = models.BooleanField(default=False)
     sites = models.CharField(max_length=200, blank=True, null=True)
     about_me = models.TextField(blank=True)

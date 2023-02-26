@@ -31,6 +31,7 @@ from circle.api.serializers import (
     CircleInviteCreateSerializer,
     CircleInviteUpdateSerializer,
     CircleInviteResponseSerializer,
+    CircleInputSerializer,
 )
 from circle.api.utils import (
     get_all_children,
@@ -94,6 +95,8 @@ class CircleViewSet(BaseCircleViewSet):
     def get_serializer_class(self):
         if self.request.method == "GET":
             return CircleListSerializer
+        elif self.request.method in ["POST", "PUT", "PATCH"]:
+            return CircleInputSerializer
         else:
             return CircleSerializer
 
@@ -629,7 +632,7 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
             role = user.get("role")
             user_id = user.get("user_id")
             connected = user.get("connected")
-            
+
             if user_id:
                 user = user_service.details(user_id=user_id)
                 if not user:
@@ -640,7 +643,7 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
 
             if connected:
                 import phonenumbers
-                
+
                 phone = phonenumbers.parse(f"+{connected}", None)
                 user = user_service.get_details_from_phone(
                     country_code=phone.country_code, phone_number=phone.national_number
@@ -729,6 +732,16 @@ class TopicViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return Topic.objects.all()
+
+    def destroy(self, request, *args, **kwargs):
+        try:
+            topic = self.get_object()
+            topic.delete()
+        except Topic.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        return Response(
+            {"data": "Topic deleted successfully"}, status=status.HTTP_200_OK
+        )
 
 
 def transfer_hierarchy(circle, user):
@@ -837,7 +850,7 @@ class CircleInviteViewSet(viewsets.ModelViewSet):
             return CircleInviteUpdateSerializer
         return CircleInviteSerializer
 
-    def list(self, request):
+    def list(self, request, *args, **kwargs):
         params = request.GET
         invitation_type = params.get("type")
         joined = params.get("joined")

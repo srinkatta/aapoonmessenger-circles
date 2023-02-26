@@ -16,8 +16,13 @@ from circle.api.direct_message.serializers import (
     ChatMessageSerializer,
     MuteMessageSerializer,
     NotifyRedirectSerializer,
+    ChatMessageFilterSerializer,
+    ChatMessageFilterInputSerializer,
+    MessageAbuseSerializer,
 )
+from circle.api.utils import abuse_mail_msg
 from circle.helpers.notifications import app_notification, notify_dm
+from circle.middleware.permissions import Authenticate
 from circle.models import ChatMessage, MuteCoversation
 from circle.services.user import User
 from circle_service import settings
@@ -128,7 +133,7 @@ class XMPPMessageViewSet(viewsets.ModelViewSet):
 
 class XMPPMessageFilterViewSet(viewsets.ModelViewSet):
     model = ChatMessage
-    serializer_class = ChatMessageSerializer
+    serializer_class = ChatMessageFilterInputSerializer
     http_method_names = ["post"]
 
     def create(self, request, *args, **kwargs):
@@ -139,7 +144,7 @@ class XMPPMessageFilterViewSet(viewsets.ModelViewSet):
             .distinct()
         )
 
-        serializer = ChatMessageSerializer(queryset, many=True)
+        serializer = ChatMessageFilterSerializer(queryset, many=True)
         return Response(serializer.data)
 
 
@@ -526,3 +531,23 @@ class NotifyRedirectViewSet(generics.GenericAPIView):
                 )
                 t.start()
         return Response({"data": "Notification sent."}, status=200)
+
+
+class MessageAbuseView(APIView):
+    """
+    API View to mute receiving messages from some other user.
+    """
+
+    permission_classes = (Authenticate,)
+    allowed_methods = ("POST",)
+    serializer_class = MessageAbuseSerializer
+
+    def post(self, request):
+        try:
+            serializer = self.serializer_class(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            abuse_mail_msg(serializer.data)
+            return Response({"data": "Mail sent Successfully"}, status=200)
+        except Exception as exc:
+            logger.error(exc)
+            logger.exception(exc)

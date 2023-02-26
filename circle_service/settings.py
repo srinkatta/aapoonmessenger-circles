@@ -64,7 +64,7 @@ CSRF_TRUSTED_ORIGINS = ["https://dev.aapoon.com"]
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [os.path.join(BASE_DIR, "templates")],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -141,11 +141,10 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework.authentication.SessionAuthentication",
         "rest_framework.authentication.BasicAuthentication",
-        # "rest_framework_simplejwt.authentication.JWTAuthentication",
         "circle.middleware.authentication_middleware.ExtraJWTAuthentication",
     ),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
-    "PAGE_SIZE": 10,
+    "PAGE_SIZE": 20,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
@@ -171,3 +170,14 @@ S3_AWS_SECRET_ACCESS_KEY = os.environ["S3_MEDIA_AWS_SECRET_ACCESS_KEY"]
 AWS_S3_ACL = os.environ["AWS_S3_ACL"]
 AWS_S3_BUCKET_NAME = os.environ["AWS_S3_BUCKET_NAME"]
 CHAT_VIDEO_BUCKET = os.environ["CHAT_VIDEO_BUCKET"]
+
+# Email Config
+DEFAULT_FROM_EMAIL = "support@aapoon.net"
+SUPPORT_EMAIL = "support@aapoon.net"
+
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = os.environ["EMAIL_HOST"]
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = os.environ["EMAIL_HOST_USER"]
+EMAIL_HOST_PASSWORD = os.environ["EMAIL_HOST_PASSWORD"]

@@ -1,3 +1,5 @@
+from abc import ABC
+
 from django.db.models import Count, Q
 from rest_framework import serializers
 
@@ -15,30 +17,30 @@ class ChatMessageSerializer(serializers.ModelSerializer):
     )
 
     def get_like(self, obj):
-        action_data = ChatMessage.objects.filter(
-            message_id=obj.get("message_id")
-        ).aggregate(like=Count("message_id", filter=Q(action="like")))
+        action_data = ChatMessage.objects.filter(message_id=obj.message_id).aggregate(
+            like=Count("message_id", filter=Q(action="like"))
+        )
         like = action_data["like"]
         return like
 
     def get_dislike(self, obj):
-        action_data = ChatMessage.objects.filter(
-            message_id=obj.get("message_id")
-        ).aggregate(dislike=Count("message_id", filter=Q(action="dislike")))
+        action_data = ChatMessage.objects.filter(message_id=obj.message_id).aggregate(
+            dislike=Count("message_id", filter=Q(action="dislike"))
+        )
         dislike = action_data["dislike"]
         return dislike
 
     def get_forward(self, obj):
-        action_data = ChatMessage.objects.filter(
-            message_id=obj.get("message_id")
-        ).aggregate(forward=Count("message_id", filter=Q(action="forward")))
+        action_data = ChatMessage.objects.filter(message_id=obj.message_id).aggregate(
+            forward=Count("message_id", filter=Q(action="forward"))
+        )
         forward = action_data["forward"]
         return forward
 
     def get_reply(self, obj):
-        action_data = ChatMessage.objects.filter(
-            message_id=obj.get("message_id")
-        ).aggregate(reply=Count("message_id", filter=Q(action="reply")))
+        action_data = ChatMessage.objects.filter(message_id=obj.message_id).aggregate(
+            reply=Count("message_id", filter=Q(action="reply"))
+        )
         reply = action_data["reply"]
         return reply
 
@@ -72,3 +74,45 @@ class NotifyRedirectSerializer(serializers.Serializer):
     message_id = serializers.CharField(
         max_length=256, allow_null=True, allow_blank=True
     )
+
+
+class ChatMessageFilterInputSerializer(serializers.Serializer):
+    message_id = serializers.ListField()
+
+
+class ChatMessageFilterSerializer(ChatMessageSerializer):
+    class Meta:
+        model = ChatMessage
+        fields = "__all__"
+
+    def get_like(self, obj):
+        action_data = ChatMessage.objects.filter(
+            message_id=obj.get("message_id")
+        ).aggregate(like=Count("message_id", filter=Q(action="like")))
+        like = action_data["like"]
+        return like
+
+    def get_dislike(self, obj):
+        action_data = ChatMessage.objects.filter(
+            message_id=obj.get("message_id")
+        ).aggregate(dislike=Count("message_id", filter=Q(action="dislike")))
+        dislike = action_data["dislike"]
+        return dislike
+
+    def get_forward(self, obj):
+        action_data = ChatMessage.objects.filter(
+            message_id=obj.get("message_id")
+        ).aggregate(forward=Count("message_id", filter=Q(action="forward")))
+        forward = action_data["forward"]
+        return forward
+
+    def get_reply(self, obj):
+        action_data = ChatMessage.objects.filter(
+            message_id=obj.get("message_id")
+        ).aggregate(reply=Count("message_id", filter=Q(action="reply")))
+        reply = action_data["reply"]
+        return reply
+
+
+class MessageAbuseSerializer(serializers.Serializer):
+    message_ids = serializers.ListField()

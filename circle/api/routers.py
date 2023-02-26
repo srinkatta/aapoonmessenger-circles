@@ -10,6 +10,7 @@ from circle.api.direct_message.viewsets import (
     XMPPMessageViewSet,
     XMPPMonthlyChatViewSet,
     NotifyRedirectViewSet,
+    MessageAbuseView,
 )
 from circle.api.media_views.viewsets import (
     GroupImageUploadViewSet,
@@ -74,9 +75,7 @@ router.register(
 router.register(
     r"s3chataudioparams", ChatAudioUploadViewSet, basename="s3chataudioparams"
 )
-router.register(
-    r"circle_invite", CircleInviteViewSet, basename="circle-invite"
-)
+router.register(r"circle_invite", CircleInviteViewSet, basename="circle-invite")
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -107,4 +106,5 @@ urlpatterns = [
         HierarchyTransferAPIView.as_view(),
         name="hierarchy_transfer",
     ),
+    path(r"msg/abuse/", MessageAbuseView.as_view(), name="message-abuse"),
 ]
