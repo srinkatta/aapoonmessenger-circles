@@ -1,9 +1,10 @@
-from django.db.models import Q
-from collections import OrderedDict
+from email import charset
 
-from circle.models import Circle, CircleSubscriberRole, CircleInvite
-from rest_framework import pagination
-from rest_framework.response import Response
+from django.core.mail import send_mail
+from django.db.models import Q
+from django.template.loader import render_to_string
+
+from circle.models import Circle, CircleSubscriberRole
 
 
 def get_level(circle):
@@ -188,3 +189,24 @@ def clear_bucket_from_path(path):
         return path
     else:
         return path
+
+
+def abuse_mail_msg(msg):
+    subject = "Report Message Abuse"
+    from_email = "support@aapoon.net"
+    toemail = "support@aapoon.net"
+    text = msg["message_ids"]
+
+    context = {"content": text}
+
+    text_content = render_to_string("config/email/message_abuse.html", context)
+    charset.add_charset("utf-8", charset.SHORTEST, None, "utf-8")
+    send_mail(
+        subject,
+        text_content,
+        from_email,
+        [
+            toemail,
+        ],
+        fail_silently=True,
+    )
