@@ -106,7 +106,7 @@ class CircleViewSet(BaseCircleViewSet):
             if privacy in ["public", "Public", "1", 1]:
                 privacy = 1
             if privacy in ["private", "Private", "2", 2]:
-                privacy = 2
+                privacy = 1
             queryset = Circle.objects.filter(
                 owner_id=self.request.user_id, privacy=privacy
             )
