@@ -1,36 +1,37 @@
-from django.urls import include, path
 from django.contrib import admin
+from django.urls import include, path
 from rest_framework import routers
 
 from circle.api.direct_message.viewsets import (
+    MessageAbuseView,
     MuteMessageView,
+    NotifyRedirectViewSet,
     XMPPChatViewSet,
     XMPPDeleteDMViewSet,
     XMPPMessageFilterViewSet,
     XMPPMessageViewSet,
     XMPPMonthlyChatViewSet,
-    NotifyRedirectViewSet,
-    MessageAbuseView,
 )
 from circle.api.media_views.viewsets import (
-    GroupImageUploadViewSet,
+    ChatAudioUploadViewSet,
+    ChatDocumentsUploadViewSet,
     ChatImageUploadViewSet,
     ChatVideoUploadViewSet,
-    ChatDocumentsUploadViewSet,
-    ChatAudioUploadViewSet,
+    GroupImageUploadViewSet,
 )
 from circle.api.viewsets import (
     AppBrandingViewSet,
+    CircleInviteViewSet,
+    CirclePermissionViewSet,
     CircleSubscriberRoleViewSet,
     CircleViewSet,
     CustomerViewSet,
     CustomFieldViewSet,
-    SubscriptionPlanViewSet,
-    TopicViewSet,
-    CirclePermissionViewSet,
+    GetGroupUniqueNameView,
     HierarchyDeleteAPIView,
     HierarchyTransferAPIView,
-    CircleInviteViewSet,
+    SubscriptionPlanViewSet,
+    TopicViewSet,
 )
 
 router = routers.SimpleRouter()
@@ -107,4 +108,7 @@ urlpatterns = [
         name="hierarchy_transfer",
     ),
     path(r"msg/abuse/", MessageAbuseView.as_view(), name="message-abuse"),
+    path(
+        r"get_group_name/", GetGroupUniqueNameView.as_view(), name="group-unique-name"
+    ),
 ]

@@ -4,21 +4,21 @@ import threading
 import time
 
 from django.db import connections
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import generics, status, viewsets
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
 
 from circle.api.direct_message.serializers import (
     ArchiveChatSerializer,
+    ChatMessageFilterInputSerializer,
+    ChatMessageFilterSerializer,
     ChatMessageSerializer,
+    MessageAbuseSerializer,
     MuteMessageSerializer,
     NotifyRedirectSerializer,
-    ChatMessageFilterSerializer,
-    ChatMessageFilterInputSerializer,
-    MessageAbuseSerializer,
 )
 from circle.api.utils import abuse_mail_msg
 from circle.helpers.notifications import app_notification, notify_dm

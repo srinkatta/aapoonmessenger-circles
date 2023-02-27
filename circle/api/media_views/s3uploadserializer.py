@@ -1,7 +1,7 @@
-import uuid
-
 import base64
+import uuid
 from datetime import datetime, timedelta
+
 from rest_framework import serializers
 
 from circle_service import settings
@@ -92,8 +92,8 @@ class S3UploadPolicySerializer(serializers.Serializer):
         return dumps(policy_document).replace("\n", "").replace("\r", "")
 
     def sign_policy(self, policy):
-        import hmac
         import hashlib
+        import hmac
 
         signature = hmac.new(
             (bytes(self.aws_secret_key, encoding="utf-8")), policy, hashlib.sha1
@@ -193,8 +193,8 @@ class VideoUploadSerializer(serializers.Serializer):
         return dumps(policy_document).replace("\n", "").replace("\r", "")
 
     def sign_policy(self, policy):
-        import hmac
         import hashlib
+        import hmac
 
         signature = hmac.new(
             (bytes(self.aws_secret_key, encoding="utf-8")), policy, hashlib.sha1
