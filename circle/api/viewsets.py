@@ -106,14 +106,17 @@ class CircleViewSet(BaseCircleViewSet):
         if privacy:
             if privacy in ["public", "Public", "1", 1]:
                 privacy = 1
+                queryset = Circle.objects.filter(privacy=privacy)
+                return queryset
             if privacy in ["private", "Private", "2", 2]:
-                privacy = 1
-            queryset = Circle.objects.filter(
-                owner_id=self.request.user_id, privacy=privacy
-            )
+                privacy = 2
+                queryset = Circle.objects.filter(
+                    owner_id=self.request.user_id, privacy=privacy
+                )
+                return queryset
         else:
             queryset = Circle.objects.filter(owner_id=self.request.user_id)
-        return queryset
+            return queryset
 
     def hierarchy_limit(self, parent_id):
         parent_circle = Circle.objects.get(id=parent_id)
