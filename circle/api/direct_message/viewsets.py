@@ -61,16 +61,16 @@ class XMPPMessageViewSet(viewsets.ModelViewSet):
         is_exists = True
         if action in actions:
             chat_messages = ChatMessage.objects.filter(
-                message_id=message_id, action_by=request.user.id, action=action
+                message_id=message_id, action_by=request.user_id, action=action
             )
             if chat_messages:
                 chat_messages.delete()
                 is_exists = False
             self.update_like_dislike(
-                message_id=message_id, user_id=request.user.id, action=action
+                message_id=message_id, user_id=request.user_id, action=action
             )
         if is_exists:
-            request.data["action_by"] = request.user.id
+            request.data["action_by"] = request.user_id
 
             serializer = ChatMessageSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)

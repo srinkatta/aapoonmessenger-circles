@@ -31,6 +31,7 @@ from circle.api.serializers import (
     CircleInviteCreateSerializer,
     CircleInviteUpdateSerializer,
     CircleInviteResponseSerializer,
+    CircleInviteAcceptSerializer,
     CircleInputSerializer,
 )
 from circle.api.utils import (
@@ -38,6 +39,8 @@ from circle.api.utils import (
     get_level,
     logged_user_info,
     circle_properties_update,
+    GenericPagination,
+    CircleInvitePagination,
 )
 from circle.helpers.ejjaberd import (
     create_xmpp_room,
@@ -91,6 +94,7 @@ class CircleViewSet(BaseCircleViewSet):
 
     serializer_class = CircleSerializer
     permission_classes = (Authenticate,)
+    pagination_class = GenericPagination
 
     def get_serializer_class(self):
         if self.request.method == "GET":
@@ -153,10 +157,10 @@ class CircleViewSet(BaseCircleViewSet):
 
     def circle_add_default_admins(self, circle, parent):
         default_admins = CircleSubscriberRole.objects.filter(
-            role__name="Default Admin", circle=parent
+            role=CircleRole.DEFAULT_ADMIN, circle=parent
         ).values_list("user_id", flat=True)
         chief_admins = CircleSubscriberRole.objects.filter(
-            role__name="Chief Admin", circle=parent
+            role=CircleRole.CHIEF_ADMIN, circle=parent
         ).values_list("user_id", flat=True)
         admins = default_admins | chief_admins
 
@@ -204,6 +208,7 @@ class CircleViewSet(BaseCircleViewSet):
                                 f"No User exists with the given user_id: {admin}"
                             )
                         else:
+                            role = CircleRole.objects.get(role=CircleRole.DEFAULT_ADMIN)
                             self.circle_add_user(circle, user, role=role)
 
     def get_circle_with_level(self, circles):
@@ -248,7 +253,17 @@ class CircleViewSet(BaseCircleViewSet):
     def list(self, request, *args, **kwargs):
         if "name" in request.GET:
             return self.search_circle_by_name(request)
-        return super(CircleViewSet, self).list(request, *args, **kwargs)
+        final_circles = CircleSubscriberRole.objects.filter(user_id=request.user_id)
+
+        circles = [circle.circle.id for circle in final_circles]
+        circles = Circle.objects.filter(id__in=circles).order_by("-id")
+
+        page = self.paginate_queryset(circles)
+
+        serializer = self.get_serializer_class()(
+            page, many=True, context={"request": request}
+        )
+        return self.get_paginated_response(serializer.data)
 
     def search_circle_by_name(self, request):
         # search with circle name and get list of circles
@@ -530,8 +545,11 @@ class CircleViewSet(BaseCircleViewSet):
             )
         else:
             circle_users = CircleSubscriberRole.objects.filter(circle=circle)
-        serializer = CircleSubscriberRoleSerializer(circle_users, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+
+        circle_users = circle_users.order_by("-id")
+        page = self.paginate_queryset(circle_users)
+        serializer = CircleSubscriberRoleSerializer(page, many=True)
+        return self.get_paginated_response(serializer.data)
 
     @action(
         detail=True,
@@ -581,15 +599,15 @@ class CirclePermissionViewSet(BaseCircleViewSet):
     http_method_names = ("get", "post")
 
     def get_queryset(self):
-        return CirclePermission.objects.filter(circle=self.circle_id)
+        return CirclePermission.objects.filter(circle=self.circle_id).first()
 
     def list(self, request, *args, **kwargs):
-        queryset = self.get_queryset().first()
+        queryset = self.get_queryset()
         serializer = self.get_serializer(queryset)
         return Response(serializer.data)
 
     def create(self, request, *args, **kwargs):
-        queryset = self.get_queryset().first()
+        queryset = self.get_queryset()
         if queryset:
             serializer = self.get_serializer(queryset, data=request.data)
         else:
@@ -640,6 +658,7 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
                     logger.info(f"Moving on to the next user")
                 else:
                     self.subscribe_role_circle(circle, user, role)
+                    self.circle_add_default_admin(circle, user, role)
 
             if connected:
                 import phonenumbers
@@ -655,6 +674,8 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
                     logger.info(f"Moving on to the next user")
                 else:
                     self.subscribe_role_circle(circle, user, role)
+                    self.circle_add_default_admin(circle, user, role)
+
         serializer = CircleListSerializer(circle, context={"request": request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -672,6 +693,27 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
             CircleSubscriberRole.objects.filter(
                 circle=circle, user_id=user["id"]
             ).update(role=role)
+
+    def circle_add_default_admin(self, circle, user, role):
+        chief_admin = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
+        if role == chief_admin:
+            default_admin = CircleRole.objects.get(role=CircleRole.DEFAULT_ADMIN)
+            children = get_all_children(circle=circle, include_self=False)
+            for child in children:
+                circle_subscriber = CircleSubscriberRole.objects.filter(
+                    circle=child, user_id=user["id"]
+                )
+                if circle_subscriber:
+                    subscriber = CircleSubscriberRole.objects.filter(
+                        circle=child, user_id=user["id"], role=chief_admin
+                    )
+                    if not subscriber:
+                        circle_subscriber.update(role=default_admin)
+
+                else:
+                    CircleSubscriberRole.objects.create(
+                        circle=child, user_id=user["id"], role=default_admin
+                    )
 
 
 class SubscriptionPlanViewSet(viewsets.ModelViewSet):
@@ -757,7 +799,7 @@ def transfer_hierarchy(circle, user):
             user_id=user["id"], role=role, circle=circle
         )
     else:
-        circle_role[0].role.role = role
+        circle_role[0].role = role
         circle_role[0].save()
 
     # Update circle properties
@@ -842,6 +884,7 @@ class HierarchyDeleteAPIView(APIView):
 class CircleInviteViewSet(viewsets.ModelViewSet):
     permission_classes = (Authenticate,)
     model = CircleInvite
+    pagination_class = CircleInvitePagination
 
     def get_serializer_class(self):
         if self.action == "create":
@@ -850,45 +893,42 @@ class CircleInviteViewSet(viewsets.ModelViewSet):
             return CircleInviteUpdateSerializer
         return CircleInviteSerializer
 
-    def list(self, request, *args, **kwargs):
+    def list(self, request):
         params = request.GET
         invitation_type = params.get("type")
         joined = params.get("joined")
-        joined = False if joined == "False" or joined == "false" else True
         circle = params.get("circle")
-        user_info = self.request.user_id
+        user_info = logged_user_info(request)
+        user_info = user_info["id"]
         if invitation_type == "sent" and not circle and not joined:
-            invites = CircleInvite.objects.filter(sender=user_info, joined=joined)
+            invites = CircleInvite.objects.filter(sender=user_info, joined=True)
         elif invitation_type == "sent" and circle and joined:
-            invites = CircleInvite.objects.filter(
-                sender=user_info, joined=joined, circle=circle
-            )
-        elif invitation_type == "sent" and circle and not joined:
+            joined = False if joined == "False" or joined == "false" else True
             invites = CircleInvite.objects.filter(
                 sender=user_info, joined=joined, circle=circle
             )
         elif invitation_type == "sent" and not circle and joined:
+            joined = False if joined == "False" or joined == "false" else True
             invites = CircleInvite.objects.filter(sender=user_info, joined=joined)
-
         elif invitation_type == "received" and not circle and not joined:
-            invites = CircleInvite.objects.filter(recipient=user_info, joined=joined)
+            invites = CircleInvite.objects.filter(recipient=user_info, joined=False)
         elif invitation_type == "received" and circle and joined:
-            invites = CircleInvite.objects.filter(
-                recipient=user_info, joined=joined, circle=circle
-            )
-        elif invitation_type == "received" and circle and not joined:
+            joined = False if joined == "False" or joined == "false" else True
             invites = CircleInvite.objects.filter(
                 recipient=user_info, joined=joined, circle=circle
             )
         elif invitation_type == "received" and not circle and joined:
+            joined = False if joined == "False" or joined == "false" else True
             invites = CircleInvite.objects.filter(recipient=user_info, joined=joined)
         elif joined and circle and not invitation_type:
+            joined = False if joined == "False" or joined == "false" else True
             invites = CircleInvite.objects.filter(
-                sender=user_info, joined=True, circle=circle
+                sender=user_info, joined=joined, circle=circle
             )
         elif joined and circle:
+            joined = False if joined == "False" or joined == "false" else True
             invites = CircleInvite.objects.filter(
-                sender=user_info, joined=False, circle=circle
+                sender=user_info, joined=joined, circle=circle
             )
         elif circle and not joined:
             invites = CircleInvite.objects.filter(
@@ -896,8 +936,51 @@ class CircleInviteViewSet(viewsets.ModelViewSet):
             )
         else:
             invites = CircleInvite.objects.filter(sender=user_info)
+        page = self.paginate_queryset(invites)
+        if page is not None:
+            serializer = CircleInviteResponseSerializer(page, many=True)
+        else:
+            serializer = CircleInviteResponseSerializer(page, many=True)
+        return self.get_paginated_response(serializer.data)
 
-        serializer = CircleInviteResponseSerializer(
-            invites, many=True, context={"request": request}
+
+def circle_invite_accept(data, user):
+    user_service = User()
+    sender = data.get("sender")
+    recipient = data.get("recipient") if data.get("recipient") else user
+    sender = user_service.details(user_id=sender)
+    recipient = user_service.details(user_id=recipient)
+    circle = Circle.objects.filter(id=data.get("circle")).first()
+    circle_subscribers = CircleSubscriberRole.objects.filter(
+        user_id=recipient["id"], circle=circle
+    )
+    member = CircleRole.objects.get(role=CircleRole.MEMBER)
+    if not circle_subscribers:
+        CircleSubscriberRole.objects.create(
+            user_id=recipient["id"], circle=circle, role=member
         )
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        circle_invite = CircleInvite.objects.get(
+            sender=sender["id"], recipient=recipient["id"], circle=circle
+        )
+        circle_invite.joined = True
+        circle_invite.save()
+        return True
+    return False
+
+
+class CircleInviteAcceptViewSet(APIView):
+    permission_classes = (Authenticate,)
+    serializer_class = CircleInviteAcceptSerializer
+
+    def post(self, request):
+        data = request.data
+        bulk = isinstance(request.data, list)
+        user = request.user_id
+        if not bulk:
+            circle_invite_accept(data, user)
+            return Response({"data": "Invitation Accepted"}, status=200)
+
+        else:
+            for entry in data:
+                circle_invite_accept(entry, user)
+        return Response({"data": "Invitations Accepted"}, status=200)

@@ -31,6 +31,7 @@ from circle.api.viewsets import (
     HierarchyDeleteAPIView,
     HierarchyTransferAPIView,
     CircleInviteViewSet,
+    CircleInviteAcceptViewSet,
 )
 
 router = routers.SimpleRouter()
@@ -107,4 +108,9 @@ urlpatterns = [
         name="hierarchy_transfer",
     ),
     path(r"msg/abuse/", MessageAbuseView.as_view(), name="message-abuse"),
+    path(
+        r"circle_invite_accept/",
+        CircleInviteAcceptViewSet.as_view(),
+        name="circle-invite-accept",
+    ),
 ]
