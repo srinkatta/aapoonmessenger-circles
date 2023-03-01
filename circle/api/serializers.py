@@ -4,24 +4,46 @@ from rest_flex_fields import FlexFieldsModelSerializer
 from rest_framework import serializers
 
 from circle.api.utils import (
+    clear_bucket_from_path,
     get_all_children,
     get_maximum_level,
     s3_url_extract,
-    clear_bucket_from_path,
 )
 from circle.models import (
     AppBranding,
     Circle,
+    CircleInvite,
+    CirclePermission,
     CircleRole,
     CircleSubscriberRole,
     Customer,
     CustomField,
     SubscriptionPlan,
     Topic,
-    CirclePermission,
-    CircleInvite,
 )
 from circle.services.user import User
+
+
+class TopicSerializer(FlexFieldsModelSerializer):
+    def cloudfront_cdn(self, logo):
+        parsed_url = urlparse(logo)
+        s3_url = s3_url_extract(logo)
+        key = clear_bucket_from_path(parsed_url.path)
+        logo = s3_url + key
+        return logo
+
+    def validate(self, attrs):
+        image = attrs.get("image")
+        if image:
+            attrs["image"] = self.cloudfront_cdn(image)
+        return attrs
+
+    class Meta:
+        model = Topic
+        fields = "__all__"
+        extra_kwargs = {
+            "id": {"read_only": True},
+        }
 
 
 class BaseSerializer(FlexFieldsModelSerializer):
@@ -365,6 +387,8 @@ class BaseCircleSerializer(BaseSerializer):
 
 
 class CircleListSerializer(BaseCircleSerializer):
+    topic = TopicSerializer(required=False, many=True)
+
     class Meta:
         model = Circle
         fields = (
@@ -395,6 +419,7 @@ class CircleListSerializer(BaseCircleSerializer):
             "sub_circle_count",
             "created_by",
             "circle_users_count",
+            "topic",
         )
         extra_kwargs = {
             "id": {"read_only": True},
@@ -550,28 +575,6 @@ class AppBrandingSerializer(FlexFieldsModelSerializer):
 class CustomFieldSerializer(FlexFieldsModelSerializer):
     class Meta:
         model = CustomField
-        fields = "__all__"
-        extra_kwargs = {
-            "id": {"read_only": True},
-        }
-
-
-class TopicSerializer(FlexFieldsModelSerializer):
-    def cloudfront_cdn(self, logo):
-        parsed_url = urlparse(logo)
-        s3_url = s3_url_extract(logo)
-        key = clear_bucket_from_path(parsed_url.path)
-        logo = s3_url + key
-        return logo
-
-    def validate(self, attrs):
-        image = attrs.get("image")
-        if image:
-            attrs["image"] = self.cloudfront_cdn(image)
-        return attrs
-
-    class Meta:
-        model = Topic
         fields = "__all__"
         extra_kwargs = {
             "id": {"read_only": True},

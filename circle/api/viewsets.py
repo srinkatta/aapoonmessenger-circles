@@ -1,3 +1,4 @@
+import re
 from typing import List, Union
 
 from django.db.models import F, Func, Q, Value
@@ -13,11 +14,23 @@ from rest_framework.views import APIView
 from circle.api.serializers import (
     AppBrandingSerializer,
     CircleHierarchySerializer,
+    CircleInputSerializer,
+    CircleInviteCreateSerializer,
+    CircleInviteResponseSerializer,
+    CircleInviteSerializer,
+    CircleInviteUpdateSerializer,
+    CircleLeaveSerializer,
+    CircleListSerializer,
+    CirclePermissionSerializer,
     CircleRoleSerializer,
     CircleSerializer,
+    CircleSubscriberRoleInputSerializer,
     CircleSubscriberRoleSerializer,
+    CircleUpdateSerializer,
     CustomerSerializer,
     CustomFieldSerializer,
+    HierarchyDeleteSerializer,
+    HierarchyTransferSerializer,
     SubscriptionPlanSerializer,
     TopicSerializer,
     CirclePermissionSerializer,
@@ -35,6 +48,7 @@ from circle.api.serializers import (
     CircleInputSerializer,
 )
 from circle.api.utils import (
+    circle_properties_update,
     get_all_children,
     get_level,
     logged_user_info,
@@ -52,14 +66,14 @@ from circle.middleware.permissions import Authenticate
 from circle.models import (
     AppBranding,
     Circle,
+    CircleInvite,
+    CirclePermission,
     CircleRole,
     CircleSubscriberRole,
     Customer,
     CustomField,
     SubscriptionPlan,
     Topic,
-    CirclePermission,
-    CircleInvite,
 )
 from circle.services.user import User
 
@@ -109,14 +123,17 @@ class CircleViewSet(BaseCircleViewSet):
         if privacy:
             if privacy in ["public", "Public", "1", 1]:
                 privacy = 1
+                queryset = Circle.objects.filter(privacy=privacy)
+                return queryset
             if privacy in ["private", "Private", "2", 2]:
-                privacy = 1
-            queryset = Circle.objects.filter(
-                owner_id=self.request.user_id, privacy=privacy
-            )
+                privacy = 2
+                queryset = Circle.objects.filter(
+                    owner_id=self.request.user_id, privacy=privacy
+                )
+                return queryset
         else:
             queryset = Circle.objects.filter(owner_id=self.request.user_id)
-        return queryset
+            return queryset
 
     def hierarchy_limit(self, parent_id):
         parent_circle = Circle.objects.get(id=parent_id)
@@ -984,3 +1001,37 @@ class CircleInviteAcceptViewSet(APIView):
             for entry in data:
                 circle_invite_accept(entry, user)
         return Response({"data": "Invitations Accepted"}, status=200)
+
+
+class GetGroupUniqueNameView(APIView):
+    """
+    API View to mute receiving messages from some other user.
+    """
+
+    permission_classes = (Authenticate,)
+    allowed_methods = ("GET",)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="name",
+                description="Check the name",
+                required=True,
+                type=str,
+            ),
+        ]
+    )
+    def get(self, request):
+        name = request.GET.get("name")
+        name = name.lower()
+        if bool(re.match("^[A-Za-z0-9-]*$", name)):
+            circle = Circle.objects.filter(link=name)
+        else:
+            return Response(
+                {"data": "Special characters and emojis are not allowed"}, status=400
+            )
+        if circle:
+            return Response({"data": "Name already exists"}, status=400)
+        else:
+            return Response({"data": "Name doesn't exist"}, status=200)
+

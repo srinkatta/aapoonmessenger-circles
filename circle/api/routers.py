@@ -1,37 +1,39 @@
-from django.urls import include, path
 from django.contrib import admin
+from django.urls import include, path
 from rest_framework import routers
 
 from circle.api.direct_message.viewsets import (
+    MessageAbuseView,
     MuteMessageView,
+    NotifyRedirectViewSet,
     XMPPChatViewSet,
     XMPPDeleteDMViewSet,
     XMPPMessageFilterViewSet,
     XMPPMessageViewSet,
     XMPPMonthlyChatViewSet,
-    NotifyRedirectViewSet,
-    MessageAbuseView,
 )
 from circle.api.media_views.viewsets import (
-    GroupImageUploadViewSet,
+    ChatAudioUploadViewSet,
+    ChatDocumentsUploadViewSet,
     ChatImageUploadViewSet,
     ChatVideoUploadViewSet,
-    ChatDocumentsUploadViewSet,
-    ChatAudioUploadViewSet,
+    GroupImageUploadViewSet,
 )
 from circle.api.viewsets import (
     AppBrandingViewSet,
+    CircleInviteViewSet,
+    CirclePermissionViewSet,
     CircleSubscriberRoleViewSet,
     CircleViewSet,
     CustomerViewSet,
     CustomFieldViewSet,
-    SubscriptionPlanViewSet,
-    TopicViewSet,
-    CirclePermissionViewSet,
+    GetGroupUniqueNameView,
     HierarchyDeleteAPIView,
     HierarchyTransferAPIView,
     CircleInviteViewSet,
     CircleInviteAcceptViewSet,
+    SubscriptionPlanViewSet,
+    TopicViewSet,
 )
 
 router = routers.SimpleRouter()
@@ -111,6 +113,8 @@ urlpatterns = [
     path(
         r"circle_invite_accept/",
         CircleInviteAcceptViewSet.as_view(),
-        name="circle-invite-accept",
+        name="circle-invite-accept"),
+    path(
+        r"get_group_name/", GetGroupUniqueNameView.as_view(), name="group-unique-name"
     ),
 ]
