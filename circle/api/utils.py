@@ -5,6 +5,10 @@ from django.db.models import Q
 from django.template.loader import render_to_string
 
 from circle.models import Circle, CircleSubscriberRole
+from rest_framework import pagination
+from collections import OrderedDict
+from rest_framework.response import Response
+from circle.models import CircleInvite
 
 
 def get_level(circle):
@@ -210,3 +214,104 @@ def abuse_mail_msg(msg):
         ],
         fail_silently=True,
     )
+
+
+class GenericPagination(pagination.PageNumberPagination):
+    page_size = 20
+    page_size_query_param = "page_size"
+
+    def get_paginated_response(self, data):
+        return Response(
+            OrderedDict(
+                [
+                    ("count", self.page.paginator.count),
+                    (
+                        "next",
+                        self.get_next_link().replace("http", "https")
+                        if self.get_next_link()
+                        else None,
+                    ),
+                    (
+                        "previous",
+                        self.get_previous_link().replace("http", "https")
+                        if self.get_previous_link()
+                        else None,
+                    ),
+                    ("results", data),
+                ]
+            )
+        )
+
+
+class CircleInvitePagination(pagination.PageNumberPagination):
+    page_size = 20
+
+    def get_paginated_response(self, data):
+        params = self.request.GET
+        user_info = logged_user_info(self.request)
+        user_info = user_info["id"]
+        joined = 0
+        pending = 0
+        if "type" in params:
+            import pdb
+
+            pdb.set_trace()
+            if params.get("type") == "sent" and params.get("circle"):
+                joined = CircleInvite.objects.filter(
+                    sender=user_info, joined=True, circle=params.get("circle")
+                )
+                pending = CircleInvite.objects.filter(
+                    sender=user_info, joined=False, circle=params.get("circle")
+                )
+            if params.get("type") == "received" and params.get("circle"):
+                joined = CircleInvite.objects.filter(
+                    recipient=user_info, joined=True, circle=params.get("circle")
+                )
+                pending = CircleInvite.objects.filter(
+                    recipient=CircleInvite, joined=False, circle=params.get("circle")
+                )
+            joined = joined.count() if joined else 0
+            pending = pending.count() if pending else 0
+            return Response(
+                OrderedDict(
+                    [
+                        ("count", self.page.paginator.count),
+                        (
+                            "next",
+                            self.get_next_link().replace("http", "https")
+                            if self.get_next_link()
+                            else None,
+                        ),
+                        (
+                            "previous",
+                            self.get_previous_link().replace("http", "https")
+                            if self.get_previous_link()
+                            else None,
+                        ),
+                        ("joined", joined),
+                        ("pending", pending),
+                        ("results", data),
+                    ]
+                )
+            )
+        else:
+            return Response(
+                OrderedDict(
+                    [
+                        ("count", self.page.paginator.count),
+                        (
+                            "next",
+                            self.get_next_link().replace("http", "https")
+                            if self.get_next_link()
+                            else None,
+                        ),
+                        (
+                            "previous",
+                            self.get_previous_link().replace("http", "https")
+                            if self.get_previous_link()
+                            else None,
+                        ),
+                        ("results", data),
+                    ]
+                )
+            )

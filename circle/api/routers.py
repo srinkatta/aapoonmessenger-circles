@@ -30,6 +30,8 @@ from circle.api.viewsets import (
     GetGroupUniqueNameView,
     HierarchyDeleteAPIView,
     HierarchyTransferAPIView,
+    CircleInviteViewSet,
+    CircleInviteAcceptViewSet,
     SubscriptionPlanViewSet,
     TopicViewSet,
 )
@@ -108,6 +110,10 @@ urlpatterns = [
         name="hierarchy_transfer",
     ),
     path(r"msg/abuse/", MessageAbuseView.as_view(), name="message-abuse"),
+    path(
+        r"circle_invite_accept/",
+        CircleInviteAcceptViewSet.as_view(),
+        name="circle-invite-accept"),
     path(
         r"get_group_name/", GetGroupUniqueNameView.as_view(), name="group-unique-name"
     ),
