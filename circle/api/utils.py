@@ -253,9 +253,6 @@ class CircleInvitePagination(pagination.PageNumberPagination):
         joined = 0
         pending = 0
         if "type" in params:
-            import pdb
-
-            pdb.set_trace()
             if params.get("type") == "sent" and params.get("circle"):
                 joined = CircleInvite.objects.filter(
                     sender=user_info, joined=True, circle=params.get("circle")
