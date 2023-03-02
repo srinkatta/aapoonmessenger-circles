@@ -138,9 +138,13 @@ class CircleViewSet(BaseCircleViewSet):
             self.create_parent_circle(**data)
 
     def circle_add_user(self, circle, user, role: CircleRole | int):
-        # if role == 40:
-        #     member_xmpp_room_subscribe(user_jid=user["jid"], room_id=circle.room_id)
-        if not role == 40 and not CircleSubscriberRole.objects.filter(
+        if role == CircleRole.MEMBER:
+            member_xmpp_room_subscribe(user_jid=user["jid"], room_id=circle.room_id)
+            CircleSubscriberRole.objects.filter(
+                user_id=user["id"], circle=circle
+            ).delete()
+
+        if not role == CircleRole.MEMBER and not CircleSubscriberRole.objects.filter(
             user_id=user["id"], circle=circle
         ):
             circle_role = CircleSubscriberRole(
