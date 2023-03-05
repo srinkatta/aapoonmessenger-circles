@@ -91,6 +91,14 @@ DATABASES = {
         "PASSWORD": os.environ["DB_PASSWORD"],
         "HOST": os.environ["DB_HOST"],
         "PORT": os.environ["DB_PORT"],
+    },
+    'xmpp_database': {
+        'ENGINE': 'django.db.backends.postgresql_psycopg2',
+        'NAME': 'ejabberd',
+        'USER': 'postgres',
+        'PASSWORD': os.environ["XMPP_DB_PASSWORD"],
+        'HOST': os.environ["XMPP_DB_HOST"],
+        'PORT': '5432'
     }
 }
 

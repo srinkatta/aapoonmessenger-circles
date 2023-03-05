@@ -16,15 +16,19 @@ def app_notification(topic_name, message_from, message, xml):
     print("basename:    ", os.path.basename(__file__))
     print("dir_name:     ", os.path.dirname(__file__))
     print("Circle Notification")
-
     circle = Circle.objects.get(room_id=topic_name)
-    message_from = message_from + "@" + settings.XMPP_HOST
+    import phonenumbers
+    phone = phonenumbers.parse(f"+{message_from}", None)
 
     user_service = User()
-    from_user: Dict = user_service.details(user_jid=message_from)
+    from_user: Dict = user_service.get_details_from_phone(
+        phone_number=phone.national_number, country_code=phone.country_code
+    )
 
     if not from_user:
-        logger.exception(f"No User exists with the given user_jid: {from_user}")
+        logger.exception(
+            f"No User exists with the given user phone details: {from_user}"
+        )
         return
 
     title = from_user["name"] + " " + "in" + " " + '"' + circle.name + '"'
@@ -44,7 +48,7 @@ def app_notification(topic_name, message_from, message, xml):
 
     body = re.findall(r"<body>(.*?)</body>", xml)
     if body:
-        name = f"{from_user['first_name']} {from_user['last_name']}"
+        name = from_user["name"]
         message_value_dict = {
             "-6": "%s has replied to a message" % name,
             "-1": "%s has forwarded a message" % name,
@@ -130,110 +134,3 @@ def app_notification(topic_name, message_from, message, xml):
             print(data_message)
             print(android_result)
             print("Result for Circle")
-
-
-def notify_dm(
-    tuser: Dict = None,
-    from_user: Dict = None,
-    message_from=None,
-    message=None,
-    xml=None,
-):
-    if xml:
-        body = re.findall(r"<body>(.*?)</body>", xml)
-        if body:
-            message_value_dict = {
-                "-6": "Reply",
-                "-1": "Forward",
-                "-3": "Like",
-                "-4": "Dislike",
-                "2": "Image",
-                "3": "Video",
-                "4": "Audio",
-                "5": "Document",
-                "11": "Contact",
-            }
-            a = xml.find("<Bubble>") + len("<Bubble>")
-            b = xml.find("</Bubble>")
-            c = xml[a:b]
-            if body and "-" not in c:
-                try:
-                    message = message_value_dict[c]
-                except BaseException:
-                    pass
-                media = re.findall(
-                    r'<MEDIA (\S+)=[""]?((?:.(?![""]?\s+(?:\S+)=|\s*\/?[>""]))+.)[""]?>',
-                    xml,
-                )
-                commandaction = re.findall(
-                    r'<COMMANDACTION (\S+)=[""]?((?:.(?![""]?\s+(?:\S+)=|\s*\/?[>""]))+.)[""]?>',
-                    xml,
-                )
-                if media:
-                    if media[0][0] == "xmlns" and media[0][1] == "'urn:xmpp:media'":
-                        xml = xml.replace("<body>!~~!</body>", "<body>Media</body>")
-                        thumbnail = xml.find("<Thumbnail>")
-                        if thumbnail > 0:
-                            start_index = thumbnail + len("<Thumbnail>")
-                            end_index = xml.find("</Thumbnail>")
-                            thumbnail_content = xml[start_index:end_index]
-                            xml = xml.replace(thumbnail_content, "")
-                if commandaction and c == "11":
-                    if (
-                        commandaction[0][0] == "xmlns"
-                        and commandaction[0][1] == "'urn:xmpp:commandaction'"
-                    ):
-                        xml = xml.replace("<body>!~~!</body>", "<body>Contact</body>")
-                        commandmessage = xml.find("<CommandMessage>")
-                        if commandmessage > 0:
-                            start_index = commandmessage + len("<CommandMessage>")
-                            end_index = xml.find("</CommandMessage>")
-                            actual_content = xml[start_index:end_index]
-                            updated_content = actual_content.replace("&quot;", '"')
-                            xml = xml.replace(actual_content, updated_content)
-                name = f"{from_user['first_name']} {from_user['last_name']}"
-                data_message = {
-                    "notification": {
-                        "click_action": "ReplyOrRead",
-                        "xml": xml,
-                        "title": name,
-                        "body": message,
-                        "sound": "default",
-                    },
-                    "to": tuser["fcm_token"],
-                    "Nick": name,
-                    "body": message,
-                    "priority": "high",
-                    "content_available": True,
-                }
-                print(data_message)
-                if tuser["fcm_token"] and not tuser["apns_token"]:
-                    token = tuser["fcm_token"]
-                    push_service = FCMNotification(api_key=settings.FCM_API_KEY)
-                    print("Result for DM")
-                    print("Android")
-                    android_data_message = {
-                        "Nick": name,
-                        "body": message,
-                        "priority": "high",
-                    }
-                    android_result = push_service.notify_single_device(
-                        registration_id=token,
-                        data_message=android_data_message,
-                        content_available=True,
-                    )
-                    print(android_result)
-                else:
-                    token = tuser["fcm_token"]
-                    push_service = FCMNotification(api_key=settings.FCM_API_KEY)
-                    print("iPhone")
-                    result = push_service.notify_single_device(
-                        registration_id=token,
-                        message_title=name,
-                        message_body=message,
-                        data_message=data_message,
-                        content_available=True,
-                        extra_kwargs={"mutable_content": True},
-                    )
-                    print(result)
-                return True

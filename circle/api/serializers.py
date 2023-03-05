@@ -252,10 +252,6 @@ class BaseCircleSerializer(BaseSerializer):
         sub_circles = Circle.objects.filter(parent=circle.id)
         return sub_circles.count()
 
-    def get_circle_moderation(self, circle):
-        permission = circle.permissions.filter().first()
-        return permission.circle_moderation
-
     def get_circle_users(self, circle):
         circle_role = (
             CircleSubscriberRole.objects.filter(circle=circle)
@@ -281,109 +277,140 @@ class BaseCircleSerializer(BaseSerializer):
         admins = circle_admins.exclude(role__name="Moderator")
         return admins.count()
 
+    def get_circle_moderation(self, circle):
+        permission = circle.permissions.filter().first()
+        if permission:
+            return permission.circle_moderation
+
     def get_archive_admin(self, circle):
         permission = circle.permissions.filter().first()
-        return permission.archive_admin
+        if permission:
+            return permission.archive_admin
 
     def get_archive_moderator(self, circle):
         permission = circle.permissions.filter().first()
-        return permission.archive_moderator
+        if permission:
+            return permission.archive_moderator
 
     def get_assign_moderator_in_sub_circles(self, circle):
         permission = circle.permissions.filter().first()
-        return permission.assign_moderator_in_sub_circles
+        if permission:
+            return permission.assign_moderator_in_sub_circles
 
     def get_user_join_permissions(self, circle):
         permission = circle.permissions.filter().first()
-        return permission.user_join_permissions
+        if permission:
+            return permission.user_join_permissions
 
     def get_backup_circle(self, circle):
         permission = circle.permissions.filter().first()
-        return permission.backup_circle
+        if permission:
+            return permission.backup_circle
 
     def get_ban_users(self, circle):
         permission = circle.permissions.filter().first()
-        return permission.ban_users
+        if permission:
+            return permission.ban_users
 
     def get_delete_messages(self, circle):
         permission = circle.permissions.filter().first()
-        return permission.delete_messages
+        if permission:
+            return permission.delete_messages
 
     def get_delete_sub_circles(self, circle):
         permission = circle.permissions.filter().first()
-        return permission.delete_sub_circles
+        if permission:
+            return permission.delete_sub_circles
 
     def get_filter_members(self, circle):
         permission = circle.permissions.filter().first()
-        return permission.filter_members
+        if permission:
+            return permission.filter_members
 
     def get_link_expire_time(self, circle):
         permission = circle.permissions.filter().first()
-        return permission.link_expire_time
+        if permission:
+            return permission.link_expire_time
 
     def get_link_expired(self, circle):
         permission = circle.permissions.filter().first()
-        return permission.link_expired
+        if permission:
+            return permission.link_expired
 
     def get_mhl(self, circle):
         permission = circle.permissions.filter().first()
-        return permission.mhl
+        if permission:
+            return permission.mhl
 
     def get_pin_message_text(self, circle):
         permission = circle.permissions.filter().first()
-        return permission.pin_message_text
+        if permission:
+            return permission.pin_message_text
 
     def get_pin_message_id(self, circle):
         permission = circle.permissions.filter().first()
-        return permission.pin_message_id
+        if permission:
+            return permission.pin_message_id
 
     def get_shuffle_circles(self, circle):
         permission = circle.permissions.filter().first()
-        return permission.shuffle_circles
+        if permission:
+            return permission.shuffle_circles
 
     def get_post_level(self, circle):
         permission = circle.permissions.filter().first()
-        return permission.post_level
+        if permission:
+            return permission.post_level
 
     def get_post_messages(self, circle):
         permission = circle.permissions.filter().first()
-        return permission.post_messages
+        if permission:
+            return permission.post_messages
 
     def get_invite_users_via_link(self, circle):
         permission = circle.permissions.filter().first()
-        return permission.invite_users_via_link
+        if permission:
+            return permission.invite_users_via_link
 
     def get_user_exit(self, circle):
         permission = circle.permissions.filter().first()
-        return permission.user_exit
+        if permission:
+            return permission.user_exit
 
     def get_circle_privacy_change(self, circle):
         permission = circle.permissions.filter().first()
-        return permission.circle_privacy_change
+        if permission:
+            return permission.circle_privacy_change
 
     def get_add_delete_user(self, circle):
         permission = circle.permissions.filter().first()
-        return permission.add_delete_user
+        if permission:
+            return permission.add_delete_user
 
     def get_add_delete_other_admins(self, circle):
         permission = circle.permissions.filter().first()
-        return permission.add_delete_other_admins
+        if permission:
+            return permission.add_delete_other_admins
 
     def get_add_delete_moderator(self, circle):
         permission = circle.permissions.filter().first()
-        return permission.add_delete_moderator
+        if permission:
+            return permission.add_delete_moderator
 
     def get_create_sub_circles(self, circle):
         permission = circle.permissions.filter().first()
-        return permission.create_sub_circles
+        if permission:
+            return permission.create_sub_circles
 
     def get_pin_new_messages(self, circle):
         permission = circle.permissions.filter().first()
-        return permission.pin_new_messages
+        if permission:
+            return permission.pin_new_messages
 
     def get_change_circle_info(self, circle):
         permission = circle.permissions.filter().first()
-        return permission.change_circle_info
+        if permission:
+            return permission.change_circle_info
 
 
 class CircleListSerializer(BaseCircleSerializer):
@@ -733,6 +760,6 @@ class CircleInviteUpdateSerializer(serializers.ModelSerializer):
 
 
 class CircleInviteAcceptSerializer(serializers.Serializer):
-    sender = serializers.SerializerMethodField()
-    recipient = serializers.SerializerMethodField()
-    circle = serializers.SerializerMethodField()
+    sender = serializers.CharField(required=True)
+    recipient = serializers.CharField(required=True)
+    circle = serializers.CharField(required=True)

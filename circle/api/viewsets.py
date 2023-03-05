@@ -119,21 +119,8 @@ class CircleViewSet(BaseCircleViewSet):
             return CircleSerializer
 
     def get_queryset(self):
-        privacy = self.request.GET.get("privacy", "")
-        if privacy:
-            if privacy in ["public", "Public", "1", 1]:
-                privacy = 1
-                queryset = Circle.objects.filter(privacy=privacy)
-                return queryset
-            if privacy in ["private", "Private", "2", 2]:
-                privacy = 2
-                queryset = Circle.objects.filter(
-                    owner_id=self.request.user_id, privacy=privacy
-                )
-                return queryset
-        else:
-            queryset = Circle.objects.filter(owner_id=self.request.user_id)
-            return queryset
+        queryset = Circle.objects.filter(owner_id=self.request.user_id)
+        return queryset
 
     def hierarchy_limit(self, parent_id):
         parent_circle = Circle.objects.get(id=parent_id)
@@ -177,18 +164,19 @@ class CircleViewSet(BaseCircleViewSet):
             ).update(role=role)
 
     def circle_add_default_admins(self, circle, parent):
+        default_admin = CircleRole.objects.get(role=CircleRole.DEFAULT_ADMIN)
+        chief_admin = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
         default_admins = CircleSubscriberRole.objects.filter(
-            role=CircleRole.DEFAULT_ADMIN, circle=parent
+            role=default_admin, circle=parent
         ).values_list("user_id", flat=True)
         chief_admins = CircleSubscriberRole.objects.filter(
-            role=CircleRole.CHIEF_ADMIN, circle=parent
+            role=chief_admin, circle=parent
         ).values_list("user_id", flat=True)
         admins = default_admins | chief_admins
 
         for admin in admins:
-            if not CircleSubscriberRole.objects.filter(user_id=admin, circle=parent):
+            if not CircleSubscriberRole.objects.filter(user_id=admin, circle=circle):
                 role = CircleRole.objects.get(role=CircleRole.DEFAULT_ADMIN)
-                # TODO: test
                 user_service = User()
                 user = user_service.details(user_id=admin)
                 if not user:
@@ -273,20 +261,37 @@ class CircleViewSet(BaseCircleViewSet):
     )
     def list(self, request, *args, **kwargs):
         if "name" in request.GET:
-            return self.search_circle_by_name(request)
-        final_circles = CircleSubscriberRole.objects.filter(user_id=request.user_id)
+            circles = self.circle_name_search(request)
 
-        circles = [circle.circle.id for circle in final_circles]
-        circles = Circle.objects.filter(id__in=circles).order_by("-id")
+        elif "privacy" in request.GET:
+            privacy = request.GET.get("privacy", "")
+            circles = self.filter_circles_privacy(privacy)
 
-        page = self.paginate_queryset(circles)
+        else:
+            final_circles = CircleSubscriberRole.objects.filter(user_id=request.user_id)
+
+            circles = [circle.circle.id for circle in final_circles]
+            circles = Circle.objects.filter(id__in=circles)
+
+        queryset = circles.order_by("-id")
+        page = self.paginate_queryset(queryset)
 
         serializer = self.get_serializer_class()(
             page, many=True, context={"request": request}
         )
         return self.get_paginated_response(serializer.data)
 
-    def search_circle_by_name(self, request):
+    def filter_circles_privacy(self, privacy):
+        if privacy in ["public", "Public", "1", 1]:
+            privacy = 1
+            queryset = Circle.objects.filter(privacy=privacy)
+            return queryset
+        if privacy in ["private", "private", "2", 2]:
+            privacy = 2
+            queryset = Circle.objects.filter(owner_id=self.request.user_id, privacy=privacy)
+            return queryset
+
+    def circle_name_search(self, request):
         # search with circle name and get list of circles
         name = request.GET["name"]
         name = name.lower()
@@ -297,11 +302,7 @@ class CircleViewSet(BaseCircleViewSet):
 
         qs = circles.annotate(name_lower=Lower("name"))
         circles = qs.filter(name_lower__icontains=name)
-        if circles:
-            serializer = CircleListSerializer(
-                circles, many=True, context={"request": request}
-            )
-            return Response(serializer.data, status=status.HTTP_200_OK)
+        return circles
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(
