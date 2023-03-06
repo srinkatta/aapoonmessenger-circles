@@ -3,7 +3,7 @@ from abc import ABC
 from django.db.models import Count, Q
 from rest_framework import serializers
 
-from circle.models import ChatMessage, MuteCoversation
+from circle.models import ChatMessage
 
 
 class ChatMessageSerializer(serializers.ModelSerializer):
@@ -49,12 +49,6 @@ class ChatMessageSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
-class MuteMessageSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = MuteCoversation
-        fields = "__all__"
-
-
 class ArchiveChatSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
     timestamp = serializers.IntegerField(read_only=True)
@@ -64,12 +58,13 @@ class ArchiveChatSerializer(serializers.Serializer):
     user_pic = serializers.URLField(max_length=256)
 
 
-class NotifyRedirectSerializer(serializers.Serializer):
+class NotifyRedirectCircleSerializer(serializers.Serializer):
     body = serializers.CharField(max_length=512)
     xml = serializers.CharField(max_length=256)
     from_user = serializers.CharField(
         max_length=256, label="from", help_text="renamed this `from` to `from_user"
     )
+    to = serializers.CharField(max_length=256)
     vhost = serializers.CharField(max_length=256)
     message_id = serializers.CharField(
         max_length=256, allow_null=True, allow_blank=True

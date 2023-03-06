@@ -192,17 +192,6 @@ class ChatMessage(models.Model):
     action_by = models.CharField(max_length=255, null=True, blank=True)
 
 
-class MuteCoversation(models.Model):
-    """
-    Mute Conversation Model
-    """
-
-    sender_id = models.CharField(max_length=200)
-    recipient_id = models.CharField(max_length=200)
-    mute = models.BooleanField(default=False)
-    mute_time = models.BigIntegerField(default=0)
-
-
 class CirclePermission(BaseTimeStampedModel):
     circle = models.ForeignKey(
         Circle,

@@ -4,13 +4,10 @@ from rest_framework import routers
 
 from circle.api.direct_message.viewsets import (
     MessageAbuseView,
-    MuteMessageView,
-    NotifyRedirectViewSet,
+    NotifyRedirectCircleViewSet,
     XMPPChatViewSet,
-    XMPPDeleteDMViewSet,
     XMPPMessageFilterViewSet,
     XMPPMessageViewSet,
-    XMPPMonthlyChatViewSet,
 )
 from circle.api.media_views.viewsets import (
     ChatAudioUploadViewSet,
@@ -83,21 +80,14 @@ router.register(r"circle_invite", CircleInviteViewSet, basename="circle-invite")
 urlpatterns = [
     path("admin/", admin.site.urls),
     path(r"", include(router.urls)),
-    path(r"mute_messages/", MuteMessageView.as_view()),
     path(
         r"xmpp_chat/",
         XMPPChatViewSet.as_view({"get": "list"}),
         name="xmpp_chat",
     ),
     path(
-        r"xmpp_monthly_chat/",
-        XMPPMonthlyChatViewSet.as_view({"get": "list"}),
-        name="xmpp_chat",
-    ),
-    path(r"delete_chat/", XMPPDeleteDMViewSet.as_view(), name="delete_chat"),
-    path(
-        r"notify_redirect/",
-        NotifyRedirectViewSet.as_view(),
+        r"notify_circle/",
+        NotifyRedirectCircleViewSet.as_view(),
         name="push_notify_redirect",
     ),
     # hierarchy
