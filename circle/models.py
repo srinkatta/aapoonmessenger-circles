@@ -23,7 +23,7 @@ class Topic(BaseTimeStampedModel):
     type = models.CharField(max_length=5, choices=TOPIC_TYPE, default=1)
 
     def __str__(self):
-        return self.name
+        return f"ID: {self.id} Name: {self.name}"
 
 
 class Circle(BaseTimeStampedModel):

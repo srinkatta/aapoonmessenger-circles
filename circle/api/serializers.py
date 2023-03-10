@@ -484,6 +484,8 @@ class CircleInputSerializer(BaseCircleSerializer):
 
 
 class CircleSerializer(BaseCircleSerializer):
+    topic = TopicSerializer(required=False, many=True)
+
     class Meta:
         model = Circle
         fields = "__all__"
@@ -551,6 +553,15 @@ class CircleSubscriberRoleInputSerializer(serializers.Serializer):
 
 class CircleSubscriberRoleSerializer(FlexFieldsModelSerializer):
     role = serializers.SerializerMethodField()
+    user_id = serializers.SerializerMethodField()
+    user_jid = serializers.SerializerMethodField()
+
+    def get_user_id(self, obj):
+        return obj.user_id
+
+    def get_user_jid(self, obj):
+        user_service = User().details(user_id=obj.user_id)
+        return user_service["jid"]
 
     class Meta:
         model = CircleSubscriberRole
@@ -629,42 +640,7 @@ class CircleHierarchySerializer(CircleListSerializer):
             "privacy",
             "parent",
             "gensis_circle_id",
-            "circle_moderation",
-            "post_messages",
-            "pin_new_messages",
-            "create_sub_circles",
-            "add_delete_moderator",
-            "add_delete_other_admins",
-            "add_delete_user",
-            "circle_privacy_change",
-            "invite_users_via_link",
-            "change_circle_info",
-            "user_exit",
-            "created_by",
-            "sub_circle_count",
-            "circle_admins_count",
-            "circle_users_count",
             "max_level",
-            "level",
-            "hierarchy",
-            "archive_admin",
-            "archive_moderator",
-            "assign_moderator_in_sub_circles",
-            "backup_circle",
-            "ban_users",
-            "delete_messages",
-            "delete_sub_circles",
-            "filter_members",
-            "link_expire_time",
-            "link_expired",
-            "mhl",
-            "pin_message_id",
-            "pin_message_text",
-            "user_join_permissions",
-            "post_level",
-            "shuffle_circles",
-            "topic",
-            "sub_circle_status",
         )
 
     def get_sub_circles(self, circle):
@@ -675,6 +651,43 @@ class CircleHierarchySerializer(CircleListSerializer):
     def get_sub_circle_count(self, circle):
         circles = Circle.objects.filter(parent=circle.id)
         return circles.count()
+
+    def get_gensis_circle_id(self, circle):
+        if not circle.parent:
+            return circle.id
+        parents = (
+            Circle.objects.filter(pk=circle.parent.pk)
+            | circle.parent.get_parent_circles()
+        )
+        if parents:
+            root_parent = parents[0]
+            return root_parent.id
+        else:
+            return circle.id
+
+
+class CircleHierarchySearchSerializer(CircleListSerializer):
+    sub_circle_count = serializers.SerializerMethodField()
+    level = serializers.SerializerMethodField()
+    gensis_circle_id = serializers.SerializerMethodField()
+    max_level = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Circle
+        fields = (
+            "id",
+            "name",
+            "image",
+            "link",
+            "post_level",
+            "description",
+            "parent",
+            "sub_circle_count",
+            "level",
+            "gensis_circle_id",
+            "max_level",
+            "room_id",
+        )
 
     def get_gensis_circle_id(self, circle):
         if not circle.parent:

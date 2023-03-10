@@ -14,6 +14,7 @@ from rest_framework.views import APIView
 from circle.api.serializers import (
     AppBrandingSerializer,
     CircleHierarchySerializer,
+    CircleHierarchySearchSerializer,
     CircleInputSerializer,
     CircleInviteCreateSerializer,
     CircleInviteResponseSerializer,
@@ -220,6 +221,12 @@ class CircleViewSet(BaseCircleViewSet):
                             role = CircleRole.objects.get(role=CircleRole.DEFAULT_ADMIN)
                             self.circle_add_user(circle, user, role=role)
 
+    def circle_add_topics(self, circle, topic):
+        if topic:
+            topics = Topic.objects.filter(id=topic[0].id)
+            for topic in topics:
+                circle.topic.add(topic)
+
     def get_circle_with_level(self, circles):
         circles_with_level = {}
         for circle in circles:
@@ -285,10 +292,13 @@ class CircleViewSet(BaseCircleViewSet):
         if privacy in ["public", "Public", "1", 1]:
             privacy = 1
             queryset = Circle.objects.filter(privacy=privacy)
+            queryset = queryset.exclude(owner_id=self.request.user_id)
             return queryset
         if privacy in ["private", "private", "2", 2]:
             privacy = 2
-            queryset = Circle.objects.filter(owner_id=self.request.user_id, privacy=privacy)
+            queryset = Circle.objects.filter(
+                owner_id=self.request.user_id, privacy=privacy
+            )
             return queryset
 
     def circle_name_search(self, request):
@@ -310,6 +320,7 @@ class CircleViewSet(BaseCircleViewSet):
         )
         serializer.is_valid(raise_exception=True)
         parent = serializer.validated_data.get("parent")
+        topic = serializer.validated_data.get("topic")
 
         if parent:
             # Child circle limit
@@ -324,6 +335,8 @@ class CircleViewSet(BaseCircleViewSet):
 
             # Create XMPP Room
             create_xmpp_room(circle)
+
+            self.circle_add_topics(circle, topic)
 
             # Add Owner to circle and add to xmpp_room
             role = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
@@ -342,10 +355,13 @@ class CircleViewSet(BaseCircleViewSet):
             # Create XMPP Room
             create_xmpp_room(circle)
 
+            self.circle_add_topics(circle, topic)
+
             # Add Owner to circle and add to xmpp_room
             role = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
             user_info = logged_user_info(request)
             self.circle_add_user(circle, user_info, role)
+        serializer = CircleSerializer(circle, context={"request": request})
 
         return Response(serializer.data)
 
@@ -469,6 +485,8 @@ class CircleViewSet(BaseCircleViewSet):
                     {"data": "No circle is associated with this level"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
+            serializer = CircleHierarchySearchSerializer(circles, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
 
         elif (
             "level" in request.GET
@@ -1039,4 +1057,3 @@ class GetGroupUniqueNameView(APIView):
             return Response({"data": "Name already exists"}, status=400)
         else:
             return Response({"data": "Name doesn't exist"}, status=200)
-
