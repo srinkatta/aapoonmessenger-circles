@@ -126,7 +126,7 @@ class BaseCircleSerializer(BaseSerializer):
             "parent",
             # "circle_users",
             "gensis_circle_id",
-            # "total_count",
+            "total_count",
             "circle_moderation",
             "post_messages",
             "pin_new_messages",
@@ -474,6 +474,7 @@ class CircleResponseSerializer(BaseCircleSerializer):
 
 class CircleInputSerializer(BaseCircleSerializer):
     branding = serializers.DictField(required=False, allow_null=True, allow_empty=True)
+    sites = serializers.ListField(required=False, allow_null=True)
 
     class Meta:
         model = Circle
@@ -485,6 +486,7 @@ class CircleInputSerializer(BaseCircleSerializer):
 
 class CircleSerializer(BaseCircleSerializer):
     topic = TopicSerializer(required=False, many=True)
+    total_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Circle
@@ -632,6 +634,7 @@ class CircleHierarchySerializer(CircleListSerializer):
             "id",
             "name",
             "parent",
+            "image",
             "sub_circle_count",
             "level",
             "max_level",
