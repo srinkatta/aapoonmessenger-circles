@@ -539,6 +539,11 @@ class CircleAddUserInputSerializer(serializers.Serializer):
 
         if not user_id and not connected:
             raise serializers.ValidationError("user_id or connected field is required")
+
+        if user_id and connected:
+            raise serializers.ValidationError(
+                "Not possible to use both user_id or connected fields"
+            )
         return attrs
 
     def create(self, validated_data):

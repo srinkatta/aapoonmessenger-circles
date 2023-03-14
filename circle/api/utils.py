@@ -65,8 +65,7 @@ def get_children_filters(circle, include_self=True):
 def logged_user_info(request) -> dict:
     return {
         "id": request.user_id,
-        "first_name": request.last_name,
-        "last_name": request.last_name,
+        "name": request.name,
         "jid": request.jid,
     }
 

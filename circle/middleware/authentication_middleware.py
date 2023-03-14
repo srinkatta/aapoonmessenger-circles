@@ -22,9 +22,9 @@ class ExtraJWTAuthentication(JWTAuthentication):
             try:
                 user_service = User()
                 user = user_service.details(user_id=request.user_id)
-                request.first_name = user.get("first_name")
-                request.last_name = user.get("last_name")
+                request.name = user.get("name")
                 request.jid = user.get("jid")
+                request.unique_id = user.get("unique_id")
                 request.authenticated = True
             except Exception as exc:
                 print(exc)
