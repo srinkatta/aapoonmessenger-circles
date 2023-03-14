@@ -1,5 +1,6 @@
 import re
 from typing import List, Union
+import phonenumbers
 
 from django.db.models import F, Func, Q, Value
 from django.db.models.functions import Lower
@@ -701,8 +702,6 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
                     self.circle_add_default_admin(circle, user, role)
 
             if connected:
-                import phonenumbers
-
                 phone = phonenumbers.parse(f"+{connected}", None)
                 user = user_service.get_details_from_phone(
                     country_code=phone.country_code, phone_number=phone.national_number
