@@ -267,12 +267,13 @@ class CircleViewSet(BaseCircleViewSet):
         ]
     )
     def list(self, request, *args, **kwargs):
-        if "name" in request.GET:
-            circles = self.circle_name_search(request)
-
-        elif "privacy" in request.GET:
+        if "privacy" in request.GET:
             privacy = request.GET.get("privacy", "")
-            circles = self.filter_circles_privacy(privacy)
+            name = request.GET.get("name", "")
+            circles = self.filter_circles_privacy(privacy, name)
+
+        elif "name" in request.GET:
+            circles = self.circle_name_search(request)
 
         else:
             final_circles = CircleSubscriberRole.objects.filter(user_id=request.user_id)
@@ -288,18 +289,32 @@ class CircleViewSet(BaseCircleViewSet):
         )
         return self.get_paginated_response(serializer.data)
 
-    def filter_circles_privacy(self, privacy):
+    def filter_circle_privacy_name(self, queryset, name):
+        # search with circle name and privacy
+        if name:
+            name = name.lower()
+            qs = queryset.annotate(name_lower=Lower("name"))
+            final_groups = qs.filter(name_lower__icontains=name)
+            queryset = final_groups.order_by("name")
+            return queryset
+        else:
+            return queryset
+
+    def filter_circles_privacy(self, privacy, name):
         if privacy in ["public", "Public", "1", 1]:
             privacy = 1
-            queryset = Circle.objects.filter(privacy=privacy)
-            queryset = queryset.exclude(owner_id=self.request.user_id)
-            return queryset
+            circles = Circle.objects.filter(privacy=privacy)
+            queryset = circles.exclude(owner_id=self.request.user_id)
+            results = self.filter_circle_privacy_name(queryset, name)
+            return results
+
         if privacy in ["private", "private", "2", 2]:
             privacy = 2
             queryset = Circle.objects.filter(
                 owner_id=self.request.user_id, privacy=privacy
             )
-            return queryset
+            results = self.filter_circle_privacy_name(queryset, name)
+            return results
 
     def circle_name_search(self, request):
         # search with circle name and get list of circles
@@ -375,7 +390,9 @@ class CircleViewSet(BaseCircleViewSet):
         try:
             circle = Circle.objects.get(id=kwargs.get("pk"))
         except Circle.DoesNotExist:
-            return Response({"data": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"data": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST
+            )
         serializer = CircleUpdateSerializer(
             circle, context={"request": request}, data=request.data
         )
@@ -421,7 +438,9 @@ class CircleViewSet(BaseCircleViewSet):
             circle = Circle.objects.get(id=pk)
             room_id = circle.room_id
         except Circle.DoesNotExist:
-            return Response({"data": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"data": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST
+            )
         circle.delete()
         destroy_room(room_id)
         return Response(
@@ -460,7 +479,9 @@ class CircleViewSet(BaseCircleViewSet):
         try:
             circle = Circle.objects.get(id=pk)
         except Circle.DoesNotExist:
-            return Response({"data": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"data": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST
+            )
 
         if "name" in request.GET and "level" not in request.GET:
             name = request.GET.get("name").strip()
@@ -567,7 +588,9 @@ class CircleViewSet(BaseCircleViewSet):
         try:
             circle = Circle.objects.get(id=pk)
         except Circle.DoesNotExist:
-            return Response({"data": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"data": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST
+            )
         serializer = CircleSerializer(circle, context={"request": request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -589,7 +612,9 @@ class CircleViewSet(BaseCircleViewSet):
         try:
             circle = Circle.objects.get(id=pk)
         except Circle.DoesNotExist:
-            return Response({"data": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"data": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST
+            )
 
         role = request.GET.get("role", "")
         if role == "admins":
@@ -625,7 +650,9 @@ class CircleViewSet(BaseCircleViewSet):
         try:
             circle = Circle.objects.get(id=pk)
         except Circle.DoesNotExist:
-            return Response({"data": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"data": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST
+            )
 
         serializer = CircleLeaveSerializer(
             data=request.data, context={"request": request}
