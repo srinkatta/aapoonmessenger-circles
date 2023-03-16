@@ -74,3 +74,31 @@ class User:
     def _prepare_response_body(self, response: Response) -> bytes:
         result = response.json()
         return result
+
+
+def user_notify_chat(
+    message: str = "", message_from: str = "", to: str = "", xml: str = ""
+) -> Dict:
+    result = {}
+    request_data: dict = {
+        "body": message,
+        "from_user": message_from,
+        "to": to,
+        "xml": xml
+    }
+    base_url = settings.USER_MICROSERVICE_URL
+    user_service_notify_dm = f"{base_url}api/users/notify_dm/"
+    headers = {"Authorization": settings.USER_MICROSERVICE_API_KEY}
+    try:
+        response: Response = requests.post(
+            user_service_notify_dm,
+            json=request_data,
+            headers=headers,
+        )
+        response.raise_for_status()
+        result = response.json
+    except (requests.exceptions.RequestException, requests.exceptions.HTTPError):
+        result = {}
+    finally:
+        return result
+

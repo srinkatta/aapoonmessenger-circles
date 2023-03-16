@@ -17,13 +17,13 @@ from circle.api.direct_message.serializers import (
     ChatMessageFilterSerializer,
     ChatMessageSerializer,
     MessageAbuseSerializer,
-    NotifyRedirectCircleSerializer,
+    NotifyRedirectSerializer,
 )
 from circle.api.utils import abuse_mail_msg
 from circle.helpers.notifications import app_notification
 from circle.middleware.permissions import Authenticate
 from circle.models import ChatMessage
-from circle.services.user import User
+from circle.services.user import User, user_notify_chat
 from circle_service import settings
 
 logger = logging.getLogger(__name__)
@@ -277,9 +277,9 @@ class XMPPChatViewSet(viewsets.ViewSet, CustomPagination):
             )
 
 
-class NotifyRedirectCircleViewSet(generics.GenericAPIView):
+class NotifyRedirectViewSet(generics.GenericAPIView):
     http_method_names = ["post"]
-    serializer_class = NotifyRedirectCircleSerializer
+    serializer_class = NotifyRedirectSerializer
 
     def post(self, request):
         """
@@ -292,6 +292,9 @@ class NotifyRedirectCircleViewSet(generics.GenericAPIView):
         message_id = request.data.get("message_id")
 
         if "vhost" in request.data:
+            if request.data["vhost"] == settings.XMPP_HOST:
+                user_notify_chat(message, message_from, to, xml)
+
             if request.data["vhost"] == "conference" + "." + settings.XMPP_HOST:
                 topic_name = request.data.get("to")
                 t = threading.Thread(

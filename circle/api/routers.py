@@ -4,7 +4,7 @@ from rest_framework import routers
 
 from circle.api.direct_message.viewsets import (
     MessageAbuseView,
-    NotifyRedirectCircleViewSet,
+    NotifyRedirectViewSet,
     XMPPChatViewSet,
     XMPPMessageFilterViewSet,
     XMPPMessageViewSet,
@@ -86,8 +86,8 @@ urlpatterns = [
         name="xmpp_chat",
     ),
     path(
-        r"notify_circle/",
-        NotifyRedirectCircleViewSet.as_view(),
+        r"notify_redirect/",
+        NotifyRedirectViewSet.as_view(),
         name="push_notify_redirect",
     ),
     # hierarchy
@@ -103,7 +103,8 @@ urlpatterns = [
     path(
         r"circle_invite_accept/",
         CircleInviteAcceptViewSet.as_view(),
-        name="circle-invite-accept"),
+        name="circle-invite-accept",
+    ),
     path(
         r"get_group_name/", GetGroupUniqueNameView.as_view(), name="group-unique-name"
     ),
