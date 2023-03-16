@@ -28,7 +28,6 @@ from circle.api.serializers import (
     CircleSerializer,
     CircleSubscriberRoleInputSerializer,
     CircleSubscriberRoleSerializer,
-    CircleUpdateSerializer,
     CustomerSerializer,
     CustomFieldSerializer,
     HierarchyDeleteSerializer,
@@ -373,12 +372,15 @@ class CircleViewSet(BaseCircleViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def update(self, request, *args, **kwargs):
-        circle = self.get_circle_by_id(kwargs.get("pk"))
+        try:
+            circle = Circle.objects.get(id=kwargs.get("pk"))
+        except Circle.DoesNotExist:
+            return Response({"data": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST)
         serializer = CircleUpdateSerializer(
             circle, context={"request": request}, data=request.data
         )
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        circle_serializer = serializer.save()
 
         # Add or Update user circle
         circle_users = serializer.validated_data.get("circle_users")
@@ -411,15 +413,15 @@ class CircleViewSet(BaseCircleViewSet):
         user_ids = serializer.validated_data.get("user_ids")
         if leave and user_ids:
             self.remove_users_from_circle(circle, user_ids)
-
+        serializer = CircleSerializer(circle_serializer, context={"request": request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def destroy(self, request, pk=None, *args, **kwargs):
         try:
-            circle = self.get_circle_by_id(pk)
+            circle = Circle.objects.get(id=pk)
             room_id = circle.room_id
         except Circle.DoesNotExist:
-            return Response(status=status.HTTP_404_NOT_FOUND)
+            return Response({"data": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST)
         circle.delete()
         destroy_room(room_id)
         return Response(
@@ -455,7 +457,10 @@ class CircleViewSet(BaseCircleViewSet):
     )
     def hierarchy(self, request, pk=None):
         circles = []
-        circle = self.get_circle_by_id(pk)
+        try:
+            circle = Circle.objects.get(id=pk)
+        except Circle.DoesNotExist:
+            return Response({"data": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST)
 
         if "name" in request.GET and "level" not in request.GET:
             name = request.GET.get("name").strip()
@@ -486,8 +491,10 @@ class CircleViewSet(BaseCircleViewSet):
                     {"data": "No circle is associated with this level"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            serializer = CircleHierarchySearchSerializer(circles, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            circle = circles.order_by("-id")
+            page = self.paginate_queryset(circle)
+            serializer = CircleHierarchySearchSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
 
         elif (
             "level" in request.GET
@@ -543,7 +550,10 @@ class CircleViewSet(BaseCircleViewSet):
 
         if circles:
             """Check if any query param was used (in that case we filter circle and append to list)"""
-            serializer = CircleHierarchySerializer(circles, many=True)
+            circles = circles.order_by("-id")
+            page = self.paginate_queryset(circles)
+            serializer = CircleHierarchySerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
         else:
             """otherwise we use the circle given in the url"""
             serializer = CircleHierarchySerializer(circle)
@@ -554,7 +564,10 @@ class CircleViewSet(BaseCircleViewSet):
         methods=["GET"],
     )
     def info(self, request, pk=None):
-        circle = self.get_circle_by_id(pk)
+        try:
+            circle = Circle.objects.get(id=pk)
+        except Circle.DoesNotExist:
+            return Response({"data": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST)
         serializer = CircleSerializer(circle, context={"request": request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -573,7 +586,11 @@ class CircleViewSet(BaseCircleViewSet):
         methods=["GET"],
     )
     def users(self, request, pk=None):
-        circle = self.get_circle_by_id(pk)
+        try:
+            circle = Circle.objects.get(id=pk)
+        except Circle.DoesNotExist:
+            return Response({"data": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST)
+
         role = request.GET.get("role", "")
         if role == "admins":
             role = [0, 10, 20]
@@ -605,7 +622,11 @@ class CircleViewSet(BaseCircleViewSet):
         `Payload` \n
         `user_ids`: [] # list of user_ids (QA can get it from admin panel under `CircleSubscriberRole`
         """
-        circle = self.get_circle_by_id(pk)
+        try:
+            circle = Circle.objects.get(id=pk)
+        except Circle.DoesNotExist:
+            return Response({"data": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST)
+
         serializer = CircleLeaveSerializer(
             data=request.data, context={"request": request}
         )
