@@ -16,22 +16,11 @@ from circle.api.serializers import (
     AppBrandingSerializer,
     CircleHierarchySerializer,
     CircleHierarchySearchSerializer,
-    CircleInputSerializer,
-    CircleInviteCreateSerializer,
-    CircleInviteResponseSerializer,
-    CircleInviteSerializer,
-    CircleInviteUpdateSerializer,
-    CircleLeaveSerializer,
-    CircleListSerializer,
-    CirclePermissionSerializer,
     CircleRoleSerializer,
     CircleSerializer,
-    CircleSubscriberRoleInputSerializer,
     CircleSubscriberRoleSerializer,
     CustomerSerializer,
     CustomFieldSerializer,
-    HierarchyDeleteSerializer,
-    HierarchyTransferSerializer,
     SubscriptionPlanSerializer,
     TopicSerializer,
     CirclePermissionSerializer,
@@ -49,7 +38,6 @@ from circle.api.serializers import (
     CircleInputSerializer,
 )
 from circle.api.utils import (
-    circle_properties_update,
     get_all_children,
     get_level,
     logged_user_info,
@@ -668,6 +656,28 @@ class CircleViewSet(BaseCircleViewSet):
         return Response(
             {"data": "users deleted successfully"}, status=status.HTTP_200_OK
         )
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="role",
+                description="Filter by role",
+                required=False,
+                type=str,
+            ),
+        ]
+    )
+    @action(detail=False, methods=["GET"], url_path="role")
+    def get_circle_by_role(self, request):
+        """returns associated circles based on role"""
+        role = request.GET.get("role", "")
+        circle_ids = CircleSubscriberRole.objects.filter(
+            role__role=role, user_id=request.user_id
+        ).values_list("circle_id", flat=True)
+        circles = Circle.objects.filter(id__in=circle_ids)
+        page = self.paginate_queryset(circles)
+        serializer = CircleListSerializer(page, many=True, context={"request": request})
+        return self.get_paginated_response(serializer.data)
 
 
 class CircleRoleViewSet(BaseCircleViewSet):
