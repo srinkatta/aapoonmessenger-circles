@@ -108,6 +108,7 @@ class BaseCircleSerializer(BaseSerializer):
     shuffle_circles = serializers.SerializerMethodField()
     user_join_permissions = serializers.SerializerMethodField()
     role = serializers.SerializerMethodField()
+    sites = serializers.SerializerMethodField()
 
     class Meta:
         model = Circle
@@ -169,6 +170,7 @@ class BaseCircleSerializer(BaseSerializer):
             "is_default_admin",
             "is_moderator",
             "is_user",
+            "sites",
         )
         extra_kwargs = {
             "id": {"read_only": True},
@@ -230,6 +232,9 @@ class BaseCircleSerializer(BaseSerializer):
 
     def get_created_by(self, circle):
         return circle.owner_id
+
+    def get_sites(self, circle):
+        return circle.sites
 
     def get_level(self, circle):
         if circle.parent is None:
@@ -487,6 +492,7 @@ class CircleInputSerializer(BaseCircleSerializer):
 class CircleSerializer(BaseCircleSerializer):
     topic = TopicSerializer(required=False, many=True)
     total_count = serializers.SerializerMethodField()
+    sites = serializers.SerializerMethodField()
 
     class Meta:
         model = Circle
@@ -495,11 +501,34 @@ class CircleSerializer(BaseCircleSerializer):
             "id": {"read_only": True},
         }
 
+    def get_sites(self, obj):
+        if isinstance(obj.sites, list):
+            return obj.sites
+        elif (
+            obj.sites != "None"
+            and obj.sites != "[]"
+            and obj.sites
+            and obj.sites != [""]
+            and isinstance(obj.sites, str)
+        ):
+            sites = obj.sites
+            sites = sites.replace("[", "")
+            sites = sites.replace("]", "")
+            sites = sites.replace("'", "")
+            sites = sites.split(",")
+            sites = [x.strip() for x in sites]
+            return sites
+        else:
+            return []
+
+
+
 
 class CircleUpdateSerializer(BaseCircleSerializer):
     circle_users = serializers.ListField(required=False)
     user_ids = serializers.ListField(required=False)
     leave = serializers.BooleanField(default=False)
+    sites = serializers.ListField(required=False, allow_null=True)
 
     class Meta:
         model = Circle
@@ -539,6 +568,11 @@ class CircleAddUserInputSerializer(serializers.Serializer):
 
         if not user_id and not connected:
             raise serializers.ValidationError("user_id or connected field is required")
+
+        if user_id and connected:
+            raise serializers.ValidationError(
+                "Not possible to use both user_id or connected fields"
+            )
         return attrs
 
     def create(self, validated_data):
