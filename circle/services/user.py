@@ -95,7 +95,6 @@ def user_notify_chat(
             json=request_data,
             headers=headers,
         )
-        print(response)
         response.raise_for_status()
         result = response.json
     except (requests.exceptions.RequestException, requests.exceptions.HTTPError):
