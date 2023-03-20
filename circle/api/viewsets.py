@@ -381,8 +381,12 @@ class CircleViewSet(BaseCircleViewSet):
         return Response(serializer.data)
 
     def retrieve(self, request, *args, **kwargs):
-        circle = self.get_circle_by_id(kwargs.get("pk"))
-
+        try:
+            circle = Circle.objects.get(id=kwargs.get("pk"))
+        except Circle.DoesNotExist:
+            return Response(
+                {"data": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST
+            )
         serializer = CircleSerializer(circle, context={"request": request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -1073,7 +1077,7 @@ class CircleInviteAcceptViewSet(APIView):
         return Response({"data": "Invitations Accepted"}, status=200)
 
 
-class GetGroupUniqueNameView(APIView):
+class GetCircleUniqueNameView(APIView):
     """
     API View to mute receiving messages from some other user.
     """

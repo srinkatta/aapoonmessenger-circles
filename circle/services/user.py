@@ -84,7 +84,7 @@ def user_notify_chat(
         "body": message,
         "from_user": message_from,
         "to": to,
-        "xml": xml
+        "xml": xml,
     }
     base_url = settings.USER_MICROSERVICE_URL
     user_service_notify_dm = f"{base_url}api/users/notify_dm/"
@@ -95,10 +95,10 @@ def user_notify_chat(
             json=request_data,
             headers=headers,
         )
+        print(response)
         response.raise_for_status()
         result = response.json
     except (requests.exceptions.RequestException, requests.exceptions.HTTPError):
         result = {}
     finally:
         return result
-
