@@ -24,7 +24,7 @@ from circle.api.viewsets import (
     CircleViewSet,
     CustomerViewSet,
     CustomFieldViewSet,
-    GetGroupUniqueNameView,
+    GetCircleUniqueNameView,
     HierarchyDeleteAPIView,
     HierarchyTransferAPIView,
     CircleInviteViewSet,
@@ -106,6 +106,6 @@ urlpatterns = [
         name="circle-invite-accept",
     ),
     path(
-        r"get_group_name/", GetGroupUniqueNameView.as_view(), name="group-unique-name"
+        r"get_circle_name/", GetCircleUniqueNameView.as_view(), name="group-unique-name"
     ),
 ]

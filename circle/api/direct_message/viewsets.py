@@ -202,7 +202,7 @@ class XMPPChatViewSet(viewsets.ViewSet, CustomPagination):
 
     def fetch_archive_chat(self, query):
         with connections["xmpp_database"].cursor() as cursor:
-            archive_res = cursor.execute(query)
+            cursor.execute(query)
             archive_data = cursor.fetchall()
             archive_data = sorted(archive_data, key=lambda x: x[0])
             archive_chat = [

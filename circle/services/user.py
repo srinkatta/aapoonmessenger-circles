@@ -84,7 +84,7 @@ def user_notify_chat(
         "body": message,
         "from_user": message_from,
         "to": to,
-        "xml": xml
+        "xml": xml,
     }
     base_url = settings.USER_MICROSERVICE_URL
     user_service_notify_dm = f"{base_url}api/users/notify_dm/"
@@ -101,4 +101,3 @@ def user_notify_chat(
         result = {}
     finally:
         return result
-

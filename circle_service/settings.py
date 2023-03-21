@@ -69,7 +69,6 @@ CORS_ALLOWED_ORIGINS = [
 CORS_ALLOW_ALL_ORIGINS = True
 
 
-
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
@@ -101,14 +100,14 @@ DATABASES = {
         "HOST": os.environ["DB_HOST"],
         "PORT": os.environ["DB_PORT"],
     },
-    'xmpp_database': {
-        'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': 'ejabberd',
-        'USER': 'postgres',
-        'PASSWORD': os.environ["XMPP_DB_PASSWORD"],
-        'HOST': os.environ["XMPP_DB_HOST"],
-        'PORT': '5432'
-    }
+    "xmpp_database": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": "ejabberd",
+        "USER": "postgres",
+        "PASSWORD": os.environ["XMPP_DB_PASSWORD"],
+        "HOST": os.environ["XMPP_DB_HOST"],
+        "PORT": "5432",
+    },
 }
 
 # Password validation
