@@ -1,4 +1,5 @@
 from urllib.parse import urlparse
+from loguru import logger
 
 from rest_flex_fields import FlexFieldsModelSerializer
 from rest_framework import serializers
@@ -760,9 +761,11 @@ class CircleInviteCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("sender and recipient cannot be same.")
         sender = User().details(user_id=sender)
         if not sender:
+            logger.info("No user records exists with sender id")
             raise serializers.ValidationError("No user records exists with sender id")
         recipient = User().details(user_id=recipient)
         if not recipient:
+            logger.info("No user records exists with recipient id")
             raise serializers.ValidationError(
                 "No user records exists with recipient id"
             )
