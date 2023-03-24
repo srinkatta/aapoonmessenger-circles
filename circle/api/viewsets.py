@@ -671,9 +671,16 @@ class CircleViewSet(BaseCircleViewSet):
     def get_circle_by_role(self, request):
         """returns associated circles based on role"""
         role = request.GET.get("role", "")
-        circle_ids = CircleSubscriberRole.objects.filter(
-            role__role=role, user_id=request.user_id
-        ).values_list("circle_id", flat=True)
+        if role == "myorg":
+            circle_ids = CircleSubscriberRole.objects.filter(
+                user_id=request.user_id,
+                circle__parent__isnull=True,
+            ).values_list("circle_id", flat=True)
+
+        else:
+            circle_ids = CircleSubscriberRole.objects.filter(
+                role__role=role, user_id=request.user_id
+            ).values_list("circle_id", flat=True)
         circles = Circle.objects.filter(id__in=circle_ids)
         page = self.paginate_queryset(circles)
         serializer = CircleListSerializer(page, many=True, context={"request": request})
