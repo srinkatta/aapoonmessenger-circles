@@ -67,6 +67,10 @@ from circle.models import (
 )
 from circle.services.user import User
 
+ERROR_MESSAGE = (
+    "Sorry, We are  facing an issue currently. Thanks for noticing . We fix it soon."
+)
+
 
 class BaseCircleViewSet(viewsets.ModelViewSet):
     """
@@ -322,6 +326,17 @@ class CircleViewSet(BaseCircleViewSet):
         serializer = self.get_serializer(
             data=request.data, context={"request": request}
         )
+        parent_circle = serializer.initial_data["parent"]
+        try:
+            Circle.objects.get(id=parent_circle)
+        except Circle.DoesNotExist:
+            return Response(
+                {
+                    "detail": ERROR_MESSAGE,
+                    "message": "Circles matching query does not exist.",
+                },
+                status=500,
+            )
         serializer.is_valid(raise_exception=True)
         parent = serializer.validated_data.get("parent")
         topic = serializer.validated_data.get("topic")
@@ -707,11 +722,20 @@ class CirclePermissionViewSet(BaseCircleViewSet):
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
+        if not queryset:
+            return Response(
+                {"data": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST
+            )
         serializer = self.get_serializer(queryset)
         return Response(serializer.data)
 
     def create(self, request, *args, **kwargs):
+
         queryset = self.get_queryset()
+        if not queryset:
+            return Response(
+                {"data": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST
+            )
         if queryset:
             serializer = self.get_serializer(queryset, data=request.data)
         else:
@@ -926,16 +950,19 @@ class HierarchyTransferAPIView(APIView):
         user = user_service.details(user_id=to_user)
         if not user:
             logger.error(f"No User exists with the given user_id: {to_user}")
-            return Response({"data": "No user found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {
+                    "detail": ERROR_MESSAGE,
+                    "message": "User matching query does not exists",
+                },
+                status=500,
+            )
 
         try:
             circle = Circle.objects.get(id=circle_id)
         except Circle.DoesNotExist as exc:
-            logger.error("No circle found")
-            logger.exception(exc)
-            return Response(
-                {"data": "No circle found"}, status=status.HTTP_404_NOT_FOUND
-            )
+            logger.error(f"{exc}")
+            return Response({"detail": ERROR_MESSAGE, "message": f"{exc}"}, status=500)
 
         if circle.parent is None:
             children = Circle.objects.filter(id=circle.id) | get_all_children(
