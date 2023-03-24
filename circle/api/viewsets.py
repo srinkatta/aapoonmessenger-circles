@@ -45,6 +45,7 @@ from circle.api.utils import (
     GenericPagination,
     CircleInvitePagination,
 )
+from circle.api.mixins import BulkCreateCircleInviteMixin
 from circle.helpers.ejjaberd import (
     create_xmpp_room,
     destroy_room,
@@ -747,6 +748,10 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
         validated_data = serializer.validated_data
 
         circle = Circle.objects.filter(id=self.circle_id).first()
+        if not circle:
+            return Response(
+                {"data": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST
+            )
         users = validated_data.get("users")
         user_service = User()
         for user in users:
@@ -960,6 +965,14 @@ class HierarchyDeleteAPIView(APIView):
         circle_id = request.data["circle_id"]
         circle = Circle.objects.filter(id=circle_id)
 
+        if not circle:
+            return Response(
+                {
+                    "detail": "Sorry, We are facing an issue currently. Thanks for noticing . We fix it soon."
+                },
+                status=500,
+            )
+
         if circle[0].parent is None:
             childrens = circle | get_all_children(circle[0], include_self=True)
             for child in childrens:
@@ -982,7 +995,7 @@ class HierarchyDeleteAPIView(APIView):
         return Response({"data": "Hierarchy Deleted"}, status=200)
 
 
-class CircleInviteViewSet(viewsets.ModelViewSet):
+class CircleInviteViewSet(BulkCreateCircleInviteMixin, viewsets.ModelViewSet):
     permission_classes = (Authenticate,)
     model = CircleInvite
     pagination_class = CircleInvitePagination
@@ -993,6 +1006,9 @@ class CircleInviteViewSet(viewsets.ModelViewSet):
         elif self.action == "update":
             return CircleInviteUpdateSerializer
         return CircleInviteSerializer
+
+    def create(self, request, *args, **kwargs):
+        return super(CircleInviteViewSet, self).create(request, *args, **kwargs)
 
     def list(self, request):
         params = request.GET
@@ -1045,13 +1061,7 @@ class CircleInviteViewSet(viewsets.ModelViewSet):
         return self.get_paginated_response(serializer.data)
 
 
-def circle_invite_accept(data, user):
-    user_service = User()
-    sender = data.get("sender")
-    recipient = data.get("recipient") if data.get("recipient") else user
-    sender = user_service.details(user_id=sender)
-    recipient = user_service.details(user_id=recipient)
-    circle = Circle.objects.filter(id=data.get("circle")).first()
+def circle_invite_accept(sender, recipient, circle):
     circle_subscribers = CircleSubscriberRole.objects.filter(
         user_id=recipient["id"], circle=circle
     )
@@ -1075,10 +1085,23 @@ class CircleInviteAcceptViewSet(APIView):
 
     def post(self, request):
         data = request.data
-        bulk = isinstance(request.data, list)
+        user_service = User()
         user = request.user_id
+        sender = data.get("sender")
+        recipient = data.get("recipient") if data.get("recipient") else user
+        sender = user_service.details(user_id=sender)
+        recipient = user_service.details(user_id=recipient)
+        circle = Circle.objects.filter(id=data.get("circle")).first()
+        if not recipient or not sender or not circle:
+            return Response(
+                {
+                    "detail": "Sorry, We are facing an issue currently. Thanks for noticing . We fix it soon"
+                },
+                status=500,
+            )
+        bulk = isinstance(request.data, list)
         if not bulk:
-            circle_invite_accept(data, user)
+            circle_invite_accept(sender, recipient, circle)
             return Response({"data": "Invitation Accepted"}, status=200)
 
         else:
