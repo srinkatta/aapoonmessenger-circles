@@ -326,17 +326,18 @@ class CircleViewSet(BaseCircleViewSet):
         serializer = self.get_serializer(
             data=request.data, context={"request": request}
         )
-        parent_circle = serializer.initial_data["parent"]
-        try:
-            Circle.objects.get(id=parent_circle)
-        except Circle.DoesNotExist:
-            return Response(
-                {
-                    "detail": ERROR_MESSAGE,
-                    "message": "Circles matching query does not exist.",
-                },
-                status=500,
-            )
+        if request.data.get("parent"):
+            parent_circle = serializer.initial_data["parent"]
+            try:
+                Circle.objects.get(id=parent_circle)
+            except Circle.DoesNotExist:
+                return Response(
+                    {
+                        "detail": ERROR_MESSAGE,
+                        "message": "Circles matching query does not exist.",
+                    },
+                    status=500,
+                )
         serializer.is_valid(raise_exception=True)
         parent = serializer.validated_data.get("parent")
         topic = serializer.validated_data.get("topic")
