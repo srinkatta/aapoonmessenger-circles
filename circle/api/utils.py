@@ -1,14 +1,22 @@
+from collections import OrderedDict
 from email import charset
 
 from django.core.mail import send_mail
 from django.db.models import Q
 from django.template.loader import render_to_string
+from loguru import logger
+from rest_framework import pagination
+from rest_framework.response import Response
 
 from circle.models import Circle, CircleSubscriberRole
-from rest_framework import pagination
-from collections import OrderedDict
-from rest_framework.response import Response
 from circle.models import CircleInvite
+
+
+def get_circle_by_id(circle_id: int) -> Circle:
+    try:
+        return Circle.objects.get(pk=circle_id)
+    except Circle.DoesNotExist:
+        logger.error("no circle exist with the given id")
 
 
 def get_level(circle):
