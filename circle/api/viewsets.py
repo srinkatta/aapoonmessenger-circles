@@ -330,11 +330,11 @@ class CircleViewSet(BaseCircleViewSet):
             parent_circle = serializer.initial_data["parent"]
             try:
                 Circle.objects.get(id=parent_circle)
-            except Circle.DoesNotExist:
+            except Circle.DoesNotExist as exc:
                 return Response(
                     {
                         "detail": ERROR_MESSAGE,
-                        "message": "Circles matching query does not exist.",
+                        "message": f"{exc}",
                     },
                     status=500,
                 )
