@@ -929,6 +929,7 @@ def transfer_hierarchy(circle, user):
         CircleSubscriberRole.objects.create(
             user_id=user["id"], role=role, circle=circle
         )
+        member_xmpp_room_subscribe(user_jid=user["jid"], room_id=circle.room_id)
     else:
         circle_role[0].role = role
         circle_role[0].save()
