@@ -1,7 +1,7 @@
 import re
-from typing import List, Union
-import phonenumbers
+from typing import List
 
+import phonenumbers
 from django.db.models import F, Func, Q, Value
 from django.db.models.functions import Lower
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -44,6 +44,8 @@ from circle.api.utils import (
     circle_properties_update,
     GenericPagination,
     CircleInvitePagination,
+    get_circle_by_id,
+    get_gensis_circle_id,
 )
 from circle.api.mixins import BulkCreateCircleInviteMixin
 from circle.helpers.ejjaberd import (
@@ -687,9 +689,20 @@ class CircleViewSet(BaseCircleViewSet):
     def get_circle_by_role(self, request):
         """returns associated circles based on role"""
         role = request.GET.get("role", "")
-        circle_ids = CircleSubscriberRole.objects.filter(
-            role__role=role, user_id=request.user_id
-        ).values_list("circle_id", flat=True)
+        if role == "myorg":
+            circle_ids = []
+            subscribed_circle_ids = CircleSubscriberRole.objects.filter(
+                user_id=request.user_id,
+            ).values_list("circle_id", flat=True)
+            for circle_id in subscribed_circle_ids:
+                circle = get_circle_by_id(circle_id)
+                if circle.hierarchy:
+                    gensis_circle_id = get_gensis_circle_id(circle)
+                    circle_ids.append(gensis_circle_id)
+        else:
+            circle_ids = CircleSubscriberRole.objects.filter(
+                role__role=role, user_id=request.user_id
+            ).values_list("circle_id", flat=True)
         circles = Circle.objects.filter(id__in=circle_ids)
         page = self.paginate_queryset(circles)
         serializer = CircleListSerializer(page, many=True, context={"request": request})
