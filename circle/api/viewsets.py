@@ -333,10 +333,9 @@ class CircleViewSet(BaseCircleViewSet):
             except Circle.DoesNotExist as exc:
                 return Response(
                     {
-                        "detail": ERROR_MESSAGE,
-                        "message": f"{exc}",
+                        "data": f"{exc}",
                     },
-                    status=500,
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
         serializer.is_valid(raise_exception=True)
         parent = serializer.validated_data.get("parent")
@@ -929,6 +928,7 @@ def transfer_hierarchy(circle, user):
         CircleSubscriberRole.objects.create(
             user_id=user["id"], role=role, circle=circle
         )
+        member_xmpp_room_subscribe(user_jid=user["jid"], room_id=circle.room_id)
     else:
         circle_role[0].role = role
         circle_role[0].save()
@@ -953,17 +953,21 @@ class HierarchyTransferAPIView(APIView):
             logger.error(f"No User exists with the given user_id: {to_user}")
             return Response(
                 {
-                    "detail": ERROR_MESSAGE,
-                    "message": "User matching query does not exists",
+                    "data": "User matching query does not exists",
                 },
-                status=500,
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         try:
             circle = Circle.objects.get(id=circle_id)
         except Circle.DoesNotExist as exc:
             logger.error(f"{exc}")
-            return Response({"detail": ERROR_MESSAGE, "message": f"{exc}"}, status=500)
+            return Response(
+                {
+                    "data": f"{exc}",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         if circle.parent is None:
             children = Circle.objects.filter(id=circle.id) | get_all_children(
@@ -996,9 +1000,9 @@ class HierarchyDeleteAPIView(APIView):
         if not circle:
             return Response(
                 {
-                    "detail": "Sorry, We are facing an issue currently. Thanks for noticing . We fix it soon."
+                    "data": "Circle matching query does not exists",
                 },
-                status=500,
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         if circle[0].parent is None:
