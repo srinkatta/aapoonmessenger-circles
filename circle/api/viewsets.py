@@ -2,7 +2,6 @@ import re
 from typing import List
 
 import phonenumbers
-from django.db.models import F, Func, Q, Value
 from django.db.models.functions import Lower
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from loguru import logger
@@ -15,7 +14,6 @@ from rest_framework.views import APIView
 from circle.api.serializers import (
     AppBrandingSerializer,
     CircleHierarchySerializer,
-    CircleHierarchySearchSerializer,
     CircleRoleSerializer,
     CircleSerializer,
     CircleSubscriberRoleSerializer,
@@ -67,6 +65,7 @@ from circle.models import (
     Topic,
 )
 from circle.services.user import User
+from circle.api import service as circle_service
 
 
 class BaseCircleViewSet(viewsets.ModelViewSet):
@@ -372,7 +371,7 @@ class CircleViewSet(BaseCircleViewSet):
 
     def retrieve(self, request, *args, **kwargs):
         try:
-            circle = Circle.objects.get(id=kwargs.get("pk"))
+            circle = self.get_circle_by_id(kwargs.get("pk", None))
         except Circle.DoesNotExist:
             return Response(
                 {"data": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST
@@ -382,7 +381,7 @@ class CircleViewSet(BaseCircleViewSet):
 
     def update(self, request, *args, **kwargs):
         try:
-            circle = Circle.objects.get(id=kwargs.get("pk"))
+            circle = self.get_circle_by_id(kwargs.get("pk", None))
         except Circle.DoesNotExist:
             return Response(
                 {"data": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST
@@ -469,110 +468,41 @@ class CircleViewSet(BaseCircleViewSet):
         permission_classes=[],
     )
     def hierarchy(self, request, pk=None):
-        circles = []
         try:
             circle = Circle.objects.get(id=pk)
         except Circle.DoesNotExist:
             return Response(
-                {"data": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST
+                {"data": "Circle does not exist"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
+        circles = self.filter_circles(request, circle)
+        serializer = CircleHierarchySerializer(circles, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def filter_circles(self, request, circle):
         if "name" in request.GET and "level" not in request.GET:
-            name = request.GET.get("name").strip()
-            name = name.lower()
-
-            # get all the children from hierarchy
-            circles = get_all_children(circle, include_self=True)
-            circles = [circle.id for circle in circles]
-            circles = Circle.objects.filter(id__in=circles)
-
-            # add a new field in queryset name_lower and search in it
-            qs = circles.annotate(name_lower=Lower("name"))
-            circles = qs.filter(name_lower__icontains=name)
+            return circle_service.filter_circles_by_name(request, circle)
         elif (
             "level" in request.GET
             and "name" not in request.GET
             and "parent" not in request.GET
         ):
-            query = request.GET.get("level", 0)
-            circles = get_all_children(circle, include_self=True)
-            circles_with_level = self.get_circle_with_level(circles)
-            try:
-                final_circles = circles_with_level[int(query)]
-                final_circles = [circle.id for circle in final_circles]
-                circles = Circle.objects.filter(id__in=final_circles)
-            except KeyError:
-                return Response(
-                    {"data": "No circle is associated with this level"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            circle = circles.order_by("-id")
-            page = self.paginate_queryset(circle)
-            serializer = CircleHierarchySearchSerializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-
+            return circle_service.filter_circles_by_level(request, circle)
         elif (
             "level" in request.GET
             and "name" in request.GET
             and "parent" not in request.GET
         ):
-            query = request.GET.get("level", 0)
-            name = request.GET.get("name").strip()
-            name = name.lower()
-
-            circles = get_all_children(circle, include_self=True)
-            circles_with_level = self.get_circle_with_level(circles)
-            try:
-                final_circles = circles_with_level[int(query)]
-                final_circles = [circle.id for circle in final_circles]
-                circles = Circle.objects.filter(id__in=final_circles).annotate(
-                    name_lower=Lower("name"),
-                    name_strip=Func(
-                        F("name_lower"),
-                        Value(" "),
-                        Value(""),
-                        function="replace",
-                    ),
-                )
-            except KeyError:
-                return Response(
-                    {"data": "No circle is associated with this level"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            circles = circles.filter(
-                Q(name_lower__icontains=name) | Q(name_strip__icontains=name)
-            )
+            return circle_service.filter_circles_by_name_and_level(request, circle)
         elif (
             "level" in request.GET
             and "parent" in request.GET
             and "name" not in request.GET
         ):
-            query = request.GET.get("level", 0)
-            parent = request.GET.get("parent")
-
-            circles = get_all_children(circle, include_self=True)
-            circles_with_level = self.get_circle_with_level(circles)
-            try:
-                final_circles = circles_with_level[int(query)]
-                final_circles = [circle.id for circle in final_circles]
-                circles = Circle.objects.filter(id__in=final_circles)
-            except KeyError:
-                return Response(
-                    {"data": "No circle is associated with this level"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            circles = circles.filter(parent=int(parent))
-
-        if circles:
-            """Check if any query param was used (in that case we filter circle and append to list)"""
-            circles = circles.order_by("-id")
-            page = self.paginate_queryset(circles)
-            serializer = CircleHierarchySerializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
+            return circle_service.filter_circles_by_parent(request, circle)
         else:
-            """otherwise we use the circle given in the url"""
-            serializer = CircleHierarchySerializer(circle)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+            return [circle]
 
     @action(
         detail=True,
@@ -1009,53 +939,56 @@ class CircleInviteViewSet(viewsets.ModelViewSet):
 
     def list(self, request):
         params = request.GET
+        user_info = logged_user_info(request)["id"]
+        invites = self._get_invites(params, user_info)
+        page = self.paginate_queryset(invites)
+        serializer = CircleInviteResponseSerializer(page, many=True)
+        return self.get_paginated_response(serializer.data)
+
+    def _get_invites(self, params, user_info):
         invitation_type = params.get("type")
         joined = params.get("joined")
         circle = params.get("circle")
-        user_info = logged_user_info(request)
-        user_info = user_info["id"]
-        if invitation_type == "sent" and not circle and not joined:
+        if invitation_type == "sent":
+            invites = self._get_sent_invites(user_info, circle, joined)
+        elif invitation_type == "received":
+            invites = self._get_received_invites(user_info, circle, joined)
+        else:
+            invites = CircleInvite.objects.filter(sender=user_info)
+        return invites
+
+    def _get_sent_invites(self, user_info, circle, joined):
+        if not circle and not joined:
             invites = CircleInvite.objects.filter(sender=user_info, joined=True)
-        elif invitation_type == "sent" and circle and joined:
-            joined = False if joined == "False" or joined == "false" else True
+        elif circle and joined is not None:
+            joined = self._convert_to_bool(joined)
             invites = CircleInvite.objects.filter(
                 sender=user_info, joined=joined, circle=circle
             )
-        elif invitation_type == "sent" and not circle and joined:
-            joined = False if joined == "False" or joined == "false" else True
+        elif not circle and joined is not None:
+            joined = self._convert_to_bool(joined)
             invites = CircleInvite.objects.filter(sender=user_info, joined=joined)
-        elif invitation_type == "received" and not circle and not joined:
+        else:
+            invites = CircleInvite.objects.filter(sender=user_info)
+        return invites
+
+    def _get_received_invites(self, user_info, circle, joined):
+        if not circle and not joined:
             invites = CircleInvite.objects.filter(recipient=user_info, joined=False)
-        elif invitation_type == "received" and circle and joined:
-            joined = False if joined == "False" or joined == "false" else True
+        elif circle and joined is not None:
+            joined = self._convert_to_bool(joined)
             invites = CircleInvite.objects.filter(
                 recipient=user_info, joined=joined, circle=circle
             )
-        elif invitation_type == "received" and not circle and joined:
-            joined = False if joined == "False" or joined == "false" else True
+        elif not circle and joined is not None:
+            joined = self._convert_to_bool(joined)
             invites = CircleInvite.objects.filter(recipient=user_info, joined=joined)
-        elif joined and circle and not invitation_type:
-            joined = False if joined == "False" or joined == "false" else True
-            invites = CircleInvite.objects.filter(
-                sender=user_info, joined=joined, circle=circle
-            )
-        elif joined and circle:
-            joined = False if joined == "False" or joined == "false" else True
-            invites = CircleInvite.objects.filter(
-                sender=user_info, joined=joined, circle=circle
-            )
-        elif circle and not joined:
-            invites = CircleInvite.objects.filter(
-                sender=user_info, joined=False, circle=circle
-            )
         else:
-            invites = CircleInvite.objects.filter(sender=user_info)
-        page = self.paginate_queryset(invites)
-        if page is not None:
-            serializer = CircleInviteResponseSerializer(page, many=True)
-        else:
-            serializer = CircleInviteResponseSerializer(page, many=True)
-        return self.get_paginated_response(serializer.data)
+            invites = CircleInvite.objects.filter(recipient=user_info, joined=False)
+        return invites
+
+    def _convert_to_bool(self, value):
+        return False if value.lower() == "false" else True
 
 
 def circle_invite_accept(data, user):
