@@ -720,18 +720,25 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def subscribe_role_circle(self, circle, user, role):
-        subscriber = CircleSubscriberRole.objects.filter(
-            circle=circle, user_id=user["id"]
-        )
-        if not subscriber:
-            CircleSubscriberRole.objects.create(
+        if role == CircleRole.MEMBER:
+            member_xmpp_room_subscribe(user_jid=user["jid"], room_id=circle.room_id)
+            CircleSubscriberRole.objects.filter(
+                user_id=user["id"], circle=circle
+            ).delete()
+
+        if not role == CircleRole.MEMBER and not CircleSubscriberRole.objects.filter(
+            user_id=user["id"], circle=circle
+        ):
+            circle_role = CircleSubscriberRole(
                 circle=circle, user_id=user["id"], role=role
             )
+            circle_role.save()
+
             # User subscribe to XMPP room
             member_xmpp_room_subscribe(user_jid=user["jid"], room_id=circle.room_id)
         else:
             CircleSubscriberRole.objects.filter(
-                circle=circle, user_id=user["id"]
+                user_id=user["id"], circle=circle
             ).update(role=role)
 
     def circle_add_default_admin(self, circle, user, role):
