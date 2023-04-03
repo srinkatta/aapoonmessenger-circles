@@ -114,54 +114,66 @@ def get_gensis_circle_id(instance):
 
 def get_hierarchy_status(circle, user_id):
     if not circle.parent:
-        admin = CircleSubscriberRole.objects.filter(circle=circle, user_id=user_id)
+        return get_hierarchy_status_for_root(circle, user_id)
 
-        chief_admin = admin[0].role.role if admin else ""
-        childrens = get_all_children(circle, include_self=True)
-
-        if len(childrens) >= 1:
-            user_role = []
-            for children in childrens:
-                child = CircleSubscriberRole.objects.filter(
-                    circle=children, user_id=user_id
-                )
-                tuser_role = child[0].role.role if child else ""
-                user_role = [True if tuser_role == 10 and chief_admin == 10 else False]
-            if False in user_role:
-                hierarchy = [
-                    True
-                    if chief_admin == 10 and children.owner_id == user_id
-                    else False
-                    for children in childrens
-                ]
-                for children in childrens:
-                    if children.owner_id == circle.owner_id:
-                        if False in hierarchy:
-                            return False
-                        return True
-                    if children.owner_id != circle.owner_id:
-                        if False in hierarchy:
-                            return False
-                        return True
-                    return False
-                return False
-            return True
-        return False
     parents = (
         Circle.objects.filter(pk=circle.parent.pk) | circle.parent.get_parent_circles()
     )
     if parents:
         root_parent = parents[0]
-        childrens = get_all_children(root_parent, include_self=True)
-        if len(childrens) >= 1:
+        return get_hierarchy_status_for_non_root(circle, root_parent, user_id)
+
+    return False
+
+
+def get_hierarchy_status_for_root(circle, user_id):
+    admin = CircleSubscriberRole.objects.filter(circle=circle, user_id=user_id)
+    chief_admin = admin[0].role.role if admin else ""
+    childrens = get_all_children(circle, include_self=True)
+
+    if len(childrens) >= 1:
+        user_role = []
+        for children in childrens:
+            child = CircleSubscriberRole.objects.filter(
+                circle=children, user_id=user_id
+            )
+            tuser_role = child[0].role.role if child else ""
+            user_role = [True if tuser_role == 10 and chief_admin == 10 else False]
+
+        if False in user_role:
             hierarchy = [
-                True if children.owner_id == root_parent.owner_id else False
+                True if chief_admin == 10 and children.owner_id == user_id else False
                 for children in childrens
             ]
-            if False in hierarchy:
+            for children in childrens:
+                if children.owner_id == circle.owner_id:
+                    if False in hierarchy:
+                        return False
+                    return True
+                if children.owner_id != circle.owner_id:
+                    if False in hierarchy:
+                        return False
+                    return True
                 return False
-            return True
-        return False
+            return False
+
+        return True
+
+    return False
+
+
+def get_hierarchy_status_for_non_root(circle, root_parent, user_id):
+    childrens = get_all_children(root_parent, include_self=True)
+    if len(childrens) >= 1:
+        hierarchy = [
+            True if children.owner_id == root_parent.owner_id else False
+            for children in childrens
+        ]
+        if False in hierarchy:
+            return False
+        return True
+
+    return False
 
 
 def update_parent_hierarchy(parent):

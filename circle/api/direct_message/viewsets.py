@@ -3,11 +3,11 @@ import logging
 import threading
 import time
 
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import connections
-from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import generics, status, viewsets
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -23,7 +23,7 @@ from circle.api.utils import abuse_mail_msg
 from circle.helpers.notifications import app_notification
 from circle.middleware.permissions import Authenticate
 from circle.models import ChatMessage
-from circle.services.user import User, user_notify_chat
+from circle.services.user import user_notify_chat
 from circle_service import settings
 
 logger = logging.getLogger(__name__)
@@ -98,9 +98,11 @@ class XMPPMessageViewSet(viewsets.ModelViewSet):
             )
 
     def update_like_dislike(self, message_id, user_id, action):
-        chat_msg = ChatMessage.objects.filter(message_id=message_id, action_by=user_id)
-        if chat_msg:
-            try:
+        try:
+            chat_msg = ChatMessage.objects.filter(
+                message_id=message_id, action_by=user_id
+            )
+            if chat_msg:
                 if chat_msg[0].action == "like" and action == "dislike":
                     chat_msg.delete()
                     ChatMessage.objects.filter(
@@ -111,8 +113,8 @@ class XMPPMessageViewSet(viewsets.ModelViewSet):
                     ChatMessage.objects.filter(
                         message_id=message_id, action_by=user_id
                     ).update(action=action)
-            except:
-                pass
+        except ObjectDoesNotExist as e:
+            logging.exception("ObjectDoesNotExist: %s", e)
 
     def retrieve(self, request, *args, **kwargs):
         queryset = ChatMessage.objects.filter(message_id=kwargs.get("pk"))
@@ -150,7 +152,7 @@ class XMPPMessageFilterViewSet(viewsets.ModelViewSet):
 class ArchiveChat(object):
     def __init__(self, **kwargs):
         for field in ("id", "bare_peer", "timestamp", "xml", "username", "user_pic"):
-            setattr(self, field, kwargs.get(field, None))
+            setattr(self, field, kwargs.get(field))
 
 
 class CustomPagination(PageNumberPagination):
