@@ -14,9 +14,11 @@ from rest_framework.views import APIView
 from circle.api.serializers import (
     AppBrandingSerializer,
     CircleHierarchySerializer,
+    CircleHierarchySearchSerializer,
     CircleRoleSerializer,
     CircleSerializer,
     CircleSubscriberRoleSerializer,
+    CircleSubscribedUsersSerializer,
     CustomerSerializer,
     CustomFieldSerializer,
     SubscriptionPlanSerializer,
@@ -35,6 +37,7 @@ from circle.api.serializers import (
     CircleInviteAcceptSerializer,
     CircleInputSerializer,
 )
+from circle.api import service as circle_service
 from circle.api.utils import (
     get_all_children,
     get_level,
@@ -136,28 +139,6 @@ class CircleViewSet(BaseCircleViewSet):
             data["subgroup_status"] = "3"
             self.create_parent_circle(**data)
 
-    def circle_add_user(self, circle, user, role: CircleRole | int):
-        if role == CircleRole.MEMBER:
-            member_xmpp_room_subscribe(user_jid=user["jid"], room_id=circle.room_id)
-            CircleSubscriberRole.objects.filter(
-                user_id=user["id"], circle=circle
-            ).delete()
-
-        if not role == CircleRole.MEMBER and not CircleSubscriberRole.objects.filter(
-            user_id=user["id"], circle=circle
-        ):
-            circle_role = CircleSubscriberRole(
-                circle=circle, user_id=user["id"], role=role
-            )
-            circle_role.save()
-
-            # User subscribe to XMPP room
-            member_xmpp_room_subscribe(user_jid=user["jid"], room_id=circle.room_id)
-        else:
-            CircleSubscriberRole.objects.filter(
-                user_id=user["id"], circle=circle
-            ).update(role=role)
-
     def circle_add_default_admins(self, circle, parent):
         default_admin = CircleRole.objects.get(role=CircleRole.DEFAULT_ADMIN)
         chief_admin = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
@@ -179,7 +160,7 @@ class CircleViewSet(BaseCircleViewSet):
                     logger.error(f"No User exists with the given user_id: {admin}")
                 else:
                     # Adding all hidden/default admins to circle and xmpp_room
-                    self.circle_add_user(
+                    circle_service.circle_add_user(
                         circle,
                         user,
                         role=role,
@@ -213,7 +194,7 @@ class CircleViewSet(BaseCircleViewSet):
                             )
                         else:
                             role = CircleRole.objects.get(role=CircleRole.DEFAULT_ADMIN)
-                            self.circle_add_user(circle, user, role=role)
+                            circle_service.circle_add_user(circle, user, role=role)
 
     def circle_add_topics(self, circle, topic):
         if topic:
@@ -361,7 +342,7 @@ class CircleViewSet(BaseCircleViewSet):
             # Add Owner to circle and add to xmpp_room
             role = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
             user_info = logged_user_info(request)
-            self.circle_add_user(circle, user_info, role)
+            circle_service.circle_add_user(circle, user_info, role)
 
             # Add default admins to circle and xmpp_room
             self.circle_add_default_admins(circle, parent)
@@ -380,7 +361,7 @@ class CircleViewSet(BaseCircleViewSet):
             # Add Owner to circle and add to xmpp_room
             role = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
             user_info = logged_user_info(request)
-            self.circle_add_user(circle, user_info, role)
+            circle_service.circle_add_user(circle, user_info, role)
         serializer = CircleSerializer(circle, context={"request": request})
 
         return Response(serializer.data)
@@ -426,7 +407,7 @@ class CircleViewSet(BaseCircleViewSet):
                     try:
                         logger.info("Adding new user to circle")
                         role = CircleRole.objects.get(role=role)
-                        self.circle_add_user(circle, user, role=role)
+                        circle_service.circle_add_user(circle, user, role=role)
                     except CircleRole.DoesNotExist as exc:
                         logger.error("Error while adding new user to circle")
                         logger.exception(exc)
@@ -524,6 +505,20 @@ class CircleViewSet(BaseCircleViewSet):
         detail=True,
         methods=["GET"],
     )
+    def link(self, request, pk=None):
+        try:
+            circle = Circle.objects.get(link=pk)
+        except Exception:
+            return Response(
+                {"data": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST
+            )
+        serializer = CircleSerializer(circle, context={"request": request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(
+        detail=True,
+        methods=["GET"],
+    )
     def info(self, request, pk=None):
         try:
             circle = Circle.objects.get(id=pk)
@@ -571,7 +566,7 @@ class CircleViewSet(BaseCircleViewSet):
 
         circle_users = circle_users.order_by("-id")
         page = self.paginate_queryset(circle_users)
-        serializer = CircleSubscriberRoleSerializer(page, many=True)
+        serializer = CircleSubscribedUsersSerializer(page, many=True)
         return self.get_paginated_response(serializer.data)
 
     @action(
@@ -732,7 +727,7 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
                     logger.error(f"No User exists with the given user_id: {user_id}")
                     logger.info(f"Moving on to the next user")
                 else:
-                    self.subscribe_role_circle(circle, user, role)
+                    circle_service.circle_add_user(circle, user, role)
                     self.circle_add_default_admin(circle, user, role)
 
             if connected:
@@ -746,26 +741,11 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
                     )
                     logger.info(f"Moving on to the next user")
                 else:
-                    self.subscribe_role_circle(circle, user, role)
+                    circle_service.circle_add_user(circle, user, role)
                     self.circle_add_default_admin(circle, user, role)
 
         serializer = CircleListSerializer(circle, context={"request": request})
         return Response(serializer.data, status=status.HTTP_200_OK)
-
-    def subscribe_role_circle(self, circle, user, role):
-        subscriber = CircleSubscriberRole.objects.filter(
-            circle=circle, user_id=user["id"]
-        )
-        if not subscriber:
-            CircleSubscriberRole.objects.create(
-                circle=circle, user_id=user["id"], role=role
-            )
-            # User subscribe to XMPP room
-            member_xmpp_room_subscribe(user_jid=user["jid"], room_id=circle.room_id)
-        else:
-            CircleSubscriberRole.objects.filter(
-                circle=circle, user_id=user["id"]
-            ).update(role=role)
 
     def circle_add_default_admin(self, circle, user, role):
         chief_admin = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)

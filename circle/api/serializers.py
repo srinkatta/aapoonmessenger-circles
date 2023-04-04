@@ -609,6 +609,26 @@ class CircleSubscriberRoleSerializer(FlexFieldsModelSerializer):
         return instance.role.role
 
 
+class CircleSubscribedUsersSerializer(FlexFieldsModelSerializer):
+    role = serializers.SerializerMethodField()
+    users = serializers.SerializerMethodField("get_subscribed_admins")
+
+    def get_subscribed_admins(self, obj):
+        if obj.role.role in [0, 10, 20, 30]:
+            user_service = User().details(user_id=obj.user_id)
+            return user_service
+
+    def get_role(self, instance):
+        return instance.role.role
+
+    class Meta:
+        model = CircleSubscriberRole
+        extra_kwargs = {
+            "id": {"read_only": True},
+        }
+        exclude = ["user_id"]
+
+
 class CirclePermissionSerializer(FlexFieldsModelSerializer):
     class Meta:
         model = CirclePermission
