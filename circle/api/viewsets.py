@@ -217,7 +217,7 @@ class CircleViewSet(BaseCircleViewSet):
         Remove users from circle only if the associated users are more than one
         """
         circle_users = CircleSubscriberRole.objects.filter(circle=circle).count()
-        if circle_users > 1:
+        if circle_users >= 1:
             CircleSubscriberRole.objects.filter(
                 user_id__in=user_ids, circle=circle
             ).delete()
