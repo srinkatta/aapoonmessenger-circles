@@ -83,10 +83,14 @@ def circle_add_user(circle, user, role: circle_models.CircleRole | int):
         xmpp_helpers.member_xmpp_room_subscribe(
             user_jid=user["jid"], room_id=circle.room_id
         )
-        circle_models.CircleSubscriberRole.objects.filter(
+        # for client verification members role save in web server
+        circle_subscriber = circle_models.CircleSubscriberRole.objects.filter(
             user_id=user["id"], circle=circle
-        ).delete()
-
+        )
+        if not circle_subscriber:
+            circle_models.CircleSubscriberRole.objects.create(
+                user_id=user["id"], circle=circle, role=role
+            )
     if (
         not role.role == circle_models.CircleRole.MEMBER
         and not circle_models.CircleSubscriberRole.objects.filter(
