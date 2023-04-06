@@ -474,8 +474,9 @@ class CircleViewSet(BaseCircleViewSet):
             )
 
         circles = self.filter_circles(request, circle)
-        serializer = CircleHierarchySerializer(circles, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        page = self.paginate_queryset(circles)
+        serializer = CircleHierarchySerializer(page, many=True)
+        return self.get_paginated_response(serializer.data)
 
     def filter_circles(self, request, circle):
         if "name" in request.GET and "level" not in request.GET:
