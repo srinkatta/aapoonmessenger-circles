@@ -622,7 +622,8 @@ class CircleViewSet(BaseCircleViewSet):
             ).values_list("circle_id", flat=True)
             for circle_id in subscribed_circle_ids:
                 circle = get_circle_by_id(circle_id)
-                if circle.hierarchy:
+                if circle.hierarchy and circle.parent is None:
+                    # Only add the genesis circle if it has no parent
                     gensis_circle_id = get_gensis_circle_id(circle)
                     circle_ids.append(gensis_circle_id)
         else:
