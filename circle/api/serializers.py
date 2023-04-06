@@ -619,7 +619,7 @@ class CircleSubscribedUsersSerializer(FlexFieldsModelSerializer):
     user_profile_type = serializers.SerializerMethodField()
 
     def get_subscribed_admins(self, obj):
-        if obj.role.role in [0, 10, 20, 30]:
+        if obj.role.role in [0, 10, 20, 30, 40]:
             try:
                 user_service = User().details(user_id=obj.user_id)
                 return user_service
@@ -822,7 +822,7 @@ class CircleInviteCreateSerializer(serializers.ModelSerializer):
                 "No user records exists with recipient id"
             )
         if CircleInvite.objects.filter(
-            sender=sender, recipient=recipient, circle=circle
+            sender=sender["id"], recipient=recipient["id"], circle=circle
         ).exists():
             raise serializers.ValidationError("Invitation already sent.")
         return attrs
