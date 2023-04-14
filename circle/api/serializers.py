@@ -141,7 +141,7 @@ class BaseCircleSerializer(BaseSerializer):
             "change_circle_info",
             "user_exit",
             "created_by",
-            # "total_children_count",
+            "total_children_count",
             "sub_circle_count",
             "circle_admins_count",
             "circle_users_count",
@@ -280,7 +280,9 @@ class BaseCircleSerializer(BaseSerializer):
             .values_list("user_id", flat=True)
             .distinct()
         )
-        admins = circle_admins.exclude(role__name="Moderator")
+        admins = circle_admins.exclude(role__name="Moderator").exclude(
+            role__name="Member"
+        )
         return admins.count()
 
     def get_circle_moderation(self, circle):
@@ -421,6 +423,8 @@ class BaseCircleSerializer(BaseSerializer):
 
 class CircleListSerializer(BaseCircleSerializer):
     topic = TopicSerializer(required=False, many=True)
+    total_count = serializers.SerializerMethodField()
+    total_children_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Circle
@@ -450,9 +454,11 @@ class CircleListSerializer(BaseCircleSerializer):
             "post_messages",
             "circle_moderation",
             "sub_circle_count",
-            "created_by",
+            "total_count",
+            "total_children_count",
             "circle_users_count",
             "topic",
+            "created_by",
         )
         extra_kwargs = {
             "id": {"read_only": True},
@@ -494,6 +500,7 @@ class CircleSerializer(BaseCircleSerializer):
     topic = TopicSerializer(required=False, many=True)
     total_count = serializers.SerializerMethodField()
     sites = serializers.SerializerMethodField()
+    total_children_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Circle
@@ -521,6 +528,10 @@ class CircleSerializer(BaseCircleSerializer):
             return sites
         else:
             return []
+
+    def get_total_children_count(self, circle):
+        total_children_count = get_all_children(circle, include_self=False)
+        return total_children_count.count()
 
 
 class CircleUpdateSerializer(BaseCircleSerializer):
@@ -611,44 +622,53 @@ class CircleSubscriberRoleSerializer(FlexFieldsModelSerializer):
 
 class CircleSubscribedUsersSerializer(FlexFieldsModelSerializer):
     role = serializers.SerializerMethodField()
-    user_id = serializers.CharField()
+    user_id = serializers.SerializerMethodField()
     user_name = serializers.SerializerMethodField()
     user_jid = serializers.SerializerMethodField()
     user_phone = serializers.SerializerMethodField()
     user_profile_pic = serializers.SerializerMethodField()
-    user_profile_type = serializers.SerializerMethodField()
+    user_profile = serializers.SerializerMethodField()
 
     def get_subscribed_admins(self, obj):
         if obj.role.role in [0, 10, 20, 30, 40]:
             try:
                 user_service = User().details(user_id=obj.user_id)
                 return user_service
-            except requests.exceptions.HTTPError:
+            except HTTPError:
                 raise serializers.ValidationError({"data": "User does not exists"})
 
     def get_user_id(self, obj):
         user_details = self.get_subscribed_admins(obj)
-        return user_details["id"]
+        if user_details:
+            return user_details["id"]
 
     def get_user_name(self, obj):
         user_details = self.get_subscribed_admins(obj)
-        return user_details["name"]
+        if user_details:
+            return user_details["name"]
 
     def get_user_jid(self, obj):
         user_details = self.get_subscribed_admins(obj)
-        return user_details["jid"]
+        if user_details:
+            return user_details["jid"]
 
     def get_user_phone(self, obj):
         user_details = self.get_subscribed_admins(obj)
-        return f"{user_details['country_code']}{user_details['phone_number']}"
+        if user_details:
+            return f"{user_details['country_code']}{user_details['phone_number']}"
 
     def get_user_profile_pic(self, obj):
         user_details = self.get_subscribed_admins(obj)
-        return user_details["jid"]
+        if user_details:
+            return user_details["jid"]
 
-    def get_user_profile_type(self, obj):
+    def get_user_profile(self, obj):
         user_details = self.get_subscribed_admins(obj)
-        return user_details["user_type"]
+        if user_details:
+            if user_details["user_type"] != "Fully Verified":
+                return "Basic Verified"
+            else:
+                return user_details["user_type"]
 
     def get_role(self, instance):
         return instance.role.role

@@ -282,6 +282,7 @@ class XMPPChatViewSet(viewsets.ViewSet, CustomPagination):
 class NotifyRedirectViewSet(generics.GenericAPIView):
     http_method_names = ["post"]
     serializer_class = NotifyRedirectSerializer
+    permission_classes = (Authenticate,)
 
     def post(self, request):
         """

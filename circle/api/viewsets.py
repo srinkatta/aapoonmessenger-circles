@@ -2,6 +2,7 @@ import re
 from typing import List
 
 import phonenumbers
+from django.db.models import Q
 from django.db.models.functions import Lower
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from loguru import logger
@@ -554,7 +555,7 @@ class CircleViewSet(BaseCircleViewSet):
 
         role = request.GET.get("role", "")
         if role == "admins":
-            role = [0, 10, 20]
+            role = [10, 20]
             circle_users = CircleSubscriberRole.objects.filter(
                 circle=circle, role__role__in=role
             )
@@ -970,10 +971,26 @@ class CircleInviteViewSet(BulkCreateCircleInviteMixin, viewsets.ModelViewSet):
     def list(self, request):
         params = request.GET
         user_info = logged_user_info(request)["id"]
+        self._delete_users_circle_invites(user_info)
         invites = self._get_invites(params, user_info)
         page = self.paginate_queryset(invites)
         serializer = CircleInviteResponseSerializer(page, many=True)
         return self.get_paginated_response(serializer.data)
+
+    def _deleted_users_circle_invites(self, user_info):
+        user_details = User().details(user_id=user_info)
+        if not user_details:
+            invites = CircleInvite.objects.filter(
+                Q(sender=user_info) | Q(recipient=user_info)
+            )
+            invites.delete()
+        invites = CircleInvite.objects.filter(sender=user_info)
+        for invite in invites:
+            user_service = User().details(user_id=invite.recipient)
+            if not user_service:
+                CircleInvite.objects.filter(
+                    Q(sender=invite.recipient) | Q(recipient=invite.recipient)
+                ).delete()
 
     def _get_invites(self, params, user_info):
         invitation_type = params.get("type")
