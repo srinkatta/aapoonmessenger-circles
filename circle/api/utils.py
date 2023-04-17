@@ -37,7 +37,7 @@ def get_maximum_level(circle, count):
     return count
 
 
-def get_all_children(circle, include_self=True):
+def get_all_children(circle, include_self):
     query = f"""
         with recursive group_hierarchy (id, name, parent_id) as
         (
@@ -59,12 +59,12 @@ def get_all_children(circle, include_self=True):
     return Circle.objects.filter(get_children_filters(circle, include_self))
 
 
-def get_children_filters(circle, include_self=True):
+def get_children_filters(circle, include_self):
     filters = Q()
     if include_self:
         filters |= Q(pk=circle.pk)
     for c in Circle.objects.filter(parent=circle):
-        _r = get_children_filters(c, include_self=True)
+        _r = get_children_filters(c, include_self)
         if _r:
             filters |= _r
     return filters
@@ -78,9 +78,9 @@ def logged_user_info(request) -> dict:
     }
 
 
-def get_total_count(circle):
-    total_count = get_all_children(circle, include_self=False)
-    return len(total_count)
+def get_total_children_count(circle):
+    total_count = get_all_children(circle, include_self=True)
+    return len(total_count) - 1
 
 
 def get_circle_users_count(circle):
@@ -180,7 +180,7 @@ def update_parent_hierarchy(parent):
     if parent:
         parent.hierarchy = get_hierarchy_status(parent, parent.owner_id)
         parent.sub_circle_count = get_sub_circle_count(parent)
-        parent.total_children_count = get_total_count(parent)
+        parent.total_children_count = get_total_children_count(parent)
         parent.save()
 
 
@@ -188,7 +188,7 @@ def circle_properties_update(instance):
     instance.gensis_circle_id = get_gensis_circle_id(instance)
     instance.hierarchy = get_hierarchy_status(instance, instance.owner_id)
     instance.subcircle_count = get_sub_circle_count(instance)
-    instance.total_children_count = get_total_count(instance)
+    instance.total_children_count = get_total_children_count(instance)
     instance.circle_users_count = get_circle_users_count(instance)
     instance.save()
     update_parent_hierarchy(instance.parent)
