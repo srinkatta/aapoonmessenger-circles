@@ -184,7 +184,7 @@ class CircleViewSet(BaseCircleViewSet):
                     role=role, circle=parent
                 ).values_list("user_id", flat=True)
 
-                if user["id"] not in super_admins:
+                if not super_admins:
                     for admin in super_admins:
                         user_service = User()
                         user = user_service.details(user_id=admin)
@@ -598,9 +598,8 @@ class CircleViewSet(BaseCircleViewSet):
         user_ids = serializer.validated_data.get("user_ids")
         if user_ids:
             self.remove_users_from_circle(circle, user_ids)
-        return Response(
-            {"data": "users deleted successfully"}, status=status.HTTP_200_OK
-        )
+        serializer = CircleSerializer(circle, context={"request": request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @extend_schema(
         parameters=[

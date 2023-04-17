@@ -198,7 +198,7 @@ class CirclePermission(BaseTimeStampedModel):
         related_name="permissions",
         on_delete=models.CASCADE,
     )
-    user_exit = models.BooleanField(default=True)
+    user_exit = models.BooleanField(default=False)
     pin_message_id = models.CharField(max_length=255, null=True, blank=True)
     pin_message_text = models.CharField(max_length=255, null=True, blank=True)
     link_expired = models.BooleanField(default=False)

@@ -251,8 +251,8 @@ class BaseCircleSerializer(BaseSerializer):
         return total_count.count()
 
     def get_total_children_count(self, circle):
-        total_children_count = get_all_children(circle, include_self=False)
-        return total_children_count.count()
+        total_children_count = get_all_children(circle, include_self=True)
+        return len(total_children_count) - 1
 
     def get_sub_circle_count(self, circle):
         sub_circles = Circle.objects.filter(parent=circle.id)
@@ -381,9 +381,14 @@ class BaseCircleSerializer(BaseSerializer):
             return permission.invite_users_via_link
 
     def get_user_exit(self, circle):
+        user_id = self.context["request"].user_id
         permission = circle.permissions.filter().first()
-        if permission:
-            return permission.user_exit
+        if permission and CircleSubscriberRole.objects.filter(
+            circle=circle, user_id=user_id
+        ):
+            return True
+        else:
+            return False
 
     def get_circle_privacy_change(self, circle):
         permission = circle.permissions.filter().first()
@@ -528,10 +533,6 @@ class CircleSerializer(BaseCircleSerializer):
             return sites
         else:
             return []
-
-    def get_total_children_count(self, circle):
-        total_children_count = get_all_children(circle, include_self=False)
-        return total_children_count.count()
 
 
 class CircleUpdateSerializer(BaseCircleSerializer):
