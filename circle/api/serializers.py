@@ -248,7 +248,7 @@ class BaseCircleSerializer(BaseSerializer):
 
     def get_total_count(self, circle):
         total_count = get_all_children(circle, include_self=True)
-        return total_count.count()
+        return total_count.count() - 1
 
     def get_total_children_count(self, circle):
         total_children_count = get_all_children(circle, include_self=True)
