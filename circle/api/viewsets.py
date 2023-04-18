@@ -1050,6 +1050,8 @@ def circle_invite_accept(sender, recipient, circle):
         )
         circle_invite.joined = True
         circle_invite.save()
+
+        member_xmpp_room_subscribe(user_jid=recipient["jid"], room_id=circle.room_id)
         return True
     return False
 

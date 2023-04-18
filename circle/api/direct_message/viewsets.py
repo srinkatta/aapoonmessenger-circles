@@ -10,6 +10,8 @@ from rest_framework import generics, status, viewsets
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.permissions import AllowAny
+from rest_framework_api_key.permissions import HasAPIKey
 
 from circle.api.direct_message.serializers import (
     ArchiveChatSerializer,
@@ -279,10 +281,10 @@ class XMPPChatViewSet(viewsets.ViewSet, CustomPagination):
             )
 
 
-class NotifyRedirectViewSet(generics.GenericAPIView):
+class NotifyRedirectViewSet(APIView):
     http_method_names = ["post"]
     serializer_class = NotifyRedirectSerializer
-    permission_classes = (Authenticate,)
+    permission_classes = [HasAPIKey | AllowAny]
 
     def post(self, request):
         """
