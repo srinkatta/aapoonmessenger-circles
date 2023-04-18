@@ -617,9 +617,13 @@ class CircleViewSet(BaseCircleViewSet):
         role = request.GET.get("role", "")
         if role == "myorg":
             circle_ids = []
-            subscribed_circle_ids = CircleSubscriberRole.objects.filter(
-                user_id=request.user_id,
-            ).values_list("circle_id", flat=True)
+            subscribed_circle_ids = (
+                CircleSubscriberRole.objects.filter(
+                    user_id=request.user_id,
+                )
+                .exclude(role=CircleRole.DEFAULT_ADMIN)
+                .values_list("circle_id", flat=True)
+            )
             for circle_id in subscribed_circle_ids:
                 circle = get_circle_by_id(circle_id)
                 if circle.hierarchy and circle.parent is None:
@@ -1043,8 +1047,10 @@ def circle_invite_accept(sender, recipient, circle):
     )
     member = CircleRole.objects.get(role=CircleRole.MEMBER)
     if not circle_subscribers:
-        CircleSubscriberRole.objects.create(
-            user_id=recipient["id"], circle=circle, role=member
+        circle_service.circle_add_user(
+            circle,
+            recipient,
+            role=member,
         )
         circle_invite = CircleInvite.objects.get(
             sender=sender["id"], recipient=recipient["id"], circle=circle
