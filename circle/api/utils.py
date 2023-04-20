@@ -64,7 +64,7 @@ def get_children_filters(circle, include_self):
     if include_self:
         filters |= Q(pk=circle.pk)
     for c in Circle.objects.filter(parent=circle):
-        _r = get_children_filters(c, include_self)
+        _r = get_children_filters(c, include_self=True)
         if _r:
             filters |= _r
     return filters

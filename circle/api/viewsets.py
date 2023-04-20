@@ -634,7 +634,7 @@ class CircleViewSet(BaseCircleViewSet):
             circle_ids = CircleSubscriberRole.objects.filter(
                 role__role=role, user_id=request.user_id
             ).values_list("circle_id", flat=True)
-        circles = Circle.objects.filter(id__in=circle_ids)
+        circles = Circle.objects.filter(id__in=circle_ids).order_by("-id")
         page = self.paginate_queryset(circles)
         serializer = CircleListSerializer(page, many=True, context={"request": request})
         return self.get_paginated_response(serializer.data)
@@ -1057,6 +1057,8 @@ def circle_invite_accept(sender, recipient, circle):
         )
         circle_invite.joined = True
         circle_invite.save()
+
+        member_xmpp_room_subscribe(user_jid=recipient["jid"], room_id=circle.room_id)
         return True
     return False
 

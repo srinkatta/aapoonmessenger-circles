@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
+    "rest_framework_api_key",
     "drf_spectacular",
     # Custom App
     "circle",
@@ -153,7 +154,10 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # REST framework settings
 REST_FRAMEWORK = {
-    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.AllowAny",),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework_api_key.permissions.HasAPIKey",
+        "rest_framework.permissions.AllowAny",
+    ),
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework.authentication.SessionAuthentication",
         "rest_framework.authentication.BasicAuthentication",
