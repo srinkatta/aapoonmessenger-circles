@@ -168,6 +168,7 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
+API_KEY_CUSTOM_HEADER = "HTTP_X_API_KEY"
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "aapoon Circle Microservice",
