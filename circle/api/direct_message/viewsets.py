@@ -294,7 +294,6 @@ class NotifyRedirectViewSet(APIView):
         message_from = request.data["from_user"]
         to = request.data["to"]
         xml = request.data.get("xml")
-        message_id = request.data.get("message_id")
 
         if "vhost" in request.data:
             if request.data["vhost"] == settings.XMPP_HOST:
@@ -328,3 +327,4 @@ class MessageAbuseView(APIView):
         except Exception as exc:
             logger.error(exc)
             logger.exception(exc)
+
