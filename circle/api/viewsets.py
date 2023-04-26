@@ -626,7 +626,7 @@ class CircleViewSet(BaseCircleViewSet):
             )
             for circle_id in subscribed_circle_ids:
                 circle = get_circle_by_id(circle_id)
-                if circle.hierarchy and circle.parent is None:
+                if circle.parent is None and circle.total_children_count >= 1:
                     # Only add the genesis circle if it has no parent
                     gensis_circle_id = get_gensis_circle_id(circle)
                     circle_ids.append(gensis_circle_id)
@@ -974,7 +974,7 @@ class CircleInviteViewSet(BulkCreateCircleInviteMixin, viewsets.ModelViewSet):
     def list(self, request):
         params = request.GET
         user_info = logged_user_info(request)["id"]
-        self._delete_users_circle_invites(user_info)
+        self._deleted_users_circle_invites(user_info)
         invites = self._get_invites(params, user_info)
         page = self.paginate_queryset(invites)
         serializer = CircleInviteResponseSerializer(page, many=True)
