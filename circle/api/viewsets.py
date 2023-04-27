@@ -755,9 +755,10 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
 
     def circle_add_default_admin(self, circle, user, role):
         chief_admin = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
-        if role == chief_admin:
+        if role == chief_admin and circle.total_children_count >= 1:
             default_admin = CircleRole.objects.get(role=CircleRole.DEFAULT_ADMIN)
             children = get_all_children(circle=circle, include_self=False)
+
             for child in children:
                 circle_subscriber = CircleSubscriberRole.objects.filter(
                     circle=child, user_id=user["id"]
