@@ -289,7 +289,7 @@ class NotifyRedirectViewSet(APIView):
     def post(self, request):
      
         message = request.data["body"]
-        message_from = request.data["from"]
+        message_from = request.data["from_user"]
         to = request.data["to"]
         xml = request.data.get("xml")
 
