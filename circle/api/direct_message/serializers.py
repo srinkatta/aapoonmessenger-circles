@@ -61,7 +61,7 @@ class ArchiveChatSerializer(serializers.Serializer):
 class NotifyRedirectSerializer(serializers.Serializer):
     body = serializers.CharField(max_length=512)
     xml = serializers.CharField(max_length=256)
-    from = serializers.CharField(
+    from_user = serializers.CharField(
         max_length=256, label="from"
     )
     to = serializers.CharField(max_length=256)
