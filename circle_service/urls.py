@@ -8,10 +8,11 @@ from drf_spectacular.views import (
     SpectacularRedocView,
 )
 
-from circle_service.router_urls import router_urlpatterns
+from circle_service.router_urls import router_urlpatterns, router_admin_urlpatterns
 
 urlpatterns = [
     path("api/circles/", include(router_urlpatterns)),
+    path("api/admin-circles/", include(router_admin_urlpatterns)),
     path("api/circles/schema/", SpectacularAPIView.as_view(), name="schema"),
     # Optional UI:
     path(
