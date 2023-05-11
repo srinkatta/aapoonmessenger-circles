@@ -13,7 +13,7 @@ urlpatterns = [
         name="circle-export-csv",
     ),
     path(
-        "circle-default-config/",
+        "circle/default/config/",
         admin_viewsets.CircleDefaultConfigAPI.as_view(),
         name="circle-default-configurations-permissions",
     ),
