@@ -292,10 +292,11 @@ class NotifyRedirectViewSet(APIView):
         message_from = request.data["from_user"]
         to = request.data["to"]
         xml = request.data.get("xml")
+        vhost = request.data.get("vhost")
 
         if "vhost" in request.data:
             if request.data["vhost"] == settings.XMPP_HOST:
-                user_notify_chat(message, message_from, to, xml)
+                user_notify_chat(message, message_from, to, xml, vhost)
 
             if request.data["vhost"] == "conference" + "." + settings.XMPP_HOST:
                 topic_name = request.data.get("to")
