@@ -72,9 +72,7 @@ from circle.models import (
 from circle.services.user import User
 from circle.api import service as circle_service
 
-ERROR_MESSAGE = (
-    "Sorry, We are  facing an issue currently. Thanks for noticing . We fix it soon."
-)
+ERROR_MESSAGE = "Sorry, We are  facing an issue currently. Thanks for noticing . We fix it soon."
 
 
 class BaseCircleViewSet(viewsets.ModelViewSet):
@@ -190,9 +188,7 @@ class CircleViewSet(BaseCircleViewSet):
                         user = user_service.details(user_id=admin)
                         if not user:
                             logger.info(f"Moving to next admin")
-                            logger.error(
-                                f"No User exists with the given user_id: {admin}"
-                            )
+                            logger.error(f"No User exists with the given user_id: {admin}")
                         else:
                             role = CircleRole.objects.get(role=CircleRole.DEFAULT_ADMIN)
                             circle_service.circle_add_user(circle, user, role=role)
@@ -219,9 +215,7 @@ class CircleViewSet(BaseCircleViewSet):
         """
         circle_users = CircleSubscriberRole.objects.filter(circle=circle).count()
         if circle_users >= 1:
-            CircleSubscriberRole.objects.filter(
-                user_id__in=user_ids, circle=circle
-            ).delete()
+            CircleSubscriberRole.objects.filter(user_id__in=user_ids, circle=circle).delete()
             for user in user_ids:
                 user_service = User()
                 logger.info(f"user_id: {user}")
@@ -260,9 +254,7 @@ class CircleViewSet(BaseCircleViewSet):
         queryset = circles.order_by("-id")
         page = self.paginate_queryset(queryset)
 
-        serializer = self.get_serializer_class()(
-            page, many=True, context={"request": request}
-        )
+        serializer = self.get_serializer_class()(page, many=True, context={"request": request})
         return self.get_paginated_response(serializer.data)
 
     def filter_circle_privacy_name(self, queryset, name):
@@ -286,9 +278,7 @@ class CircleViewSet(BaseCircleViewSet):
 
         if privacy in ["private", "private", "2", 2]:
             privacy = 2
-            queryset = Circle.objects.filter(
-                owner_id=self.request.user_id, privacy=privacy
-            )
+            queryset = Circle.objects.filter(owner_id=self.request.user_id, privacy=privacy)
             results = self.filter_circle_privacy_name(queryset, name)
             return results
 
@@ -306,9 +296,7 @@ class CircleViewSet(BaseCircleViewSet):
         return circles
 
     def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(
-            data=request.data, context={"request": request}
-        )
+        serializer = self.get_serializer(data=request.data, context={"request": request})
         if request.data.get("parent"):
             parent_circle = serializer.initial_data["parent"]
             try:
@@ -316,7 +304,7 @@ class CircleViewSet(BaseCircleViewSet):
             except Circle.DoesNotExist as exc:
                 return Response(
                     {
-                        "data": f"{exc}",
+                        "detail": f"{exc}",
                     },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
@@ -329,7 +317,7 @@ class CircleViewSet(BaseCircleViewSet):
             limit = self.hierarchy_limit(parent.id)
             if limit:
                 return Response(
-                    {"data": "You reached the maximum limit of 8 child circles."},
+                    {"detail": "You reached the maximum limit of 8 child circles."},
                     status=400,
                 )
 
@@ -371,9 +359,7 @@ class CircleViewSet(BaseCircleViewSet):
         try:
             circle = self.get_circle_by_id(kwargs.get("pk", None))
         except Circle.DoesNotExist:
-            return Response(
-                {"data": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST)
         serializer = CircleSerializer(circle, context={"request": request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -381,12 +367,8 @@ class CircleViewSet(BaseCircleViewSet):
         try:
             circle = self.get_circle_by_id(kwargs.get("pk", None))
         except Circle.DoesNotExist:
-            return Response(
-                {"data": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST
-            )
-        serializer = CircleUpdateSerializer(
-            circle, context={"request": request}, data=request.data
-        )
+            return Response({"detail": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST)
+        serializer = CircleUpdateSerializer(circle, context={"request": request}, data=request.data)
         serializer.is_valid(raise_exception=True)
         circle_serializer = serializer.save()
 
@@ -400,9 +382,7 @@ class CircleViewSet(BaseCircleViewSet):
                 user = user_service.get_details_from_phone(phone_number=connected)
 
                 if not user:
-                    logger.error(
-                        f"No User exists with the given phone_number: {connected}"
-                    )
+                    logger.error(f"No User exists with the given phone_number: {connected}")
                     logger.info(f"Moving on to the next user")
                 else:
                     try:
@@ -429,14 +409,10 @@ class CircleViewSet(BaseCircleViewSet):
             circle = Circle.objects.get(id=pk)
             room_id = circle.room_id
         except Circle.DoesNotExist:
-            return Response(
-                {"data": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST)
         circle.delete()
         destroy_room(room_id)
-        return Response(
-            {"data": "Circle Deleted Successfully"}, status=status.HTTP_200_OK
-        )
+        return Response({"message": "Circle Deleted Successfully"}, status=status.HTTP_200_OK)
 
     @extend_schema(
         parameters=[
@@ -470,7 +446,7 @@ class CircleViewSet(BaseCircleViewSet):
             circle = Circle.objects.get(id=pk)
         except Circle.DoesNotExist:
             return Response(
-                {"data": "Circle does not exist"},
+                {"detail": "Circle does not exist"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -482,23 +458,11 @@ class CircleViewSet(BaseCircleViewSet):
     def filter_circles(self, request, circle):
         if "name" in request.GET and "level" not in request.GET:
             return circle_service.filter_circles_by_name(request, circle)
-        elif (
-            "level" in request.GET
-            and "name" not in request.GET
-            and "parent" not in request.GET
-        ):
+        elif "level" in request.GET and "name" not in request.GET and "parent" not in request.GET:
             return circle_service.filter_circles_by_level(request, circle)
-        elif (
-            "level" in request.GET
-            and "name" in request.GET
-            and "parent" not in request.GET
-        ):
+        elif "level" in request.GET and "name" in request.GET and "parent" not in request.GET:
             return circle_service.filter_circles_by_name_and_level(request, circle)
-        elif (
-            "level" in request.GET
-            and "parent" in request.GET
-            and "name" not in request.GET
-        ):
+        elif "level" in request.GET and "parent" in request.GET and "name" not in request.GET:
             return circle_service.filter_circles_by_parent(request, circle)
         else:
             return [circle]
@@ -511,9 +475,7 @@ class CircleViewSet(BaseCircleViewSet):
         try:
             circle = Circle.objects.get(link=pk)
         except Exception:
-            return Response(
-                {"data": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST)
         serializer = CircleSerializer(circle, context={"request": request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -525,9 +487,7 @@ class CircleViewSet(BaseCircleViewSet):
         try:
             circle = Circle.objects.get(id=pk)
         except Circle.DoesNotExist:
-            return Response(
-                {"data": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST)
         serializer = CircleSerializer(circle, context={"request": request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -549,20 +509,14 @@ class CircleViewSet(BaseCircleViewSet):
         try:
             circle = Circle.objects.get(id=pk)
         except Circle.DoesNotExist:
-            return Response(
-                {"data": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST)
 
         role = request.GET.get("role", "")
         if role == "admins":
             role = [10, 20]
-            circle_users = CircleSubscriberRole.objects.filter(
-                circle=circle, role__role__in=role
-            )
+            circle_users = CircleSubscriberRole.objects.filter(circle=circle, role__role__in=role)
         elif role:
-            circle_users = CircleSubscriberRole.objects.filter(
-                circle=circle, role__role=role
-            )
+            circle_users = CircleSubscriberRole.objects.filter(circle=circle, role__role=role)
         else:
             circle_users = CircleSubscriberRole.objects.filter(circle=circle)
 
@@ -587,13 +541,9 @@ class CircleViewSet(BaseCircleViewSet):
         try:
             circle = Circle.objects.get(id=pk)
         except Circle.DoesNotExist:
-            return Response(
-                {"data": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST)
 
-        serializer = CircleLeaveSerializer(
-            data=request.data, context={"request": request}
-        )
+        serializer = CircleLeaveSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
         user_ids = serializer.validated_data.get("user_ids")
         if user_ids:
@@ -667,9 +617,7 @@ class CirclePermissionViewSet(BaseCircleViewSet):
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
         if not queryset:
-            return Response(
-                {"data": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST)
         serializer = self.get_serializer(queryset)
         return Response(serializer.data)
 
@@ -677,9 +625,7 @@ class CirclePermissionViewSet(BaseCircleViewSet):
 
         queryset = self.get_queryset()
         if not queryset:
-            return Response(
-                {"data": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST)
         if queryset:
             serializer = self.get_serializer(queryset, data=request.data)
         else:
@@ -717,9 +663,7 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
 
         circle = Circle.objects.filter(id=self.circle_id).first()
         if not circle:
-            return Response(
-                {"data": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST)
         users = validated_data.get("users")
         user_service = User()
         for user in users:
@@ -742,9 +686,7 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
                     country_code=phone.country_code, phone_number=phone.national_number
                 )
                 if not user:
-                    logger.error(
-                        f"No User exists with the given phone_number: {connected}"
-                    )
+                    logger.error(f"No User exists with the given phone_number: {connected}")
                     logger.info(f"Moving on to the next user")
                 else:
                     circle_service.circle_add_user(circle, user, role)
@@ -841,9 +783,7 @@ class TopicViewSet(viewsets.ModelViewSet):
             topic.delete()
         except Topic.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
-        return Response(
-            {"data": "Topic deleted successfully"}, status=status.HTTP_200_OK
-        )
+        return Response({"detail": "Topic deleted successfully"}, status=status.HTTP_200_OK)
 
 
 def transfer_hierarchy(circle, user):
@@ -855,9 +795,7 @@ def transfer_hierarchy(circle, user):
 
     circle_role = CircleSubscriberRole.objects.filter(user_id=user["id"], circle=circle)
     if not circle_role:
-        CircleSubscriberRole.objects.create(
-            user_id=user["id"], role=role, circle=circle
-        )
+        CircleSubscriberRole.objects.create(user_id=user["id"], role=role, circle=circle)
         member_xmpp_room_subscribe(user_jid=user["jid"], room_id=circle.room_id)
     else:
         circle_role[0].role = role
@@ -883,7 +821,7 @@ class HierarchyTransferAPIView(APIView):
             logger.error(f"No User exists with the given user_id: {to_user}")
             return Response(
                 {
-                    "data": "User matching query does not exists",
+                    "detail": "User matching query does not exists",
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -894,7 +832,7 @@ class HierarchyTransferAPIView(APIView):
             logger.error(f"{exc}")
             return Response(
                 {
-                    "data": f"{exc}",
+                    "detail": f"{exc}",
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -907,8 +845,7 @@ class HierarchyTransferAPIView(APIView):
                 transfer_hierarchy(child, user)
         else:
             parents = (
-                Circle.objects.filter(id=circle.parent.id)
-                | circle.parent.get_parent_circles()
+                Circle.objects.filter(id=circle.parent.id) | circle.parent.get_parent_circles()
             )
             if parents:
                 root_parent = parents
@@ -916,7 +853,7 @@ class HierarchyTransferAPIView(APIView):
                 for child in children:
                     transfer_hierarchy(child, user)
 
-        return Response({"data": "Hierarchy Transferred"}, status=200)
+        return Response({"message": "Hierarchy Transferred"}, status=200)
 
 
 class HierarchyDeleteAPIView(APIView):
@@ -930,7 +867,7 @@ class HierarchyDeleteAPIView(APIView):
         if not circle:
             return Response(
                 {
-                    "data": "Circle matching query does not exists",
+                    "detail": "Circle matching query does not exists",
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -949,12 +886,10 @@ class HierarchyDeleteAPIView(APIView):
 
             if parents:
                 root_parent = parents[0]
-                childrens = parents[0] | get_all_children(
-                    root_parent, include_self=True
-                )
+                childrens = parents[0] | get_all_children(root_parent, include_self=True)
                 [child.delete() for child in childrens]
 
-        return Response({"data": "Hierarchy Deleted"}, status=200)
+        return Response({"message": "Hierarchy Deleted"}, status=200)
 
 
 class CircleInviteViewSet(BulkCreateCircleInviteMixin, viewsets.ModelViewSet):
@@ -984,9 +919,7 @@ class CircleInviteViewSet(BulkCreateCircleInviteMixin, viewsets.ModelViewSet):
     def _deleted_users_circle_invites(self, user_info):
         user_details = User().details(user_id=user_info)
         if not user_details:
-            invites = CircleInvite.objects.filter(
-                Q(sender=user_info) | Q(recipient=user_info)
-            )
+            invites = CircleInvite.objects.filter(Q(sender=user_info) | Q(recipient=user_info))
             invites.delete()
         invites = CircleInvite.objects.filter(sender=user_info)
         for invite in invites:
@@ -1013,9 +946,7 @@ class CircleInviteViewSet(BulkCreateCircleInviteMixin, viewsets.ModelViewSet):
             invites = CircleInvite.objects.filter(sender=user_info, joined=True)
         elif circle and joined is not None:
             joined = self._convert_to_bool(joined)
-            invites = CircleInvite.objects.filter(
-                sender=user_info, joined=joined, circle=circle
-            )
+            invites = CircleInvite.objects.filter(sender=user_info, joined=joined, circle=circle)
         elif not circle and joined is not None:
             joined = self._convert_to_bool(joined)
             invites = CircleInvite.objects.filter(sender=user_info, joined=joined)
@@ -1028,9 +959,7 @@ class CircleInviteViewSet(BulkCreateCircleInviteMixin, viewsets.ModelViewSet):
             invites = CircleInvite.objects.filter(recipient=user_info, joined=False)
         elif circle and joined is not None:
             joined = self._convert_to_bool(joined)
-            invites = CircleInvite.objects.filter(
-                recipient=user_info, joined=joined, circle=circle
-            )
+            invites = CircleInvite.objects.filter(recipient=user_info, joined=joined, circle=circle)
         elif not circle and joined is not None:
             joined = self._convert_to_bool(joined)
             invites = CircleInvite.objects.filter(recipient=user_info, joined=joined)
@@ -1043,9 +972,7 @@ class CircleInviteViewSet(BulkCreateCircleInviteMixin, viewsets.ModelViewSet):
 
 
 def circle_invite_accept(sender, recipient, circle):
-    circle_subscribers = CircleSubscriberRole.objects.filter(
-        user_id=recipient["id"], circle=circle
-    )
+    circle_subscribers = CircleSubscriberRole.objects.filter(user_id=recipient["id"], circle=circle)
     member = CircleRole.objects.get(role=CircleRole.MEMBER)
     if not circle_subscribers:
         circle_service.circle_add_user(
@@ -1087,12 +1014,12 @@ class CircleInviteAcceptViewSet(APIView):
         bulk = isinstance(request.data, list)
         if not bulk:
             circle_invite_accept(sender, recipient, circle)
-            return Response({"data": "Invitation Accepted"}, status=200)
+            return Response({"message": "Invitation Accepted"}, status=200)
 
         else:
             for entry in data:
-                circle_invite_accept(entry, user)
-        return Response({"data": "Invitations Accepted"}, status=200)
+                circle_invite_accept(entry, user, circle)
+        return Response({"message": "Invitations Accepted"}, status=200)
 
 
 class GetCircleUniqueNameView(APIView):
@@ -1119,10 +1046,8 @@ class GetCircleUniqueNameView(APIView):
         if bool(re.match("^[A-Za-z0-9-]*$", name)):
             circle = Circle.objects.filter(link=name)
         else:
-            return Response(
-                {"data": "Special characters and emojis are not allowed"}, status=400
-            )
+            return Response({"detail": "Special characters and emojis are not allowed"}, status=400)
         if circle:
-            return Response({"data": "Name already exists"}, status=400)
+            return Response({"detail": "Name already exists"}, status=400)
         else:
-            return Response({"data": "Name doesn't exist"}, status=200)
+            return Response({"message": "Name doesn't exist"}, status=200)

@@ -67,9 +67,7 @@ class XMPPMessageViewSet(viewsets.ModelViewSet):
             if chat_messages:
                 chat_messages.delete()
                 is_exists = False
-            self.update_like_dislike(
-                message_id=message_id, user_id=request.user_id, action=action
-            )
+            self.update_like_dislike(message_id=message_id, user_id=request.user_id, action=action)
         if is_exists:
             request.data["action_by"] = request.user_id
 
@@ -78,16 +76,12 @@ class XMPPMessageViewSet(viewsets.ModelViewSet):
             print(serializer.initial_data)
             try:
                 serializer.save()
-                return Response(
-                    {"success": True, "message": "Message stored successfully"}
-                )
+                return Response({"success": True, "message": "Message stored successfully"})
             except Exception as e:
                 return Response(
                     {
                         "success": False,
-                        "message": "Error occurred while saving the message {}".format(
-                            e
-                        ),
+                        "message": "Error occurred while saving the message {}".format(e),
                     }
                 )
         else:
@@ -101,29 +95,25 @@ class XMPPMessageViewSet(viewsets.ModelViewSet):
 
     def update_like_dislike(self, message_id, user_id, action):
         try:
-            chat_msg = ChatMessage.objects.filter(
-                message_id=message_id, action_by=user_id
-            )
+            chat_msg = ChatMessage.objects.filter(message_id=message_id, action_by=user_id)
             if chat_msg:
                 if chat_msg[0].action == "like" and action == "dislike":
                     chat_msg.delete()
-                    ChatMessage.objects.filter(
-                        message_id=message_id, action_by=user_id
-                    ).update(action=action)
+                    ChatMessage.objects.filter(message_id=message_id, action_by=user_id).update(
+                        action=action
+                    )
                 elif chat_msg[0].action == "dislike" and action == "like":
                     chat_msg.delete()
-                    ChatMessage.objects.filter(
-                        message_id=message_id, action_by=user_id
-                    ).update(action=action)
+                    ChatMessage.objects.filter(message_id=message_id, action_by=user_id).update(
+                        action=action
+                    )
         except ObjectDoesNotExist as e:
             logging.exception("ObjectDoesNotExist: %s", e)
 
     def retrieve(self, request, *args, **kwargs):
         queryset = ChatMessage.objects.filter(message_id=kwargs.get("pk"))
         if queryset.exists():
-            serializer = ChatMessageSerializer(
-                {"message_id": queryset.first().message_id}
-            )
+            serializer = ChatMessageSerializer({"message_id": queryset.first().message_id})
             return Response(serializer.data)
         else:
             return Response(
@@ -142,9 +132,7 @@ class XMPPMessageFilterViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         message_ids = request.data.get("message_id", [])
         queryset = (
-            ChatMessage.objects.filter(message_id__in=message_ids)
-            .values("message_id")
-            .distinct()
+            ChatMessage.objects.filter(message_id__in=message_ids).values("message_id").distinct()
         )
 
         serializer = ChatMessageFilterSerializer(queryset, many=True)
@@ -276,9 +264,7 @@ class XMPPChatViewSet(viewsets.ViewSet, CustomPagination):
             serializer = self.serializer_class(instance=page, many=True)
             return self.get_paginated_response(serializer.data)
         except Exception:
-            return Response(
-                {"data": "Invalid Conference Id"}, status=status.HTTP_200_OK
-            )
+            return Response({"message": "Invalid Conference Id"}, status=status.HTTP_200_OK)
 
 
 class NotifyRedirectViewSet(APIView):
@@ -287,7 +273,7 @@ class NotifyRedirectViewSet(APIView):
     permission_classes = [HasAPIKey]
 
     def post(self, request):
-     
+
         message = request.data["body"]
         message_from = request.data["from_user"]
         to = request.data["to"]
@@ -305,7 +291,7 @@ class NotifyRedirectViewSet(APIView):
                     args=(topic_name, message_from, message, xml),
                 )
                 t.start()
-        return Response({"data": "Notification sent."}, status=200)
+        return Response({"message": "Notification sent."}, status=200)
 
 
 class MessageAbuseView(APIView):
@@ -322,8 +308,7 @@ class MessageAbuseView(APIView):
             serializer = self.serializer_class(data=request.data)
             serializer.is_valid(raise_exception=True)
             abuse_mail_msg(serializer.data)
-            return Response({"data": "Mail sent Successfully"}, status=200)
+            return Response({"message": "Mail sent Successfully"}, status=200)
         except Exception as exc:
             logger.error(exc)
             logger.exception(exc)
-
