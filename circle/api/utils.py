@@ -22,9 +22,7 @@ def get_circle_by_id(circle_id: int) -> Circle:
 def get_level(circle):
     if circle.parent is None:
         return 0
-    parents = (
-        Circle.objects.filter(pk=circle.parent.pk) | circle.parent.get_parent_circles()
-    )
+    parents = Circle.objects.filter(pk=circle.parent.pk) | circle.parent.get_parent_circles()
     return len(parents)
 
 
@@ -101,10 +99,7 @@ def get_sub_circle_count(obj):
 def get_gensis_circle_id(instance):
     if instance.parent is None:
         return instance.id
-    parents = (
-        Circle.objects.filter(pk=instance.parent.pk)
-        | instance.parent.get_parent_circles()
-    )
+    parents = Circle.objects.filter(pk=instance.parent.pk) | instance.parent.get_parent_circles()
     if parents:
         root_parent = parents[0]
         return root_parent.id
@@ -116,9 +111,7 @@ def get_hierarchy_status(circle, user_id):
     if not circle.parent:
         return get_hierarchy_status_for_root(circle, user_id)
 
-    parents = (
-        Circle.objects.filter(pk=circle.parent.pk) | circle.parent.get_parent_circles()
-    )
+    parents = Circle.objects.filter(pk=circle.parent.pk) | circle.parent.get_parent_circles()
     if parents:
         root_parent = parents[0]
         return get_hierarchy_status_for_non_root(circle, root_parent, user_id)
@@ -131,12 +124,10 @@ def get_hierarchy_status_for_root(circle, user_id):
     chief_admin = admin[0].role.role if admin else ""
     childrens = get_all_children(circle, include_self=True)
 
-    if len(childrens) >= 1:
+    if len(childrens) > 1:
         user_role = []
         for children in childrens:
-            child = CircleSubscriberRole.objects.filter(
-                circle=children, user_id=user_id
-            )
+            child = CircleSubscriberRole.objects.filter(circle=children, user_id=user_id)
             tuser_role = child[0].role.role if child else ""
             user_role = [True if tuser_role == 10 and chief_admin == 10 else False]
 
@@ -166,8 +157,7 @@ def get_hierarchy_status_for_non_root(circle, root_parent, user_id):
     childrens = get_all_children(root_parent, include_self=True)
     if len(childrens) >= 1:
         hierarchy = [
-            True if children.owner_id == root_parent.owner_id else False
-            for children in childrens
+            True if children.owner_id == root_parent.owner_id else False for children in childrens
         ]
         if False in hierarchy:
             return False
@@ -176,22 +166,22 @@ def get_hierarchy_status_for_non_root(circle, root_parent, user_id):
     return False
 
 
-def update_parent_hierarchy(parent):
+def update_parent_hierarchy(parent, hierarchy: bool = False):
     if parent:
-        parent.hierarchy = get_hierarchy_status(parent, parent.owner_id)
+        parent.hierarchy = hierarchy if hierarchy else get_hierarchy_status(parent, parent.owner_id)
         parent.sub_circle_count = get_sub_circle_count(parent)
         parent.total_children_count = get_total_children_count(parent)
         parent.save()
 
 
-def circle_properties_update(instance):
+def circle_properties_update(instance, hierarchy: bool = False):
     instance.gensis_circle_id = get_gensis_circle_id(instance)
     instance.hierarchy = get_hierarchy_status(instance, instance.owner_id)
     instance.subcircle_count = get_sub_circle_count(instance)
     instance.total_children_count = get_total_children_count(instance)
     instance.circle_users_count = get_circle_users_count(instance)
     instance.save()
-    update_parent_hierarchy(instance.parent)
+    update_parent_hierarchy(instance.parent, hierarchy=hierarchy)
 
 
 def s3_url_extract(url):
