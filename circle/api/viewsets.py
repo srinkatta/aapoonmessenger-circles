@@ -48,6 +48,7 @@ from circle.api.utils import (
     CircleInvitePagination,
     get_circle_by_id,
     get_gensis_circle_id,
+    update_parent_hierarchy,
 )
 from circle.api.mixins import BulkCreateCircleInviteMixin
 from circle.helpers.ejjaberd import (
@@ -405,13 +406,18 @@ class CircleViewSet(BaseCircleViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def destroy(self, request, pk=None, *args, **kwargs):
+        parent = None
         try:
             circle = Circle.objects.get(id=pk)
             room_id = circle.room_id
+            if circle.parent:
+                parent = circle.parent
         except Circle.DoesNotExist:
             return Response({"detail": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST)
         circle.delete()
         destroy_room(room_id)
+        if parent:
+            update_parent_hierarchy(parent)
         return Response({"message": "Circle Deleted Successfully"}, status=status.HTTP_200_OK)
 
     @extend_schema(
@@ -622,7 +628,6 @@ class CirclePermissionViewSet(BaseCircleViewSet):
         return Response(serializer.data)
 
     def create(self, request, *args, **kwargs):
-
         queryset = self.get_queryset()
         if not queryset:
             return Response({"detail": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST)
@@ -802,7 +807,7 @@ def transfer_hierarchy(circle, user):
         circle_role[0].save()
 
     # Update circle properties
-    circle_properties_update(circle)
+    circle_properties_update(circle, hierarchy=True)
     return True
 
 
@@ -836,7 +841,6 @@ class HierarchyTransferAPIView(APIView):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
         if circle.parent is None:
             children = Circle.objects.filter(id=circle.id) | get_all_children(
                 circle, include_self=True
