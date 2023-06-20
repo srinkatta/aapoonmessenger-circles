@@ -124,7 +124,7 @@ def get_hierarchy_status_for_root(circle, user_id):
     chief_admin = admin[0].role.role if admin else ""
     childrens = get_all_children(circle, include_self=True)
 
-    if len(childrens) >= 1:
+    if len(childrens) > 1:
         user_role = []
         for children in childrens:
             child = CircleSubscriberRole.objects.filter(circle=children, user_id=user_id)
