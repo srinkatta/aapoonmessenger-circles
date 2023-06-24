@@ -35,7 +35,7 @@ class XMPPMessageViewSet(viewsets.ModelViewSet):
     """
     API View to list and create messages from and in XMPP.
     """
-
+    permission_classes = (Authenticate,)
     model = ChatMessage
     serializer_class = ChatMessageSerializer
     http_method_names = ["get", "post"]
