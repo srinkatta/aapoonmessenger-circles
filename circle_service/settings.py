@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
+    "rest_framework_api_key",
     "drf_spectacular",
     # Custom App
     "circle",
@@ -69,7 +70,6 @@ CORS_ALLOWED_ORIGINS = [
 CORS_ALLOW_ALL_ORIGINS = True
 
 
-
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
@@ -94,21 +94,21 @@ WSGI_APPLICATION = "circle_service.wsgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.mysql",
+        "ENGINE": 'django.db.backends.postgresql',
         "NAME": os.environ["DB_NAME"],
         "USER": os.environ["DB_USER"],
         "PASSWORD": os.environ["DB_PASSWORD"],
         "HOST": os.environ["DB_HOST"],
         "PORT": os.environ["DB_PORT"],
     },
-    'xmpp_database': {
-        'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': 'ejabberd',
-        'USER': 'postgres',
-        'PASSWORD': os.environ["XMPP_DB_PASSWORD"],
-        'HOST': os.environ["XMPP_DB_HOST"],
-        'PORT': '5432'
-    }
+    "xmpp_database": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": "ejabberd",
+        "USER": "postgres",
+        "PASSWORD": os.environ["XMPP_DB_PASSWORD"],
+        "HOST": os.environ["XMPP_DB_HOST"],
+        "PORT": "5432",
+    },
 }
 
 # Password validation
@@ -154,7 +154,10 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # REST framework settings
 REST_FRAMEWORK = {
-    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.AllowAny",),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework_api_key.permissions.HasAPIKey",
+        "rest_framework.permissions.AllowAny",
+    ),
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework.authentication.SessionAuthentication",
         "rest_framework.authentication.BasicAuthentication",
@@ -165,6 +168,7 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
+API_KEY_CUSTOM_HEADER = "HTTP_X_API_KEY"
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "aapoon Circle Microservice",

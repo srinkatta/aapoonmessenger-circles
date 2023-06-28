@@ -1,5 +1,3 @@
-import base64
-import json
 import uuid
 from typing import (
     Any,
@@ -7,6 +5,18 @@ from typing import (
 )
 
 import requests
+from requests import Response
+
+from circle_service import settings
+from loguru import logger
+import uuid
+from typing import (
+    Any,
+    Dict,
+)
+
+import requests
+from loguru import logger
 from requests import Response
 
 from circle_service import settings
@@ -23,7 +33,6 @@ class User:
 
     def details(self, user_id: int = None, user_jid=None) -> Dict:  # type: ignore
         request_data: dict = self._prepare_request(user_id, user_jid)
-        user_detail = {}
         try:
             response: Response = requests.post(
                 self.user_detail_service_url,
@@ -32,10 +41,13 @@ class User:
             )
             response.raise_for_status()
             user_detail = self._prepare_response_body(response)
-        except (requests.exceptions.RequestException, requests.exceptions.HTTPError):
+        except (
+            requests.exceptions.RequestException,
+            requests.exceptions.HTTPError,
+        ) as exc:
+            logger.exception(f"Error getting user details: {exc}")
             user_detail = {}
-        finally:
-            return user_detail
+        return user_detail
 
     def get_details_from_phone(
         self, phone_number: str = "", country_code: str = ""
@@ -44,7 +56,6 @@ class User:
             "phone_number": phone_number,
             "country_code": country_code,
         }
-        user_detail = {}
         try:
             response: Response = requests.post(
                 self.user_detail_phone_service_url,
@@ -53,10 +64,13 @@ class User:
             )
             response.raise_for_status()
             user_detail = self._prepare_response_body(response)
-        except (requests.exceptions.RequestException, requests.exceptions.HTTPError):
+        except (
+            requests.exceptions.RequestException,
+            requests.exceptions.HTTPError,
+        ) as exc:
+            logger.exception(f"Error getting user details from phone: {exc}")
             user_detail = {}
-        finally:
-            return user_detail
+        return user_detail
 
     def _prepare_request(
         self, user_id: int = None, user_jid: int | uuid.UUID = None
@@ -73,4 +87,32 @@ class User:
 
     def _prepare_response_body(self, response: Response) -> bytes:
         result = response.json()
+        return result
+
+
+def user_notify_chat(
+    message: str = "", message_from: str = "", to: str = "", xml: str = "", vhost: str = ""
+) -> Dict:
+    result = {}
+    request_data: dict = {
+        "body": message,
+        "from_user": message_from,
+        "to": to,
+        "xml": xml,
+        "vhost": vhost,
+    }
+    base_url = settings.USER_MICROSERVICE_URL
+    user_service_notify_dm = f"{base_url}api/users/notify_dm/"
+    headers = {"X-Api-Key": settings.USER_MICROSERVICE_API_KEY}
+    try:
+        response: Response = requests.post(
+            user_service_notify_dm,
+            json=request_data,
+            headers=headers,
+        )
+        response.raise_for_status()
+        result = response.json
+    except (requests.exceptions.RequestException, requests.exceptions.HTTPError):
+        result = {}
+    finally:
         return result

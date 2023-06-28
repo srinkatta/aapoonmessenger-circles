@@ -1,4 +1,5 @@
 from urllib.parse import urlparse
+from loguru import logger
 
 from rest_flex_fields import FlexFieldsModelSerializer
 from rest_framework import serializers
@@ -108,6 +109,7 @@ class BaseCircleSerializer(BaseSerializer):
     shuffle_circles = serializers.SerializerMethodField()
     user_join_permissions = serializers.SerializerMethodField()
     role = serializers.SerializerMethodField()
+    sites = serializers.SerializerMethodField()
 
     class Meta:
         model = Circle
@@ -139,7 +141,7 @@ class BaseCircleSerializer(BaseSerializer):
             "change_circle_info",
             "user_exit",
             "created_by",
-            # "total_children_count",
+            "total_children_count",
             "sub_circle_count",
             "circle_admins_count",
             "circle_users_count",
@@ -169,6 +171,7 @@ class BaseCircleSerializer(BaseSerializer):
             "is_default_admin",
             "is_moderator",
             "is_user",
+            "sites",
         )
         extra_kwargs = {
             "id": {"read_only": True},
@@ -176,54 +179,42 @@ class BaseCircleSerializer(BaseSerializer):
 
     def get_role(self, circle):
         user_id = self.context["request"].user_id
-        circle_role = CircleSubscriberRole.objects.filter(
-            circle=circle, user_id=user_id
-        ).first()
+        circle_role = CircleSubscriberRole.objects.filter(circle=circle, user_id=user_id).first()
         if circle_role:
             return circle_role.role.role
         return None
 
     def get_is_owner(self, circle):
         user_id = self.context["request"].user_id
-        circle_role = CircleSubscriberRole.objects.filter(
-            circle=circle, user_id=user_id
-        ).first()
+        circle_role = CircleSubscriberRole.objects.filter(circle=circle, user_id=user_id).first()
         if circle_role and circle_role.role.role == CircleRole.CHIEF_ADMIN:
             return True
         return False
 
     def get_is_admin(self, circle):
         user_id = self.context["request"].user_id
-        circle_role = CircleSubscriberRole.objects.filter(
-            circle=circle, user_id=user_id
-        ).first()
+        circle_role = CircleSubscriberRole.objects.filter(circle=circle, user_id=user_id).first()
         if circle_role and circle_role.role.role == CircleRole.ADMIN:
             return True
         return False
 
     def get_is_default_admin(self, circle):
         user_id = self.context["request"].user_id
-        circle_role = CircleSubscriberRole.objects.filter(
-            circle=circle, user_id=user_id
-        ).first()
+        circle_role = CircleSubscriberRole.objects.filter(circle=circle, user_id=user_id).first()
         if circle_role and circle_role.role.role == CircleRole.DEFAULT_ADMIN:
             return True
         return False
 
     def get_is_moderator(self, circle):
         user_id = self.context["request"].user_id
-        circle_role = CircleSubscriberRole.objects.filter(
-            circle=circle, user_id=user_id
-        ).first()
+        circle_role = CircleSubscriberRole.objects.filter(circle=circle, user_id=user_id).first()
         if circle_role and circle_role.role.role == CircleRole.MODERATOR:
             return True
         return False
 
     def get_is_user(self, circle):
         user_id = self.context["request"].user_id
-        circle_role = CircleSubscriberRole.objects.filter(
-            circle=circle, user_id=user_id
-        ).first()
+        circle_role = CircleSubscriberRole.objects.filter(circle=circle, user_id=user_id).first()
         if not circle_role:
             return True
         return False
@@ -231,13 +222,13 @@ class BaseCircleSerializer(BaseSerializer):
     def get_created_by(self, circle):
         return circle.owner_id
 
+    def get_sites(self, circle):
+        return circle.sites
+
     def get_level(self, circle):
         if circle.parent is None:
             return 0
-        parents = (
-            Circle.objects.filter(pk=circle.parent.pk)
-            | circle.parent.get_parent_circles()
-        )
+        parents = Circle.objects.filter(pk=circle.parent.pk) | circle.parent.get_parent_circles()
         return len(parents)
 
     def get_total_count(self, circle):
@@ -245,8 +236,8 @@ class BaseCircleSerializer(BaseSerializer):
         return total_count.count()
 
     def get_total_children_count(self, circle):
-        total_children_count = get_all_children(circle, include_self=False)
-        return total_children_count.count()
+        total_count = self.get_total_count(circle)
+        return total_count - 1
 
     def get_sub_circle_count(self, circle):
         sub_circles = Circle.objects.filter(parent=circle.id)
@@ -274,7 +265,7 @@ class BaseCircleSerializer(BaseSerializer):
             .values_list("user_id", flat=True)
             .distinct()
         )
-        admins = circle_admins.exclude(role__name="Moderator")
+        admins = circle_admins.exclude(role__name="Moderator").exclude(role__name="Member")
         return admins.count()
 
     def get_circle_moderation(self, circle):
@@ -373,9 +364,12 @@ class BaseCircleSerializer(BaseSerializer):
             return permission.invite_users_via_link
 
     def get_user_exit(self, circle):
+        user_id = self.context["request"].user_id
         permission = circle.permissions.filter().first()
-        if permission:
-            return permission.user_exit
+        if permission and CircleSubscriberRole.objects.filter(circle=circle, user_id=user_id):
+            return True
+        else:
+            return False
 
     def get_circle_privacy_change(self, circle):
         permission = circle.permissions.filter().first()
@@ -415,6 +409,8 @@ class BaseCircleSerializer(BaseSerializer):
 
 class CircleListSerializer(BaseCircleSerializer):
     topic = TopicSerializer(required=False, many=True)
+    total_count = serializers.SerializerMethodField()
+    total_children_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Circle
@@ -444,9 +440,11 @@ class CircleListSerializer(BaseCircleSerializer):
             "post_messages",
             "circle_moderation",
             "sub_circle_count",
-            "created_by",
+            "total_count",
+            "total_children_count",
             "circle_users_count",
             "topic",
+            "created_by",
         )
         extra_kwargs = {
             "id": {"read_only": True},
@@ -487,6 +485,8 @@ class CircleInputSerializer(BaseCircleSerializer):
 class CircleSerializer(BaseCircleSerializer):
     topic = TopicSerializer(required=False, many=True)
     total_count = serializers.SerializerMethodField()
+    sites = serializers.SerializerMethodField()
+    total_children_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Circle
@@ -495,11 +495,32 @@ class CircleSerializer(BaseCircleSerializer):
             "id": {"read_only": True},
         }
 
+    def get_sites(self, obj):
+        if isinstance(obj.sites, list):
+            return obj.sites
+        elif (
+            obj.sites != "None"
+            and obj.sites != "[]"
+            and obj.sites
+            and obj.sites != [""]
+            and isinstance(obj.sites, str)
+        ):
+            sites = obj.sites
+            sites = sites.replace("[", "")
+            sites = sites.replace("]", "")
+            sites = sites.replace("'", "")
+            sites = sites.split(",")
+            sites = [x.strip() for x in sites]
+            return sites
+        else:
+            return []
+
 
 class CircleUpdateSerializer(BaseCircleSerializer):
     circle_users = serializers.ListField(required=False)
     user_ids = serializers.ListField(required=False)
     leave = serializers.BooleanField(default=False)
+    sites = serializers.ListField(required=False, allow_null=True)
 
     class Meta:
         model = Circle
@@ -539,6 +560,11 @@ class CircleAddUserInputSerializer(serializers.Serializer):
 
         if not user_id and not connected:
             raise serializers.ValidationError("user_id or connected field is required")
+
+        if user_id and connected:
+            raise serializers.ValidationError(
+                "Not possible to use both user_id or connected fields"
+            )
         return attrs
 
     def create(self, validated_data):
@@ -574,6 +600,67 @@ class CircleSubscriberRoleSerializer(FlexFieldsModelSerializer):
 
     def get_role(self, instance):
         return instance.role.role
+
+
+class CircleSubscribedUsersSerializer(FlexFieldsModelSerializer):
+    role = serializers.SerializerMethodField()
+    user_id = serializers.SerializerMethodField()
+    user_name = serializers.SerializerMethodField()
+    user_jid = serializers.SerializerMethodField()
+    user_phone = serializers.SerializerMethodField()
+    user_profile_pic = serializers.SerializerMethodField()
+    user_profile = serializers.SerializerMethodField()
+
+    def get_subscribed_admins(self, obj):
+        if obj.role.role in [0, 10, 20, 30, 40]:
+            try:
+                user_service = User().details(user_id=obj.user_id)
+                return user_service
+            except HTTPError:
+                raise serializers.ValidationError({"detail": "User does not exists"})
+
+    def get_user_id(self, obj):
+        user_details = self.get_subscribed_admins(obj)
+        if user_details:
+            return user_details["id"]
+
+    def get_user_name(self, obj):
+        user_details = self.get_subscribed_admins(obj)
+        if user_details:
+            return user_details["name"]
+
+    def get_user_jid(self, obj):
+        user_details = self.get_subscribed_admins(obj)
+        if user_details:
+            return user_details["jid"]
+
+    def get_user_phone(self, obj):
+        user_details = self.get_subscribed_admins(obj)
+        if user_details:
+            return f"{user_details['country_code']}{user_details['phone_number']}"
+
+    def get_user_profile_pic(self, obj):
+        user_details = self.get_subscribed_admins(obj)
+        if user_details:
+            return user_details["jid"]
+
+    def get_user_profile(self, obj):
+        user_details = self.get_subscribed_admins(obj)
+        if user_details:
+            if user_details["user_type"] != "Fully Verified":
+                return "Basic Verified"
+            else:
+                return user_details["user_type"]
+
+    def get_role(self, instance):
+        return instance.role.role
+
+    class Meta:
+        model = CircleSubscriberRole
+        fields = "__all__"
+        extra_kwargs = {
+            "id": {"read_only": True},
+        }
 
 
 class CirclePermissionSerializer(FlexFieldsModelSerializer):
@@ -658,10 +745,7 @@ class CircleHierarchySerializer(CircleListSerializer):
     def get_gensis_circle_id(self, circle):
         if not circle.parent:
             return circle.id
-        parents = (
-            Circle.objects.filter(pk=circle.parent.pk)
-            | circle.parent.get_parent_circles()
-        )
+        parents = Circle.objects.filter(pk=circle.parent.pk) | circle.parent.get_parent_circles()
         if parents:
             root_parent = parents[0]
             return root_parent.id
@@ -695,10 +779,7 @@ class CircleHierarchySearchSerializer(CircleListSerializer):
     def get_gensis_circle_id(self, circle):
         if not circle.parent:
             return circle.id
-        parents = (
-            Circle.objects.filter(pk=circle.parent.pk)
-            | circle.parent.get_parent_circles()
-        )
+        parents = Circle.objects.filter(pk=circle.parent.pk) | circle.parent.get_parent_circles()
         if parents:
             root_parent = parents[0]
             return root_parent.id
@@ -726,8 +807,16 @@ class CircleInviteCreateSerializer(serializers.ModelSerializer):
         circle = attrs.get("circle")
         if sender == recipient:
             raise serializers.ValidationError("sender and recipient cannot be same.")
+        sender = User().details(user_id=sender)
+        if not sender:
+            logger.info("No user records exists with sender id")
+            raise serializers.ValidationError("No user records exists with sender id")
+        recipient = User().details(user_id=recipient)
+        if not recipient:
+            logger.info("No user records exists with recipient id")
+            raise serializers.ValidationError("No user records exists with recipient id")
         if CircleInvite.objects.filter(
-            sender=sender, recipient=recipient, circle=circle
+            sender=sender["id"], recipient=recipient["id"], circle=circle
         ).exists():
             raise serializers.ValidationError("Invitation already sent.")
         return attrs

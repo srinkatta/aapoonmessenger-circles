@@ -125,6 +125,7 @@ def app_notification(topic_name, message_from, message, xml):
             print("ios")
             print(data)
             print(ios_result)
+            logger.info(f"ios result: , {ios_result}")
             android_topic_name = topic_name + "-" + "android"
             print(android_topic_name)
             android_result = push_service.notify_topic_subscribers(
@@ -133,4 +134,5 @@ def app_notification(topic_name, message_from, message, xml):
             print("android")
             print(data_message)
             print(android_result)
+            logger.info(f"Android result: , {android_result}")
             print("Result for Circle")
