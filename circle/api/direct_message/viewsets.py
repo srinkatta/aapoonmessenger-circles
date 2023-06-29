@@ -35,6 +35,7 @@ class XMPPMessageViewSet(viewsets.ModelViewSet):
     """
     API View to list and create messages from and in XMPP.
     """
+
     permission_classes = (Authenticate,)
     model = ChatMessage
     serializer_class = ChatMessageSerializer
@@ -128,6 +129,7 @@ class XMPPMessageFilterViewSet(viewsets.ModelViewSet):
     model = ChatMessage
     serializer_class = ChatMessageFilterInputSerializer
     http_method_names = ["post"]
+    permission_classes = (Authenticate,)
 
     def create(self, request, *args, **kwargs):
         message_ids = request.data.get("message_id", [])
