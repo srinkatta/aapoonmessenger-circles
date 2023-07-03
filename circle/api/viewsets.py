@@ -791,12 +791,16 @@ class TopicViewSet(viewsets.ModelViewSet):
         return Response({"detail": "Topic deleted successfully"}, status=status.HTTP_200_OK)
 
 
-def transfer_hierarchy(circle, user):
+def transfer_hierarchy(circle, user, is_hidden_admin: bool = False):
     role = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
     member = CircleRole.objects.get(role=CircleRole.MEMBER)
+    default_admin = CircleRole.objects.get(role=CircleRole.DEFAULT_ADMIN)
 
     chief_admin = CircleSubscriberRole.objects.filter(circle=circle, role=role)
-    chief_admin.update(role=member)
+    if is_hidden_admin:
+        chief_admin.update(role=default_admin)
+    else:
+        chief_admin.update(role=member)
 
     circle_role = CircleSubscriberRole.objects.filter(user_id=user["id"], circle=circle)
     if not circle_role:
@@ -846,7 +850,10 @@ class HierarchyTransferAPIView(APIView):
                 circle, include_self=True
             )
             for child in children:
-                transfer_hierarchy(child, user)
+                if child.id == circle.id:
+                    transfer_hierarchy(child, user)
+                else:
+                    transfer_hierarchy(child, user, is_hidden_admin=True)
         else:
             parents = (
                 Circle.objects.filter(id=circle.parent.id) | circle.parent.get_parent_circles()
@@ -855,7 +862,10 @@ class HierarchyTransferAPIView(APIView):
                 root_parent = parents
                 children = parents | get_all_children(root_parent[0], include_self=True)
                 for child in children:
-                    transfer_hierarchy(child, user)
+                    if child.id == root_parent[0].id:
+                        transfer_hierarchy(child, user)
+                    else:
+                        transfer_hierarchy(child, user, is_hidden_admin=True)
 
         return Response({"message": "Hierarchy Transferred"}, status=200)
 
