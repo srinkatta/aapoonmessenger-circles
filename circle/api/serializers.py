@@ -1,3 +1,4 @@
+from urllib.error import HTTPError
 from urllib.parse import urlparse
 from loguru import logger
 
@@ -614,8 +615,8 @@ class CircleSubscribedUsersSerializer(FlexFieldsModelSerializer):
     def get_subscribed_admins(self, obj):
         if obj.role.role in [0, 10, 20, 30, 40]:
             try:
-                user_service = User().details(user_id=obj.user_id)
-                return user_service
+                user_details = User().details(user_id=obj.user_id)
+                return user_details
             except HTTPError:
                 raise serializers.ValidationError({"detail": "User does not exists"})
 
