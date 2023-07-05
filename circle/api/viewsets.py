@@ -684,6 +684,7 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
                 else:
                     circle_service.circle_add_user(circle, user, role)
                     self.circle_add_default_admin(circle, user, role)
+                    self.circle_remove_default_admin(circle, user, role)
 
             if connected:
                 phone = phonenumbers.parse(f"+{connected}", None)
@@ -696,6 +697,7 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
                 else:
                     circle_service.circle_add_user(circle, user, role)
                     self.circle_add_default_admin(circle, user, role)
+                    self.circle_remove_default_admin(circle, user, role)
 
         serializer = CircleListSerializer(circle, context={"request": request})
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -721,6 +723,25 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
                     CircleSubscriberRole.objects.create(
                         circle=child, user_id=user["id"], role=default_admin
                     )
+                    member_xmpp_room_subscribe(user_jid=user["jid"], room_id=child.room_id)
+
+    def circle_remove_default_admin(self, circle, user, role):
+        member = CircleRole.objects.get(role=CircleRole.MEMBER)
+        if role == member and circle.total_children_count >= 1:
+            default_admin = CircleRole.objects.get(role=CircleRole.DEFAULT_ADMIN)
+            children = get_all_children(circle=circle, include_self=False)
+
+            for child in children:
+                circle_subscriber = CircleSubscriberRole.objects.filter(
+                    circle=child, user_id=user["id"]
+                )
+                if circle_subscriber:
+                    subscriber = CircleSubscriberRole.objects.filter(
+                        circle=child, user_id=user["id"], role=default_admin
+                    )
+                    if subscriber:
+                        member_xmpp_room_unsubscribe(user_jid=user["jid"], room_id=child.room_id)
+                        subscriber.delete()
 
 
 class SubscriptionPlanViewSet(viewsets.ModelViewSet):
