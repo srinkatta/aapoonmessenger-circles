@@ -1,15 +1,18 @@
 from django.db.models import F, Func, Q, Value
 from django.db.models.functions import Lower
+from loguru import logger
+from rest_framework.exceptions import PermissionDenied
 
+from circle import models as circle_models
 from circle.api.utils import (
     get_all_children,
     get_level,
 )
+from circle.helpers import ejjaberd as xmpp_helpers
 from circle.models import (
     Circle,
+    CircleSubscriberRole,
 )
-from circle import models as circle_models
-from circle.helpers import ejjaberd as xmpp_helpers
 
 
 def filter_circles_by_name(request, circle):
@@ -44,9 +47,9 @@ def filter_circles_by_name_and_level(request, circle):
             name_lower=Lower("name"),
             name_strip=Func(F("name_lower"), Value(" "), Value(""), function="replace"),
         )
-        return qs.filter(
-            Q(name_lower__icontains=name) | Q(name_strip__icontains=name)
-        ).order_by("-id")
+        return qs.filter(Q(name_lower__icontains=name) | Q(name_strip__icontains=name)).order_by(
+            "-id"
+        )
     except KeyError:
         return []
 
@@ -80,9 +83,7 @@ def circle_add_user(circle, user, role: circle_models.CircleRole | int):
     common function to add user or update role
     """
     if role.role == circle_models.CircleRole.MEMBER:
-        xmpp_helpers.member_xmpp_room_subscribe(
-            user_jid=user["jid"], room_id=circle.room_id
-        )
+        xmpp_helpers.member_xmpp_room_subscribe(user_jid=user["jid"], room_id=circle.room_id)
         # for client verification members role save in web server
         circle_subscriber = circle_models.CircleSubscriberRole.objects.filter(
             user_id=user["id"], circle=circle
@@ -93,9 +94,7 @@ def circle_add_user(circle, user, role: circle_models.CircleRole | int):
             )
     if (
         not role.role == circle_models.CircleRole.MEMBER
-        and not circle_models.CircleSubscriberRole.objects.filter(
-            user_id=user["id"], circle=circle
-        )
+        and not circle_models.CircleSubscriberRole.objects.filter(user_id=user["id"], circle=circle)
     ):
         circle_role = circle_models.CircleSubscriberRole(
             circle=circle, user_id=user["id"], role=role
@@ -103,10 +102,25 @@ def circle_add_user(circle, user, role: circle_models.CircleRole | int):
         circle_role.save()
 
         # User subscribe to XMPP room
-        xmpp_helpers.member_xmpp_room_subscribe(
-            user_jid=user["jid"], room_id=circle.room_id
-        )
+        xmpp_helpers.member_xmpp_room_subscribe(user_jid=user["jid"], room_id=circle.room_id)
     else:
-        circle_models.CircleSubscriberRole.objects.filter(
-            user_id=user["id"], circle=circle
-        ).update(role=role)
+        circle_models.CircleSubscriberRole.objects.filter(user_id=user["id"], circle=circle).update(
+            role=role
+        )
+
+
+def validate_circle_add_user(request, role, circle):
+    logged_user_instance = CircleSubscriberRole.objects.filter(
+        user_id=request.user_id,
+        circle=circle,
+    )
+    if not logged_user_instance.exists():
+        logger.error("Action Forbidden")
+        raise PermissionDenied(detail="Action Forbidden, you are not part of this circle")
+
+    logged_user_role = logged_user_instance.first().role.role
+    if logged_user_role > role.role:
+        logger.error("Chief Admin cannot be added/modified by a member/admin/moderator in a circle")
+        raise PermissionDenied(
+            detail="Action Forbidden, you don't have enough permission to perform this action"
+        )
