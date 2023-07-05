@@ -1,3 +1,4 @@
+import json
 import re
 from typing import List
 
@@ -505,6 +506,12 @@ class CircleViewSet(BaseCircleViewSet):
                 required=False,
                 type=str,
             ),
+            OpenApiParameter(
+                name="name",
+                description="Filter by name",
+                required=False,
+                type=str,
+            ),
         ]
     )
     @action(
@@ -518,6 +525,7 @@ class CircleViewSet(BaseCircleViewSet):
             return Response({"detail": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST)
 
         role = request.GET.get("role", "")
+        name = request.GET.get("name", "")
         if role == "admins":
             role = [10, 20]
             circle_users = CircleSubscriberRole.objects.filter(circle=circle, role__role__in=role)
@@ -528,7 +536,28 @@ class CircleViewSet(BaseCircleViewSet):
 
         circle_users = circle_users.order_by("-id")
         page = self.paginate_queryset(circle_users)
-        serializer = CircleSubscribedUsersSerializer(page, many=True)
+        serializer = CircleSubscribedUsersSerializer(page, many=True, context={"request": request})
+
+        if name:
+            """
+            If filter by name is present, trigger this
+            """
+            user_ids = []
+            results = json.loads(json.dumps(serializer.data))
+            for user_details in results:
+                if (
+                    user_details.get("user_name")
+                    and name.lower() in user_details.get("user_name").lower()
+                ):
+                    user_ids.append(user_details["id"])
+
+            circle_users = CircleSubscriberRole.objects.filter(id__in=user_ids)
+            page = self.paginate_queryset(circle_users)
+            serializer = CircleSubscribedUsersSerializer(
+                page, many=True, context={"request": request}
+            )
+            return self.get_paginated_response(serializer.data)
+
         return self.get_paginated_response(serializer.data)
 
     @action(
@@ -791,16 +820,12 @@ class TopicViewSet(viewsets.ModelViewSet):
         return Response({"detail": "Topic deleted successfully"}, status=status.HTTP_200_OK)
 
 
-def transfer_hierarchy(circle, user, is_hidden_admin: bool = False):
+def transfer_hierarchy(circle, user):
     role = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
     member = CircleRole.objects.get(role=CircleRole.MEMBER)
-    default_admin = CircleRole.objects.get(role=CircleRole.DEFAULT_ADMIN)
 
     chief_admin = CircleSubscriberRole.objects.filter(circle=circle, role=role)
-    if is_hidden_admin:
-        chief_admin.update(role=default_admin)
-    else:
-        chief_admin.update(role=member)
+    chief_admin.update(role=member)
 
     circle_role = CircleSubscriberRole.objects.filter(user_id=user["id"], circle=circle)
     if not circle_role:
@@ -850,10 +875,7 @@ class HierarchyTransferAPIView(APIView):
                 circle, include_self=True
             )
             for child in children:
-                if child.id == circle.id:
-                    transfer_hierarchy(child, user)
-                else:
-                    transfer_hierarchy(child, user, is_hidden_admin=True)
+                transfer_hierarchy(child, user)
         else:
             parents = (
                 Circle.objects.filter(id=circle.parent.id) | circle.parent.get_parent_circles()
@@ -862,10 +884,7 @@ class HierarchyTransferAPIView(APIView):
                 root_parent = parents
                 children = parents | get_all_children(root_parent[0], include_self=True)
                 for child in children:
-                    if child.id == root_parent[0].id:
-                        transfer_hierarchy(child, user)
-                    else:
-                        transfer_hierarchy(child, user, is_hidden_admin=True)
+                    transfer_hierarchy(child, user)
 
         return Response({"message": "Hierarchy Transferred"}, status=200)
 
