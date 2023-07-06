@@ -3,14 +3,14 @@ import csv
 from django.http import HttpResponse
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.pagination import PageNumberPagination
 
 from circle.middleware.permissions import Authenticate
 from circle import models as circle_models
 from circle.api.admin import serializers as admin_serializers
+from circle.api.utils import GenericPagination
 
 
-class CircleListAPI(APIView, PageNumberPagination):
+class CircleListAPI(APIView, GenericPagination):
     """
     API to list all circles and filter based on created_at
     """
