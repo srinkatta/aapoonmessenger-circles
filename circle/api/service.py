@@ -110,27 +110,24 @@ def circle_add_user(circle, user, role: circle_models.CircleRole | int):
 
 
 def validate_circle_add_user(request, user, role, circle):
-    if not circle.privacy == 1:
-        logged_user_instance = CircleSubscriberRole.objects.filter(
-            user_id=request.user_id,
-            circle=circle,
-        )
-        circle_user_instance = CircleSubscriberRole.objects.filter(
-            user_id=user["id"],
-            circle=circle,
-        ).first()
-        if not logged_user_instance.exists():
-            logger.error("Action Forbidden")
-            raise PermissionDenied(detail="Action Forbidden, you are not part of this circle")
+    logged_user_instance = CircleSubscriberRole.objects.filter(
+        user_id=request.user_id,
+        circle=circle,
+    )
+    circle_user_instance = CircleSubscriberRole.objects.filter(
+        user_id=user["id"],
+        circle=circle,
+    ).first()
 
+    if logged_user_instance:
         logged_user_role = logged_user_instance.first().role.role
 
-        if circle_user_instance:
-            circle_user_role = circle_user_instance.role.role
-            if circle_user_role < role.role and logged_user_role > circle_user_role:
-                logger.error(
-                    "Chief Admin cannot be added/modified by a member/admin/moderator in a circle"
-                )
-                raise PermissionDenied(
-                    detail="Action Forbidden, you don't have enough permission to perform this action"
-                )
+    if circle_user_instance:
+        circle_user_role = circle_user_instance.role.role
+        if circle_user_role < role.role and logged_user_role > circle_user_role:
+            logger.error(
+                "Chief Admin cannot be added/modified by a member/admin/moderator in a circle"
+            )
+            raise PermissionDenied(
+                detail="Chief Admin cannot be added/modified by a member/admin/moderator in a circle"
+            )
