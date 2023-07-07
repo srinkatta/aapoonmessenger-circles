@@ -488,6 +488,7 @@ class CircleSerializer(BaseCircleSerializer):
     total_count = serializers.SerializerMethodField()
     sites = serializers.SerializerMethodField()
     total_children_count = serializers.SerializerMethodField()
+    gensis_circle_id = serializers.SerializerMethodField("get_gensis_circle_id")
 
     class Meta:
         model = Circle
@@ -515,6 +516,16 @@ class CircleSerializer(BaseCircleSerializer):
             return sites
         else:
             return []
+
+    def get_gensis_circle_id(self, circle):
+        if not circle.parent:
+            return circle.id
+        parents = circle.parent.get_parent_circles() | Circle.objects.filter(pk=circle.parent.pk)
+        if parents:
+            root_parent = parents.order_by().first()
+            return root_parent.id
+        else:
+            return circle.id
 
 
 class CircleUpdateSerializer(BaseCircleSerializer):
