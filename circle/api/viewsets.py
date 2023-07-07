@@ -388,7 +388,7 @@ class CircleViewSet(BaseCircleViewSet):
                     logger.info(f"Moving on to the next user")
                 else:
                     try:
-                        circle_service.validate_circle_add_user(request, role, circle)
+                        circle_service.validate_circle_add_user(request, user, role, circle)
                         logger.info("Adding new user to circle")
                         role = CircleRole.objects.get(role=role)
                         circle_service.circle_add_user(circle, user, role=role)
@@ -712,7 +712,7 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
                     logger.error(f"No User exists with the given user_id: {user_id}")
                     logger.info(f"Moving on to the next user")
                 else:
-                    circle_service.validate_circle_add_user(request, role, circle)
+                    circle_service.validate_circle_add_user(request, user, role, circle)
                     circle_service.circle_add_user(circle, user, role)
                     self.circle_add_default_admin(circle, user, role)
                     self.circle_remove_default_admin(circle, user, role)
@@ -726,7 +726,7 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
                     logger.error(f"No User exists with the given phone_number: {connected}")
                     logger.info(f"Moving on to the next user")
                 else:
-                    circle_service.validate_circle_add_user(request, role, circle)
+                    circle_service.validate_circle_add_user(request, user, role, circle)
                     circle_service.circle_add_user(circle, user, role)
                     self.circle_add_default_admin(circle, user, role)
                     self.circle_remove_default_admin(circle, user, role)
