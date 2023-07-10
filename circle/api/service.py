@@ -68,6 +68,7 @@ def filter_circles_by_parent(request, circle):
 
 
 def get_circle_with_level(circles):
+
     circles_with_level = {}
     for circle in circles:
         level = get_level(circle)
