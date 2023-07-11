@@ -721,7 +721,6 @@ class CustomFieldSerializer(FlexFieldsModelSerializer):
 
 
 class CircleHierarchySerializer(CircleListSerializer):
-    sub_circles = serializers.SerializerMethodField()
     level = serializers.SerializerMethodField()
     gensis_circle_id = serializers.SerializerMethodField()
     max_level = serializers.SerializerMethodField()
@@ -737,18 +736,12 @@ class CircleHierarchySerializer(CircleListSerializer):
             "sub_circle_count",
             "level",
             "max_level",
-            "sub_circles",
             "room_id",
             "privacy",
             "parent",
             "gensis_circle_id",
             "max_level",
         )
-
-    def get_sub_circles(self, circle):
-        circles = Circle.objects.filter(parent=circle.id)
-        serializer = CircleHierarchySerializer(circles, many=True)
-        return serializer.data
 
     def get_sub_circle_count(self, circle):
         circles = Circle.objects.filter(parent=circle.id)

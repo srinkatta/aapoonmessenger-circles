@@ -43,9 +43,7 @@ class Circle(BaseTimeStampedModel):
     sites = models.CharField(max_length=200, blank=True, null=True)
     about_me = models.TextField(blank=True)
     circle_type = models.CharField(max_length=5, choices=CIRCLE_TYPES, default=3)
-    sub_circle_status = models.CharField(
-        max_length=5, choices=SUB_CIRCLE_STATUS, default=1
-    )
+    sub_circle_status = models.CharField(max_length=5, choices=SUB_CIRCLE_STATUS, default=1)
     hierarchy = models.BooleanField(default=False)
     circle_users_count = models.IntegerField(default=0)
     total_children_count = models.IntegerField(default=0)
@@ -76,9 +74,7 @@ class Circle(BaseTimeStampedModel):
     def get_parent_circles(self):
         if self.parent is None:
             return Circle.objects.none()
-        return (
-            Circle.objects.filter(pk=self.parent.pk) | self.parent.get_parent_circles()
-        )
+        return Circle.objects.filter(pk=self.parent.pk) | self.parent.get_parent_circles()
 
 
 class CircleRole(BaseTimeStampedModel):
@@ -200,7 +196,7 @@ class CirclePermission(BaseTimeStampedModel):
     )
     user_exit = models.BooleanField(default=False)
     pin_message_id = models.CharField(max_length=255, null=True, blank=True)
-    pin_message_text = models.CharField(max_length=255, null=True, blank=True)
+    pin_message_text = models.TextField(null=True, blank=True)
     link_expired = models.BooleanField(default=False)
     link_expire_time = models.DateTimeField(null=True, blank=True)
     change_circle_info = models.IntegerField(default=20)
