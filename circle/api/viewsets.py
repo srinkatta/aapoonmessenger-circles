@@ -1,3 +1,4 @@
+import json
 import re
 from typing import List
 
@@ -387,6 +388,7 @@ class CircleViewSet(BaseCircleViewSet):
                     logger.info(f"Moving on to the next user")
                 else:
                     try:
+                        circle_service.validate_circle_add_user(request, user, role, circle)
                         logger.info("Adding new user to circle")
                         role = CircleRole.objects.get(role=role)
                         circle_service.circle_add_user(circle, user, role=role)
@@ -505,6 +507,12 @@ class CircleViewSet(BaseCircleViewSet):
                 required=False,
                 type=str,
             ),
+            OpenApiParameter(
+                name="name",
+                description="Filter by name",
+                required=False,
+                type=str,
+            ),
         ]
     )
     @action(
@@ -518,6 +526,7 @@ class CircleViewSet(BaseCircleViewSet):
             return Response({"detail": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST)
 
         role = request.GET.get("role", "")
+        name = request.GET.get("name", "")
         if role == "admins":
             role = [10, 20]
             circle_users = CircleSubscriberRole.objects.filter(circle=circle, role__role__in=role)
@@ -528,7 +537,28 @@ class CircleViewSet(BaseCircleViewSet):
 
         circle_users = circle_users.order_by("-id")
         page = self.paginate_queryset(circle_users)
-        serializer = CircleSubscribedUsersSerializer(page, many=True)
+        serializer = CircleSubscribedUsersSerializer(page, many=True, context={"request": request})
+
+        if name:
+            """
+            If filter by name is present, trigger this
+            """
+            user_ids = []
+            results = json.loads(json.dumps(serializer.data))
+            for user_details in results:
+                if (
+                    user_details.get("user_name")
+                    and name.lower() in user_details.get("user_name").lower()
+                ):
+                    user_ids.append(user_details["id"])
+
+            circle_users = CircleSubscriberRole.objects.filter(id__in=user_ids)
+            page = self.paginate_queryset(circle_users)
+            serializer = CircleSubscribedUsersSerializer(
+                page, many=True, context={"request": request}
+            )
+            return self.get_paginated_response(serializer.data)
+
         return self.get_paginated_response(serializer.data)
 
     @action(
@@ -682,8 +712,10 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
                     logger.error(f"No User exists with the given user_id: {user_id}")
                     logger.info(f"Moving on to the next user")
                 else:
+                    circle_service.validate_circle_add_user(request, user, role, circle)
                     circle_service.circle_add_user(circle, user, role)
                     self.circle_add_default_admin(circle, user, role)
+                    self.circle_remove_default_admin(circle, user, role)
 
             if connected:
                 phone = phonenumbers.parse(f"+{connected}", None)
@@ -694,8 +726,10 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
                     logger.error(f"No User exists with the given phone_number: {connected}")
                     logger.info(f"Moving on to the next user")
                 else:
+                    circle_service.validate_circle_add_user(request, user, role, circle)
                     circle_service.circle_add_user(circle, user, role)
                     self.circle_add_default_admin(circle, user, role)
+                    self.circle_remove_default_admin(circle, user, role)
 
         serializer = CircleListSerializer(circle, context={"request": request})
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -721,6 +755,25 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
                     CircleSubscriberRole.objects.create(
                         circle=child, user_id=user["id"], role=default_admin
                     )
+                    member_xmpp_room_subscribe(user_jid=user["jid"], room_id=child.room_id)
+
+    def circle_remove_default_admin(self, circle, user, role):
+        member = CircleRole.objects.get(role=CircleRole.MEMBER)
+        if role == member and circle.total_children_count >= 1:
+            default_admin = CircleRole.objects.get(role=CircleRole.DEFAULT_ADMIN)
+            children = get_all_children(circle=circle, include_self=False)
+
+            for child in children:
+                circle_subscriber = CircleSubscriberRole.objects.filter(
+                    circle=child, user_id=user["id"]
+                )
+                if circle_subscriber:
+                    subscriber = CircleSubscriberRole.objects.filter(
+                        circle=child, user_id=user["id"], role=default_admin
+                    )
+                    if subscriber:
+                        member_xmpp_room_unsubscribe(user_jid=user["jid"], room_id=child.room_id)
+                        subscriber.delete()
 
 
 class SubscriptionPlanViewSet(viewsets.ModelViewSet):

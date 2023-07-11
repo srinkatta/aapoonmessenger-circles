@@ -1,3 +1,4 @@
+from urllib.error import HTTPError
 from urllib.parse import urlparse
 from loguru import logger
 
@@ -487,6 +488,7 @@ class CircleSerializer(BaseCircleSerializer):
     total_count = serializers.SerializerMethodField()
     sites = serializers.SerializerMethodField()
     total_children_count = serializers.SerializerMethodField()
+    gensis_circle_id = serializers.SerializerMethodField("get_gensis_circle_id")
 
     class Meta:
         model = Circle
@@ -514,6 +516,16 @@ class CircleSerializer(BaseCircleSerializer):
             return sites
         else:
             return []
+
+    def get_gensis_circle_id(self, circle):
+        if not circle.parent:
+            return circle.id
+        parents = circle.parent.get_parent_circles() | Circle.objects.filter(pk=circle.parent.pk)
+        if parents:
+            root_parent = parents.order_by().first()
+            return root_parent.id
+        else:
+            return circle.id
 
 
 class CircleUpdateSerializer(BaseCircleSerializer):
@@ -614,8 +626,8 @@ class CircleSubscribedUsersSerializer(FlexFieldsModelSerializer):
     def get_subscribed_admins(self, obj):
         if obj.role.role in [0, 10, 20, 30, 40]:
             try:
-                user_service = User().details(user_id=obj.user_id)
-                return user_service
+                user_details = User().details(user_id=obj.user_id)
+                return user_details
             except HTTPError:
                 raise serializers.ValidationError({"detail": "User does not exists"})
 
@@ -709,7 +721,6 @@ class CustomFieldSerializer(FlexFieldsModelSerializer):
 
 
 class CircleHierarchySerializer(CircleListSerializer):
-    sub_circles = serializers.SerializerMethodField()
     level = serializers.SerializerMethodField()
     gensis_circle_id = serializers.SerializerMethodField()
     max_level = serializers.SerializerMethodField()
@@ -725,18 +736,12 @@ class CircleHierarchySerializer(CircleListSerializer):
             "sub_circle_count",
             "level",
             "max_level",
-            "sub_circles",
             "room_id",
             "privacy",
             "parent",
             "gensis_circle_id",
             "max_level",
         )
-
-    def get_sub_circles(self, circle):
-        circles = Circle.objects.filter(parent=circle.id)
-        serializer = CircleHierarchySerializer(circles, many=True)
-        return serializer.data
 
     def get_sub_circle_count(self, circle):
         circles = Circle.objects.filter(parent=circle.id)
@@ -745,9 +750,9 @@ class CircleHierarchySerializer(CircleListSerializer):
     def get_gensis_circle_id(self, circle):
         if not circle.parent:
             return circle.id
-        parents = Circle.objects.filter(pk=circle.parent.pk) | circle.parent.get_parent_circles()
+        parents = circle.parent.get_parent_circles() | Circle.objects.filter(pk=circle.parent.pk)
         if parents:
-            root_parent = parents[0]
+            root_parent = parents.order_by().first()
             return root_parent.id
         else:
             return circle.id
@@ -779,9 +784,9 @@ class CircleHierarchySearchSerializer(CircleListSerializer):
     def get_gensis_circle_id(self, circle):
         if not circle.parent:
             return circle.id
-        parents = Circle.objects.filter(pk=circle.parent.pk) | circle.parent.get_parent_circles()
+        parents = circle.parent.get_parent_circles() | Circle.objects.filter(pk=circle.parent.pk)
         if parents:
-            root_parent = parents[0]
+            root_parent = parents.order_by().first()
             return root_parent.id
         else:
             return circle.id
