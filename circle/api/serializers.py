@@ -750,9 +750,9 @@ class CircleHierarchySerializer(CircleListSerializer):
     def get_gensis_circle_id(self, circle):
         if not circle.parent:
             return circle.id
-        parents = Circle.objects.filter(pk=circle.parent.pk) | circle.parent.get_parent_circles()
+        parents = circle.parent.get_parent_circles() | Circle.objects.filter(pk=circle.parent.pk)
         if parents:
-            root_parent = parents[0]
+            root_parent = parents.order_by().first()
             return root_parent.id
         else:
             return circle.id
@@ -784,9 +784,9 @@ class CircleHierarchySearchSerializer(CircleListSerializer):
     def get_gensis_circle_id(self, circle):
         if not circle.parent:
             return circle.id
-        parents = Circle.objects.filter(pk=circle.parent.pk) | circle.parent.get_parent_circles()
+        parents = circle.parent.get_parent_circles() | Circle.objects.filter(pk=circle.parent.pk)
         if parents:
-            root_parent = parents[0]
+            root_parent = parents.order_by().first()
             return root_parent.id
         else:
             return circle.id
