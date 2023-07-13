@@ -728,6 +728,7 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
                     logger.error(f"No User exists with the given phone_number: {connected}")
                     logger.info(f"Moving on to the next user")
                 else:
+                    self.validate_circle_hierarchy(logged_user, user, role, circle)
                     circle_service.validate_circle_add_user(request, user, role, circle)
                     circle_service.circle_add_user(circle, user, role)
                     self.circle_add_default_admin(circle, user, role)
