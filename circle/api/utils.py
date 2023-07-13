@@ -113,7 +113,7 @@ def get_hierarchy_status(circle, user_id):
 
     parents = Circle.objects.filter(pk=circle.parent.pk) | circle.parent.get_parent_circles()
     if parents:
-        root_parent = parents[0]
+        root_parent = parents.order_by().first()
         return get_hierarchy_status_for_non_root(circle, root_parent, user_id)
 
     return False
