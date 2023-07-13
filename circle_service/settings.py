@@ -114,13 +114,13 @@ DATABASES = {
         "NAME": os.environ["DB_NAME"],
         "USER": os.environ["DB_NAME"],
         "PASSWORD": os.environ["DB_PASSWORD"],
-        "HOST": os.environ["DB_READ_HOST"],
+        "HOST": os.environ["DB_HOST"],
         "PORT": os.environ["DB_PORT"],
     },
 }
 
 
-DATABASE_ROUTERS = ["circle_service.db_routers.MasterSlaveRouter"]
+# DATABASE_ROUTERS = ["circle_service.db_routers.MasterSlaveRouter"]
 
 # Password validation
 # https://docs.djangoproject.com/en/4.1/ref/settings/#auth-password-validators
