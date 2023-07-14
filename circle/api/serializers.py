@@ -111,6 +111,7 @@ class BaseCircleSerializer(BaseSerializer):
     user_join_permissions = serializers.SerializerMethodField()
     role = serializers.SerializerMethodField()
     sites = serializers.SerializerMethodField()
+    gensis_circle_id = serializers.SerializerMethodField()
 
     class Meta:
         model = Circle
@@ -406,6 +407,16 @@ class BaseCircleSerializer(BaseSerializer):
         permission = circle.permissions.filter().first()
         if permission:
             return permission.change_circle_info
+
+    def get_gensis_circle_id(self, circle):
+        if not circle.parent:
+            return circle.id
+        parents = circle.parent.get_parent_circles() | Circle.objects.filter(pk=circle.parent.pk)
+        if parents:
+            root_parent = parents.order_by().first()
+            return root_parent.id
+        else:
+            return circle.id
 
 
 class CircleListSerializer(BaseCircleSerializer):

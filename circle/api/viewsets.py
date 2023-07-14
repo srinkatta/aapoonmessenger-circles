@@ -699,6 +699,7 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
         circle = Circle.objects.filter(id=self.circle_id).first()
         if not circle:
             return Response({"detail": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST)
+        logged_user = request.user_id
         users = validated_data.get("users")
         user_service = User()
         for user in users:
@@ -712,6 +713,7 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
                     logger.error(f"No User exists with the given user_id: {user_id}")
                     logger.info(f"Moving on to the next user")
                 else:
+                    self.validate_circle_hierarchy(logged_user, user, role, circle)
                     circle_service.validate_circle_add_user(request, user, role, circle)
                     circle_service.circle_add_user(circle, user, role)
                     self.circle_add_default_admin(circle, user, role)
@@ -726,6 +728,7 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
                     logger.error(f"No User exists with the given phone_number: {connected}")
                     logger.info(f"Moving on to the next user")
                 else:
+                    self.validate_circle_hierarchy(logged_user, user, role, circle)
                     circle_service.validate_circle_add_user(request, user, role, circle)
                     circle_service.circle_add_user(circle, user, role)
                     self.circle_add_default_admin(circle, user, role)
@@ -733,6 +736,18 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
 
         serializer = CircleListSerializer(circle, context={"request": request})
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def validate_circle_hierarchy(self, logged_user_id, user, role, circle):
+        chief_admin = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
+        member = CircleRole.objects.get(role=CircleRole.MEMBER)
+        logged_user_id = str(logged_user_id)
+        if logged_user_id == user["id"]:
+            subscriber = CircleSubscriberRole.objects.filter(
+                circle=circle, user_id=logged_user_id, role=chief_admin
+            ).first()
+            if subscriber and role == member and circle.hierarchy:
+                circle.hierarchy = False
+                circle.save()
 
     def circle_add_default_admin(self, circle, user, role):
         chief_admin = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
