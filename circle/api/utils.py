@@ -129,7 +129,8 @@ def get_hierarchy_status_for_root(circle, user_id):
         for children in childrens:
             child = CircleSubscriberRole.objects.filter(circle=children, user_id=user_id)
             tuser_role = child[0].role.role if child else ""
-            user_role = [True if tuser_role == 10 and chief_admin == 10 else False]
+            result = True if tuser_role == 10 and chief_admin == 10 else False
+            user_role.append(result)
 
         if False in user_role:
             hierarchy = [
