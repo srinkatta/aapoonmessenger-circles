@@ -61,7 +61,7 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "circle_service.urls"
 
-CSRF_TRUSTED_ORIGINS = ["https://dev.aapoon.com", "http://localhost:3000"]
+CSRF_TRUSTED_ORIGINS = ["https://dev.aapoon.com", "http://localhost:3000", "https://qa.aapoon.com",]
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
