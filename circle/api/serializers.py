@@ -665,7 +665,7 @@ class CircleSubscribedUsersSerializer(FlexFieldsModelSerializer):
     def get_user_profile_pic(self, obj):
         user_details = self.get_subscribed_admins(obj)
         if user_details:
-            return user_details["jid"]
+            return user_details["profile_pic"]
 
     def get_user_profile(self, obj):
         user_details = self.get_subscribed_admins(obj)
