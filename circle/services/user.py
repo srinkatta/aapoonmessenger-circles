@@ -26,9 +26,7 @@ class User:
     def __init__(self):
         self.base_url = settings.USER_MICROSERVICE_URL
         self.user_detail_service_url = f"{self.base_url}api/users/user_details/"
-        self.user_detail_phone_service_url = (
-            f"{self.base_url}api/users/user_details_phone/"
-        )
+        self.user_detail_phone_service_url = f"{self.base_url}api/users/user_details_phone/"
         self.headers = {"Authorization": settings.USER_MICROSERVICE_API_KEY}
 
     def details(self, user_id: int = None, user_jid=None) -> Dict:  # type: ignore
@@ -49,9 +47,7 @@ class User:
             user_detail = {}
         return user_detail
 
-    def get_details_from_phone(
-        self, phone_number: str = "", country_code: str = ""
-    ) -> Dict:
+    def get_details_from_phone(self, phone_number: str = "", country_code: str = "") -> Dict:
         request_data: dict = {
             "phone_number": phone_number,
             "country_code": country_code,
@@ -111,8 +107,7 @@ def user_notify_chat(
             headers=headers,
         )
         response.raise_for_status()
-        result = response.json
+        result = response.json()
     except (requests.exceptions.RequestException, requests.exceptions.HTTPError):
         result = {}
-    finally:
-        return result
+    return result
