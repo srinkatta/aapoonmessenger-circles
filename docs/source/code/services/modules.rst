@@ -1,7 +1,7 @@
-docs
-====
+Services
+========
 
 .. toctree::
    :maxdepth: 4
 
-   conf
+   user

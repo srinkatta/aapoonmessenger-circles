@@ -1,41 +1,56 @@
-import os
-import sys
+# Configuration file for the Sphinx documentation builder.
+#
+# For the full list of built-in configuration values, see the documentation:
+# https://www.sphinx-doc.org/en/master/usage/configuration.html
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
+import os
+import django
 
-project = "aapoonmessenger-circles"
-copyright = "2023, Praveen Gouda"
-author = "Praveen Gouda"
+# Set the Django settings module before importing any Django components
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "circle_service.settings")
+
+# Configure
+
+project = "aapoon circle service"
+copyright = "2023, Ali Khan"
+author = "Ali Khan"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = []
+extensions = [
+    "sphinx.ext.autodoc",
+    "sphinx.ext.napoleon",
+    "sphinx_autodoc_typehints",
+]
+
 
 templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 
-sys.path.insert(0, os.path.abspath("."))
-sys.path.insert(0, os.path.abspath("circle_service"))
-
-# - Add extensions to support the Django-specific documentation:
-
-extensions = [
-    "sphinx.ext.autodoc",
-    "sphinx.ext.napoleon",  # For parsing Google-style docstrings
-    "sphinx.ext.viewcode",  # For linking to source code
-]
-
-# Add the following line to specify the master document:
-master_doc = "index"
-
-# Set the source file suffix for Sphinx to recognize .rst files:
-source_suffix = ".rst"
-
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = "alabaster"
+html_theme = "sphinx_rtd_theme"
 html_static_path = ["_static"]
+
+# Set the path to your Django project's source code and modules
+import os
+import sys
+
+sys.path.insert(0, os.path.abspath(".."))
+print(sys.path.insert(0, os.path.abspath("..")))
+
+autodoc_mock_imports = [
+    "django",
+    "drf_spectacular",
+    "rest_framework",
+    "drf_flex_fields",
+    "rest_flex_fields",
+]
+
+# Add this line to specify the master document
+master_doc = "index"

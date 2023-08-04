@@ -1,7 +1,7 @@
-conf module
+Serializers
 ===========
 
-.. automodule:: conf
+.. automodule:: circle.api.serializers
    :members:
    :undoc-members:
    :show-inheritance:
