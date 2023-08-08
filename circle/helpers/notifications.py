@@ -11,6 +11,21 @@ from loguru import logger
 
 
 def app_notification(topic_name, message_from, message, xml):
+    """
+    Send a notification to mobile devices using Firebase Cloud Messaging (FCM).
+
+    Args:
+       topic_name (str): The name of the topic (circle) to send the notification.
+       message_from (str): The sender of the notification (phone number).
+       message (str): The message body of the notification.
+       xml (str): The XML content of the notification.
+
+    Note:
+       The `make_request` function is used to send the notification request to FCM.
+
+    Raises:
+       Exception: If an error occurs during the notification process.
+    """
     import os
 
     print("basename:    ", os.path.basename(__file__))
@@ -18,6 +33,7 @@ def app_notification(topic_name, message_from, message, xml):
     print("Circle Notification")
     circle = Circle.objects.get(room_id=topic_name)
     import phonenumbers
+
     phone = phonenumbers.parse(f"+{message_from}", None)
 
     user_service = User()
@@ -26,9 +42,7 @@ def app_notification(topic_name, message_from, message, xml):
     )
 
     if not from_user:
-        logger.exception(
-            f"No User exists with the given user phone details: {from_user}"
-        )
+        logger.exception(f"No User exists with the given user phone details: {from_user}")
         return
 
     title = from_user["name"] + " " + "in" + " " + '"' + circle.name + '"'
