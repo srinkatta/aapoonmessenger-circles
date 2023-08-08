@@ -815,6 +815,12 @@ class CircleViewSet(BaseCircleViewSet):
                 required=False,
                 type=str,
             ),
+            OpenApiParameter(
+                name="phone",
+                description="Filter by phone",
+                required=False,
+                type=str,
+            ),
         ]
     )
     @action(
@@ -860,8 +866,7 @@ class CircleViewSet(BaseCircleViewSet):
             If filter by name is present, trigger this
             """
             user_ids = []
-            results = json.loads(json.dumps(serializer.data))
-            for user_details in results:
+            for user_details in serializer.data:
                 if (
                     user_details.get("user_name")
                     and name.lower() in user_details.get("user_name").lower()
@@ -879,8 +884,7 @@ class CircleViewSet(BaseCircleViewSet):
             Filter circle subscribed users by phone.
             """
             user_ids = []
-            results = json.loads(json.dumps(serializer.data))
-            for user_details in results:
+            for user_details in serializer.data:
                 if user_details.get("user_phone") and phone in user_details.get("user_phone"):
                     user_ids.append(user_details["id"])
 
