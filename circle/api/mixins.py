@@ -53,6 +53,21 @@ class BulkCreateCircleInviteMixin(CreateModelMixin):
     """
 
     def create(self, request, *args, **kwargs):
+        """
+        Create Circle Invites in bulk or individually.
+
+        This method handles the creation of Circle Invites in bulk or individually.
+        If the request data is a list, it iterates through each item and attempts to create a Circle Invite.
+        If the request data is not a list, it uses the default behavior to create a single Circle Invite.
+
+        Args:
+            request: The request object.
+            *args: Variable length argument list.
+            **kwargs: Keyword arguments.
+
+        Returns:
+            Response: A response containing the results of the Circle Invite creation operation.
+        """
         bulk = isinstance(request.data, list)
         if not bulk:
             serializer = super(BulkCreateCircleInviteMixin, self).create(request, *args, **kwargs)
