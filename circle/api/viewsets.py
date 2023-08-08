@@ -815,6 +815,12 @@ class CircleViewSet(BaseCircleViewSet):
                 required=False,
                 type=str,
             ),
+            OpenApiParameter(
+                name="phone",
+                description="Filter by phone",
+                required=False,
+                type=str,
+            ),
         ]
     )
     @action(
@@ -842,6 +848,7 @@ class CircleViewSet(BaseCircleViewSet):
 
         role = request.GET.get("role", "")
         name = request.GET.get("name", "")
+        phone = request.GET.get("phone", "")
         if role == "admins":
             role = [10, 20]
             circle_users = CircleSubscriberRole.objects.filter(circle=circle, role__role__in=role)
@@ -859,12 +866,26 @@ class CircleViewSet(BaseCircleViewSet):
             If filter by name is present, trigger this
             """
             user_ids = []
-            results = json.loads(json.dumps(serializer.data))
-            for user_details in results:
+            for user_details in serializer.data:
                 if (
                     user_details.get("user_name")
                     and name.lower() in user_details.get("user_name").lower()
                 ):
+                    user_ids.append(user_details["id"])
+
+            circle_users = CircleSubscriberRole.objects.filter(id__in=user_ids)
+            page = self.paginate_queryset(circle_users)
+            serializer = CircleSubscribedUsersSerializer(
+                page, many=True, context={"request": request}
+            )
+            return self.get_paginated_response(serializer.data)
+        if phone:
+            """
+            Filter circle subscribed users by phone.
+            """
+            user_ids = []
+            for user_details in serializer.data:
+                if user_details.get("user_phone") and phone in user_details.get("user_phone"):
                     user_ids.append(user_details["id"])
 
             circle_users = CircleSubscriberRole.objects.filter(id__in=user_ids)
