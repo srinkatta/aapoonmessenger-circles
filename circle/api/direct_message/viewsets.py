@@ -219,8 +219,16 @@ class ArchiveChat(object):
     """
 
     def __init__(self, **kwargs):
-        for field in ("id", "bare_peer", "timestamp", "xml", "username", "user_pic"):
-            setattr(self, field, kwargs.get(field))
+        data = {
+            "id": None,
+            "bare_peer": None,
+            "timestamp": None,
+            "xml": None,
+            "username": None,
+            "user_pic": None,
+        }
+        for field in data:
+            setattr(self, field, kwargs.get(field, data[field]))
 
 
 class CustomPagination(PageNumberPagination):

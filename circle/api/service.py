@@ -55,12 +55,9 @@ def filter_circles_by_level(request, circle):
     level = int(request.GET.get("level", 0))
     circles = get_all_children(circle, include_self=True)
     circles_with_level = get_circle_with_level(circles)
-    try:
-        final_circles = circles_with_level[level]
-        final_circles = Circle.objects.filter(id__in=[c.id for c in final_circles])
-        return final_circles.order_by("-id")
-    except KeyError:
-        return []
+    final_circles = circles_with_level.get(level, [])
+    final_circles = Circle.objects.filter(id__in=[c.id for c in final_circles])
+    return final_circles.order_by("-id")
 
 
 def filter_circles_by_name_and_level(request, circle):
@@ -79,22 +76,19 @@ def filter_circles_by_name_and_level(request, circle):
         The function includes the root circle and all of its children in the search.
         If the specified level does not exist in the hierarchy, an empty list is returned.
     """
-    name = request.GET.get("name").strip().lower()
+    name = request.GET.get("name", "").strip().lower()
     level = int(request.GET.get("level", 0))
     circles = get_all_children(circle, include_self=True)
     circles_with_level = get_circle_with_level(circles)
-    try:
-        final_circles = circles_with_level[level]
-        final_circles = Circle.objects.filter(id__in=[c.id for c in final_circles])
-        qs = final_circles.annotate(
-            name_lower=Lower("name"),
-            name_strip=Func(F("name_lower"), Value(" "), Value(""), function="replace"),
-        )
-        return qs.filter(Q(name_lower__icontains=name) | Q(name_strip__icontains=name)).order_by(
-            "-id"
-        )
-    except KeyError:
-        return []
+
+    final_circles = circles_with_level.get(level, [])
+    final_circles = Circle.objects.filter(id__in=[c.id for c in final_circles])
+
+    qs = final_circles.annotate(
+        name_lower=Lower("name"),
+        name_strip=Func(F("name_lower"), Value(" "), Value(""), function="replace"),
+    )
+    return qs.filter(Q(name_lower__icontains=name) | Q(name_strip__icontains=name)).order_by("-id")
 
 
 def filter_circles_by_parent(request, circle):
@@ -116,12 +110,9 @@ def filter_circles_by_parent(request, circle):
     level = int(request.GET.get("level", 0))
     circles = get_all_children(circle, include_self=True)
     circles_with_level = get_circle_with_level(circles)
-    try:
-        final_circles = circles_with_level[level]
-        final_circles = Circle.objects.filter(id__in=[c.id for c in final_circles])
-        return final_circles.filter(parent=int(parent)).order_by("-id")
-    except (KeyError, ValueError):
-        return []
+    final_circles = circles_with_level.get(level, [])
+    final_circles = Circle.objects.filter(id__in=[c.id for c in final_circles])
+    return final_circles.filter(parent=int(parent)).order_by("-id")
 
 
 def get_circle_with_level(circles):
