@@ -89,6 +89,7 @@ def send_ios_notification(ios_topic_name, title, message, xml):
     return ios_result
 
 
+
 def send_android_notification(android_topic_name, title, message):
     data_message = {"Nick": title, "body": message, "priority": "high"}
     print(data_message)
@@ -102,6 +103,21 @@ def send_android_notification(android_topic_name, title, message):
 
 
 def app_notification(topic_name, message_from, message, xml):
+    """
+    Send a notification to mobile devices using Firebase Cloud Messaging (FCM).
+
+    Args:
+       topic_name (str): The name of the topic (circle) to send the notification.
+       message_from (str): The sender of the notification (phone number).
+       message (str): The message body of the notification.
+       xml (str): The XML content of the notification.
+
+    Note:
+       The `make_request` function is used to send the notification request to FCM.
+
+    Raises:
+       Exception: If an error occurs during the notification process.
+    """
     print("basename:    ", os.path.basename(__file__))
     print("dir_name:     ", os.path.dirname(__file__))
     print("Circle Notification")

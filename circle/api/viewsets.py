@@ -79,21 +79,70 @@ ERROR_MESSAGE = "Sorry, We are  facing an issue currently. Thanks for noticing .
 
 class BaseCircleViewSet(viewsets.ModelViewSet):
     """
-    This is base ViewSet for all the objects directly related to insurance claim.
+    This is a base ViewSet for all objects directly related to circle.
+
+    Properties:
+    - circle_id: A property that retrieves the 'circle_id' from the view's kwargs.
+
+    Methods:
+    - get_circle: Retrieves and returns the Circle object with the specified 'circle_id'.
+    - get_circle_by_id(pk): Retrieves and returns the Circle object with the specified primary key 'pk'.
+    - get_serializer_context(): Overrides the method from the parent class to include additional context data for serializers.
+        - circle_id: The 'circle_id' extracted from the view's kwargs.
+        - request: The current request object.
+
+    Note:
+    - This base ViewSet is intended to be inherited by other ViewSets for insurance claim-related objects.
+    - It provides common functionality for handling circles and sets up the serializer context.
     """
 
     @property
     def circle_id(self):
+        """
+        Property to retrieve the 'circle_id' from the view's kwargs.
+
+        Returns:
+        - int or None: The 'circle_id' if found in kwargs, otherwise None.
+        """
         circle_id = self.kwargs.get("circle_id")
         return circle_id
 
     def get_circle(self):
+        """
+        Retrieve the Circle object with the specified 'circle_id'.
+
+        Returns:
+        - Circle: The Circle object matching the 'circle_id'.
+
+        Raises:
+        - Http404: If no Circle object is found with the specified 'circle_id'.
+        """
         return get_object_or_404(Circle.objects.all(), id=self.circle_id)
 
     def get_circle_by_id(self, pk):
+        """
+        Retrieve the Circle object with the specified primary key 'pk'.
+
+        Args:
+        - pk (int): The primary key of the Circle object.
+
+        Returns:
+        - Circle: The Circle object matching the primary key 'pk'.
+
+        Raises:
+        - Http404: If no Circle object is found with the specified primary key 'pk'.
+        """
         return get_object_or_404(Circle, id=pk)
 
     def get_serializer_context(self):
+        """
+        Overrides the method from the parent class to include additional context data for serializers.
+
+        Returns:
+        - dict: The serializer context containing the following data:
+            - 'circle_id': The 'circle_id' extracted from the view's kwargs.
+            - 'request': The current request object.
+        """
         context = super().get_serializer_context()
         context["circle_id"] = self.kwargs.get("circle_id")
         context["request"] = self.request
@@ -102,7 +151,13 @@ class BaseCircleViewSet(viewsets.ModelViewSet):
 
 class CircleViewSet(BaseCircleViewSet):
     """
-    Viewset to create, list, update and delete circles.
+    Viewset to create, list, update, and delete circles.
+
+    Attributes:
+        serializer_class (CircleSerializer): The serializer class used for the circle data.
+        permission_classes (tuple): The permission classes to control access to the viewset.
+        pagination_class (GenericPagination): The pagination class for handling paginated responses.
+
     """
 
     serializer_class = CircleSerializer
@@ -110,6 +165,12 @@ class CircleViewSet(BaseCircleViewSet):
     pagination_class = GenericPagination
 
     def get_serializer_class(self):
+        """
+        Returns the appropriate serializer class based on the request method.
+
+        Returns:
+           Serializer class: The serializer class to be used for the current request.
+        """
         if self.request.method == "GET":
             return CircleListSerializer
         elif self.request.method in ["POST", "PUT", "PATCH"]:
@@ -118,15 +179,44 @@ class CircleViewSet(BaseCircleViewSet):
             return CircleSerializer
 
     def get_queryset(self):
+        """
+        Returns the queryset of circles filtered by the requesting user's owner_id.
+
+        Returns:
+            queryset: Filtered queryset of Circle objects based on owner_id.
+        """
         queryset = Circle.objects.filter(owner_id=self.request.user_id)
         return queryset
 
     def hierarchy_limit(self, parent_id):
+        """
+        Checks if the circle hierarchy level exceeds the limit of 7.
+
+        Args:
+            parent_id (int): The ID of the parent circle.
+
+        Returns:
+            bool: True if the hierarchy level exceeds 7, False otherwise.
+        """
         parent_circle = Circle.objects.get(id=parent_id)
         parents = get_level(parent_circle)
         return parents >= 7
 
     def create_parent_circle_status(self, circle, user, data):
+        """
+        Creates a parent circle with the provided data, considering the user's admin status.
+
+        If the user is in the admin_list, the subgroup_status will be set to "1".
+        Otherwise, it will be set to "3".
+
+        Args:
+            circle (Circle): The circle instance for which the parent circle is being created.
+            user (User): The user instance whose admin status is checked.
+            data (dict): The data for creating the parent circle.
+
+        Returns:
+            None
+        """
         admin_list = (
             CircleSubscriberRole.objects.filter(circle=circle)
             .values_list("user_id", flat=True)
@@ -141,6 +231,18 @@ class CircleViewSet(BaseCircleViewSet):
             self.create_parent_circle(**data)
 
     def circle_add_default_admins(self, circle, parent):
+        """
+        Adds default administrators to the given circle based on the parent circle.
+
+        Default administrators are users who have the 'DEFAULT_ADMIN' or 'CHIEF_ADMIN' role in the parent circle.
+
+        Args:
+            circle (Circle): The circle to which the default administrators will be added.
+            parent (Circle): The parent circle from which the default administrators will be retrieved.
+
+        Returns:
+            None
+        """
         default_admin = CircleRole.objects.get(role=CircleRole.DEFAULT_ADMIN)
         chief_admin = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
         default_admins = CircleSubscriberRole.objects.filter(
@@ -168,6 +270,18 @@ class CircleViewSet(BaseCircleViewSet):
                     )
 
     def circle_add_parent_default_admins(self, parent: Circle, user):
+        """
+        Adds default administrators to all child circles of the given parent circle.
+
+        Default administrators are users who have the 'CHIEF_ADMIN' role in the parent circle.
+
+        Args:
+            parent (Circle): The parent circle for which child circles will be processed.
+            user (dict): The user information used to fetch user details.
+
+        Returns:
+            None
+        """
         user_service = User()
         user = user_service.details(user_id=user["id"])
 
@@ -202,6 +316,18 @@ class CircleViewSet(BaseCircleViewSet):
                 circle.topic.add(topic)
 
     def get_circle_with_level(self, circles):
+        """
+        Groups circles based on their hierarchy level.
+
+        Given a list of circles, this method groups them into a dictionary where the key is the hierarchy level,
+        and the value is a list of circles at that level.
+
+        Args:
+            circles (list): A list of Circle objects to be grouped.
+
+        Returns:
+            dict: A dictionary with hierarchy level as key and a list of circles at that level as value.
+        """
         circles_with_level = {}
         for circle in circles:
             level = get_level(circle)
@@ -213,7 +339,17 @@ class CircleViewSet(BaseCircleViewSet):
 
     def remove_users_from_circle(self, circle, user_ids: List):
         """
-        Remove users from circle only if the associated users are more than one
+        Remove users from a circle only if there are associated users in the circle.
+
+        Given a circle and a list of user_ids, this method removes those users from the circle
+        only if the circle has at least one associated user.
+
+        Args:
+            circle (Circle): The circle from which users will be removed.
+            user_ids (List): A list of user_ids to be removed from the circle.
+
+        Returns:
+            None
         """
         circle_users = CircleSubscriberRole.objects.filter(circle=circle).count()
         if circle_users >= 1:
@@ -239,6 +375,24 @@ class CircleViewSet(BaseCircleViewSet):
         ]
     )
     def list(self, request, *args, **kwargs):
+        """
+        List circles based on provided query parameters.
+
+        If the 'privacy' parameter is provided in the request query, the method filters circles based on the privacy value
+        and optionally on the 'name' parameter as well.
+
+        If the 'name' parameter is provided in the request query, the method performs a circle name search.
+
+        If no query parameters are provided, the method fetches circles to which the requesting user is subscribed.
+
+        Args:
+            request (HttpRequest): The request object.
+            *args: Variable length argument list.
+            **kwargs: Arbitrary keyword arguments.
+
+        Returns:
+            Response: A paginated response containing serialized circle data.
+        """
         if "privacy" in request.GET:
             privacy = request.GET.get("privacy", "")
             name = request.GET.get("name", "")
@@ -260,7 +414,18 @@ class CircleViewSet(BaseCircleViewSet):
         return self.get_paginated_response(serializer.data)
 
     def filter_circle_privacy_name(self, queryset, name):
-        # search with circle name and privacy
+        """
+        Filter the queryset based on the circle name.
+
+        This function filters the queryset by performing a case-insensitive search for the provided 'name'.
+
+        Args:
+            queryset (QuerySet): The queryset to be filtered.
+            name (str): The name of the circle to be searched.
+
+        Returns:
+            QuerySet: The filtered queryset based on the 'name'.
+        """
         if name:
             name = name.lower()
             qs = queryset.annotate(name_lower=Lower("name"))
@@ -271,6 +436,18 @@ class CircleViewSet(BaseCircleViewSet):
             return queryset
 
     def filter_circles_privacy(self, privacy, name):
+        """
+        Filter circles based on privacy and name.
+
+        This method filters circles based on the provided 'privacy' and 'name' parameters.
+
+        Args:
+            privacy (str): The privacy value for filtering circles (either 'public' or 'private').
+            name (str): The name of the circle to be searched.
+
+        Returns:
+            QuerySet: The filtered queryset of circles.
+        """
         if privacy in ["public", "Public", "1", 1]:
             privacy = 1
             circles = Circle.objects.filter(privacy=privacy)
@@ -285,7 +462,17 @@ class CircleViewSet(BaseCircleViewSet):
             return results
 
     def circle_name_search(self, request):
-        # search with circle name and get list of circles
+        """
+        Search for circles based on the provided 'name'.
+
+        This method performs a case-insensitive search for circles with names containing the specified 'name' parameter.
+
+        Args:
+            request (HttpRequest): The request object containing the 'name' parameter.
+
+        Returns:
+            QuerySet: The filtered queryset of circles matching the search criteria.
+        """
         name = request.GET["name"]
         name = name.lower()
         final_circles = CircleSubscriberRole.objects.filter(user_id=request.user_id)
@@ -298,6 +485,21 @@ class CircleViewSet(BaseCircleViewSet):
         return circles
 
     def create(self, request, *args, **kwargs):
+        """
+        Create a new circle based on the provided data.
+
+        This method handles the creation of a new circle using the data provided in the request.
+        If a 'parent' circle is specified, the new circle will be created as a child of the parent circle.
+        If no 'parent' is provided, the new circle will be created as a top-level circle.
+
+        Args:
+            request (HttpRequest): The request object containing the circle data.
+            *args: Variable length argument list.
+            **kwargs: Arbitrary keyword arguments.
+
+        Returns:
+            Response: A response containing the serialized data of the created circle.
+        """
         serializer = self.get_serializer(data=request.data, context={"request": request})
         if request.data.get("parent"):
             parent_circle = serializer.initial_data["parent"]
@@ -358,6 +560,20 @@ class CircleViewSet(BaseCircleViewSet):
         return Response(serializer.data)
 
     def retrieve(self, request, *args, **kwargs):
+        """
+        Retrieve details of a specific circle.
+
+        This method retrieves the details of a specific circle based on the provided circle ID (pk).
+        If the circle with the given ID does not exist, a 400 Bad Request response is returned.
+
+        Args:
+            request (HttpRequest): The request object.
+            *args: Variable length argument list.
+            **kwargs: Arbitrary keyword arguments.
+
+        Returns:
+            Response: A response containing the serialized data of the retrieved circle.
+        """
         try:
             circle = self.get_circle_by_id(kwargs.get("pk"))
         except Circle.DoesNotExist:
@@ -366,6 +582,25 @@ class CircleViewSet(BaseCircleViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def update(self, request, *args, **kwargs):
+        """
+        Update details of a specific circle.
+
+        This method updates the details of a specific circle based on the provided circle ID (pk).
+        If the circle with the given ID does not exist, a 400 Bad Request response is returned.
+        The circle is updated with the data provided in the request.
+
+        Add or update users to the circle.
+        Remove or delete users from a circle
+
+        Args:
+            request (HttpRequest): The request object containing the updated circle data.
+            *args: Variable length argument list.
+            **kwargs: Arbitrary keyword arguments.
+
+        Returns:
+            Response: A response containing the serialized data of the updated circle.
+        """
+
         try:
             circle = self.get_circle_by_id(kwargs.get("pk"))
         except Circle.DoesNotExist:
@@ -408,6 +643,21 @@ class CircleViewSet(BaseCircleViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def destroy(self, request, pk=None, *args, **kwargs):
+        """
+        Delete a specific circle.
+
+        This method deletes a specific circle based on the provided circle ID (pk).
+        If the circle with the given ID does not exist, a 400 Bad Request response is returned.
+
+        Args:
+            request (HttpRequest): The request object.
+            pk (int): The primary key of the circle to be deleted.
+            *args: Variable length argument list.
+            **kwargs: Arbitrary keyword arguments.
+
+        Returns:
+            Response: A response indicating the success of the circle deletion.
+        """
         parent = None
         try:
             circle = Circle.objects.get(id=pk)
@@ -450,6 +700,19 @@ class CircleViewSet(BaseCircleViewSet):
         permission_classes=[],
     )
     def hierarchy(self, request, pk=None):
+        """
+        Retrieve the hierarchy of circles based on the provided circle ID.
+
+        This method retrieves the hierarchy of circles based on the provided circle ID (pk).
+        The circles can be filtered by 'level', 'name', or 'parent' ID using the request query parameters.
+
+        Args:
+            request (HttpRequest): The request object containing the query parameters for filtering circles.
+            pk (int): The primary key of the circle from which the hierarchy will be retrieved.
+
+        Returns:
+            Response: A paginated response containing the serialized data of the circles in the hierarchy.
+        """
         try:
             circle = Circle.objects.get(id=pk)
         except Circle.DoesNotExist:
@@ -464,6 +727,19 @@ class CircleViewSet(BaseCircleViewSet):
         return self.get_paginated_response(serializer.data)
 
     def filter_circles(self, request, circle):
+        """
+        Filter circles based on the provided query parameters.
+
+        This method filters circles based on the query parameters provided in the request.
+        The circles can be filtered by 'name', 'level', and 'parent' ID using the request query parameters.
+
+        Args:
+            request (HttpRequest): The request object containing the query parameters for filtering circles.
+            circle (Circle): The circle from which the filtering will be applied.
+
+        Returns:
+            list: A list of Circle objects filtered based on the provided query parameters.
+        """
         if "name" in request.GET and "level" not in request.GET:
             return circle_service.filter_circles_by_name(request, circle)
         elif "level" in request.GET and "name" not in request.GET and "parent" not in request.GET:
@@ -480,6 +756,19 @@ class CircleViewSet(BaseCircleViewSet):
         methods=["GET"],
     )
     def link(self, request, pk=None):
+        """
+        Retrieve details of a specific circle using the circle link.
+
+        This method retrieves the details of a specific circle based on the provided circle link (pk).
+        If the circle with the given link does not exist, a 400 Bad Request response is returned.
+
+        Args:
+            request (HttpRequest): The request object.
+            pk (str): The circle link.
+
+        Returns:
+            Response: A response containing the serialized data of the retrieved circle.
+        """
         try:
             circle = Circle.objects.get(link=pk)
         except Exception:
@@ -492,6 +781,19 @@ class CircleViewSet(BaseCircleViewSet):
         methods=["GET"],
     )
     def info(self, request, pk=None):
+        """
+        Retrieve details of a specific circle.
+
+        This method retrieves the details of a specific circle based on the provided circle ID (pk).
+        If the circle with the given ID does not exist, a 400 Bad Request response is returned.
+
+        Args:
+            request (HttpRequest): The request object.
+            pk (int): The primary key of the circle to be retrieved.
+
+        Returns:
+            Response: A response containing the serialized data of the retrieved circle.
+        """
         try:
             circle = Circle.objects.get(id=pk)
         except Circle.DoesNotExist:
@@ -513,6 +815,12 @@ class CircleViewSet(BaseCircleViewSet):
                 required=False,
                 type=str,
             ),
+            OpenApiParameter(
+                name="phone",
+                description="Filter by phone",
+                required=False,
+                type=str,
+            ),
         ]
     )
     @action(
@@ -520,6 +828,19 @@ class CircleViewSet(BaseCircleViewSet):
         methods=["GET"],
     )
     def users(self, request, pk=None):
+        """
+        Retrieve users associated with a specific circle.
+
+        This method retrieves the users associated with a specific circle based on the provided circle ID (pk).
+        The users can be filtered by 'role' and 'name' using the request query parameters.
+
+        Args:
+            request (HttpRequest): The request object containing the query parameters for filtering users.
+            pk (int): The primary key of the circle from which users will be retrieved.
+
+        Returns:
+            Response: A paginated response containing the serialized data of the users associated with the circle.
+        """
         try:
             circle = Circle.objects.get(id=pk)
         except Circle.DoesNotExist:
@@ -527,6 +848,7 @@ class CircleViewSet(BaseCircleViewSet):
 
         role = request.GET.get("role", "")
         name = request.GET.get("name", "")
+        phone = request.GET.get("phone", "")
         if role == "admins":
             role = [10, 20]
             circle_users = CircleSubscriberRole.objects.filter(circle=circle, role__role__in=role)
@@ -544,12 +866,26 @@ class CircleViewSet(BaseCircleViewSet):
             If filter by name is present, trigger this
             """
             user_ids = []
-            results = json.loads(json.dumps(serializer.data))
-            for user_details in results:
+            for user_details in serializer.data:
                 if (
                     user_details.get("user_name")
                     and name.lower() in user_details.get("user_name").lower()
                 ):
+                    user_ids.append(user_details["id"])
+
+            circle_users = CircleSubscriberRole.objects.filter(id__in=user_ids)
+            page = self.paginate_queryset(circle_users)
+            serializer = CircleSubscribedUsersSerializer(
+                page, many=True, context={"request": request}
+            )
+            return self.get_paginated_response(serializer.data)
+        if phone:
+            """
+            Filter circle subscribed users by phone.
+            """
+            user_ids = []
+            for user_details in serializer.data:
+                if user_details.get("user_phone") and phone in user_details.get("user_phone"):
                     user_ids.append(user_details["id"])
 
             circle_users = CircleSubscriberRole.objects.filter(id__in=user_ids)
@@ -569,10 +905,17 @@ class CircleViewSet(BaseCircleViewSet):
     )
     def delete_members(self, request, pk=None):
         """
-        Remove/unsub users from a circle
+        Remove/unsubscribe users from a circle.
 
-        `Payload` \n
-        `user_ids`: [] # list of user_ids (QA can get it from admin panel under `CircleSubscriberRole`
+        This method removes or unsubscribes users from a circle based on the provided circle ID (pk).
+        The users to be removed/unsubscribed are specified in the request payload using the 'user_ids' field.
+
+        Args:
+            request (HttpRequest): The request object containing the circle leave data.
+            pk (int): The primary key of the circle from which users will be removed/unsubscribed.
+
+        Returns:
+            Response: A response indicating the success of the user removal/unsubscription.
         """
         try:
             circle = Circle.objects.get(id=pk)
@@ -599,7 +942,18 @@ class CircleViewSet(BaseCircleViewSet):
     )
     @action(detail=False, methods=["GET"], url_path="role")
     def get_circle_by_role(self, request):
-        """returns associated circles based on role"""
+        """
+        Retrieve associated circles based on the user's role.
+
+        This method returns the associated circles based on the user's role specified in the request query parameters.
+        The user's role is provided using the 'role' parameter in the request.
+
+        Args:
+            request (HttpRequest): The request object containing the user's role.
+
+        Returns:
+            Response: A paginated response containing the serialized data of the associated circles.
+        """
         role = request.GET.get("role", "")
         if role == "myorg":
             circle_ids = []
@@ -628,19 +982,51 @@ class CircleViewSet(BaseCircleViewSet):
 
 class CircleRoleViewSet(BaseCircleViewSet):
     """
-    Viewset to create, list, update and delete circle roles.
+    Viewset to manage circle roles.
+
+    This viewset provides endpoints to perform CRUD (Create, Read, Update, Delete) operations on circle roles.
+    Circle roles define different roles or permissions that users can have within a circle.
+
+    Attributes:
+        serializer_class: The serializer class to use for serializing and deserializing circle role data.
+        permission_classes: The permission classes to use for controlling access to the viewset.
+
+    Methods:
+        get_queryset: Get the queryset for retrieving all circle roles.
     """
 
     serializer_class = CircleRoleSerializer
     permission_classes = (Authenticate,)
 
     def get_queryset(self):
+        """
+        Get the queryset for retrieving all circle roles.
+
+        This method retrieves all circle roles available in the database.
+
+        Returns:
+            QuerySet: The queryset containing all circle roles.
+        """
         return CircleRole.objects.all()
 
 
 class CirclePermissionViewSet(BaseCircleViewSet):
     """
-    Viewset to create, list, update and delete circle roles.
+    Viewset to manage circle permissions.
+
+    This viewset provides endpoints to perform CRUD (Create, Read, Update, Delete) operations on circle permissions.
+    Circle permissions define the permissions or access rights that users have within a circle.
+
+    Attributes:
+        serializer_class: The serializer class to use for serializing and deserializing circle permission data.
+        permission_classes: The permission classes to use for controlling access to the viewset.
+        http_method_names: The allowed HTTP methods for this viewset.
+
+    Methods:
+        get_queryset: Get the queryset for retrieving circle permissions.
+
+        list: List the circle permissions for the current circle.
+        create/update: Create/Update a circle permission.
     """
 
     serializer_class = CirclePermissionSerializer
@@ -648,9 +1034,31 @@ class CirclePermissionViewSet(BaseCircleViewSet):
     http_method_names = ("get", "post")
 
     def get_queryset(self):
+        """
+        Get the queryset for retrieving circle permissions.
+
+        This method retrieves the circle permissions associated with the current circle.
+
+        Returns:
+            QuerySet: The queryset containing the circle permissions for the current circle.
+        """
         return CirclePermission.objects.filter(circle=self.circle_id).first()
 
     def list(self, request, *args, **kwargs):
+        """
+        List the circle permissions for the current circle.
+
+        This method lists the circle permissions for the current circle if they exist.
+        If no circle permissions are found for the current circle, a 400 Bad Request response is returned.
+
+        Args:
+            request (HttpRequest): The request object.
+            *args: Variable length argument list.
+            **kwargs: Arbitrary keyword arguments.
+
+        Returns:
+            Response: A response containing the serialized data of the circle permissions for the current circle.
+        """
         queryset = self.get_queryset()
         if not queryset:
             return Response({"detail": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST)
@@ -658,6 +1066,21 @@ class CirclePermissionViewSet(BaseCircleViewSet):
         return Response(serializer.data)
 
     def create(self, request, *args, **kwargs):
+        """
+        Create a new circle permission.
+
+        This method creates a new circle permission for the current circle if it exists.
+        If no circle exists, a 400 Bad Request response is returned.
+        The new circle permission data is provided in the request data.
+
+        Args:
+            request (HttpRequest): The request object.
+            *args: Variable length argument list.
+            **kwargs: Arbitrary keyword arguments.
+
+        Returns:
+            Response: A response containing the serialized data of the newly created circle permission.
+        """
         queryset = self.get_queryset()
         if not queryset:
             return Response({"detail": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST)
@@ -672,7 +1095,22 @@ class CirclePermissionViewSet(BaseCircleViewSet):
 
 class CircleSubscriberRoleViewSet(BaseCircleViewSet):
     """
-    Viewset to create, list, update and delete circle subscriber roles.
+    Viewset to manage circle subscriber roles.
+
+    This viewset provides endpoints to perform CRUD (Create, Read, Update, Delete) operations on circle subscriber roles.
+    Circle subscriber roles define the roles assigned to subscribers within a circle.
+
+    Attributes:
+        permission_classes: The permission classes to use for controlling access to the viewset.
+        serializer_class: The serializer class to use for serializing and deserializing circle subscriber role data.
+        http_method_names: The allowed HTTP methods for this viewset.
+
+    Methods:
+        get_serializer_class: Get the serializer class based on the request method.
+
+        get_queryset: Get the queryset for retrieving circle subscriber roles.
+        create: Add / update a new user to circle
+
     """
 
     permission_classes = (Authenticate,)
@@ -680,15 +1118,47 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
     http_method_names = ("get", "post")
 
     def get_serializer_class(self):
+        """
+        Get the serializer class based on the request method.
+
+        This method returns different serializer classes based on the request method.
+        For 'GET' requests, the CircleSubscriberRoleSerializer is used to serialize circle subscriber role data.
+        For other requests, the CircleSubscriberRoleInputSerializer is used for deserializing request data.
+
+        Returns:
+            Serializer: The serializer class based on the request method.
+        """
         if self.request.method == "GET":
             return CircleSubscriberRoleSerializer
         else:
             return CircleSubscriberRoleInputSerializer
 
     def get_queryset(self):
+        """
+        Get the queryset for retrieving circle subscriber roles.
+
+        This method retrieves the circle subscriber roles associated with the current circle.
+
+        Returns:
+            QuerySet: The queryset containing the circle subscriber roles for the current circle.
+        """
         return CircleSubscriberRole.objects.filter(circle=self.circle_id)
 
     def create(self, request, *args, **kwargs):
+        """
+        Create/Update circle subscribers.
+
+        This method creates circle subscribers based on the data provided in the request.
+        It associates users with a specific role to the circle and performs various validation checks.
+
+        Args:
+            request (HttpRequest): The request object containing data for creating circle subscribers.
+            *args: Variable length argument list.
+            **kwargs: Arbitrary keyword arguments.
+
+        Returns:
+            Response: A response containing the serialized data of the circle after adding subscribers.
+        """
         serializer = self.serializer_class(
             data=request.data, context={"request": request, "circle_id": self.circle_id}
         )
@@ -738,6 +1208,22 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def validate_circle_hierarchy(self, logged_user_id, user, role, circle):
+        """
+        Validate circle hierarchy.
+
+        This method validates the circle hierarchy and updates it if necessary based on user and role.
+        If the logged user is a chief admin and the role being assigned to the user is a member,
+        the circle hierarchy is set to False to indicate that the circle no longer has a hierarchy.
+
+        Args:
+            logged_user_id (str): The ID of the logged-in user.
+            user (dict): The details of the user being added to the circle.
+            role (str): The role being assigned to the user.
+            circle (Circle): The circle object.
+
+        Returns:
+            None
+        """
         chief_admin = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
         member = CircleRole.objects.get(role=CircleRole.MEMBER)
         logged_user_id = str(logged_user_id)
@@ -750,6 +1236,20 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
                 circle.save()
 
     def circle_add_default_admin(self, circle, user, role):
+        """
+        Add default admin to child circles.
+
+        This method adds a default admin to child circles of the specified circle if the role being assigned
+        to the user is a chief admin and the circle has at least one child circle.
+
+        Args:
+           circle (Circle): The circle object.
+           user (dict): The details of the user being added as the default admin.
+           role (str): The role being assigned to the user.
+
+        Returns:
+           None
+        """
         chief_admin = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
         if role == chief_admin and circle.total_children_count >= 1:
             default_admin = CircleRole.objects.get(role=CircleRole.DEFAULT_ADMIN)
@@ -773,6 +1273,20 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
                     member_xmpp_room_subscribe(user_jid=user["jid"], room_id=child.room_id)
 
     def circle_remove_default_admin(self, circle, user, role):
+        """
+        Remove default admin from child circles.
+
+        This method removes the default admin role from child circles of the specified circle
+        if the role being assigned to the user is a member and the circle has at least one child circle.
+
+        Args:
+            circle (Circle): The circle object.
+            user (dict): The details of the user whose default admin role needs to be removed.
+            role (str): The role being assigned to the user.
+
+        Returns:
+            None
+        """
         member = CircleRole.objects.get(role=CircleRole.MEMBER)
         if role == member and circle.total_children_count >= 1:
             default_admin = CircleRole.objects.get(role=CircleRole.DEFAULT_ADMIN)
@@ -793,64 +1307,148 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
 
 class SubscriptionPlanViewSet(viewsets.ModelViewSet):
     """
-    Viewset to create, list, update and delete subscription plan.
+    Viewset to manage subscription plans.
+
+    This viewset allows creating, listing, updating, and deleting subscription plans.
+
+    Attributes:
+       serializer_class (SubscriptionPlanSerializer): The serializer class for subscription plans.
+       permission_classes (tuple): The tuple of permission classes for authentication.
+
+    Methods:
+       get_queryset: Get the queryset containing all subscription plans.
     """
 
     serializer_class = SubscriptionPlanSerializer
     permission_classes = (Authenticate,)
 
     def get_queryset(self):
+        """
+        Get the queryset containing all subscription plans.
+
+        Returns:
+            QuerySet: The queryset containing all subscription plans.
+        """
         return SubscriptionPlan.objects.all()
 
 
 class CustomerViewSet(viewsets.ModelViewSet):
     """
-    Viewset to create, list, update and delete customer.
+    Viewset to manage customers.
+
+    This viewset allows creating, listing, updating, and deleting customers.
+
+    Attributes:
+        serializer_class (CustomerSerializer): The serializer class for customers.
+        permission_classes (tuple): The tuple of permission classes for authentication.
+
+    Methods:
+        get_queryset: Get the queryset containing all customers.
     """
 
     serializer_class = CustomerSerializer
     permission_classes = (Authenticate,)
 
     def get_queryset(self):
+        """
+        Get the queryset containing all customers.
+
+        Returns:
+            QuerySet: The queryset containing all customers.
+        """
         return Customer.objects.all()
 
 
 class AppBrandingViewSet(viewsets.ModelViewSet):
     """
-    Viewset to create, list, update and delete app branding.
+    Viewset to manage app branding.
+
+    This viewset allows creating, listing, updating, and deleting app branding settings.
+
+    Attributes:
+        serializer_class (AppBrandingSerializer): The serializer class for app branding settings.
+        permission_classes (tuple): The tuple of permission classes for authentication.
+
+    Methods:
+        get_queryset: Get the queryset containing all app branding settings.
     """
 
     serializer_class = AppBrandingSerializer
     permission_classes = (Authenticate,)
 
     def get_queryset(self):
+        """
+        Get the queryset containing all app branding settings.
+
+        Returns:
+            QuerySet: The queryset containing all app branding settings.
+        """
         return AppBranding.objects.all()
 
 
 class CustomFieldViewSet(viewsets.ModelViewSet):
     """
-    Viewset to create, list, update and delete CustomField.
+    Viewset to manage custom fields.
+
+    This viewset allows creating, listing, updating, and deleting custom fields.
+
+    Attributes:
+        serializer_class (CustomFieldSerializer): The serializer class for custom fields.
+        permission_classes (tuple): The tuple of permission classes for authentication.
+
+    Methods:
+        get_queryset: Get the queryset containing all custom fields.
     """
 
     serializer_class = CustomFieldSerializer
     permission_classes = (Authenticate,)
 
     def get_queryset(self):
+        """
+        Get the queryset containing all custom fields.
+
+        Returns:
+            QuerySet: The queryset containing all custom fields.
+        """
         return CustomField.objects.all()
 
 
 class TopicViewSet(viewsets.ModelViewSet):
     """
-    Viewset to create, list, update and delete circles.
+    Viewset to manage topics.
+
+    This viewset allows creating, listing, updating, and deleting topics.
+
+    Attributes:
+        serializer_class (TopicSerializer): The serializer class for topics.
+        permission_classes (tuple): The tuple of permission classes for authentication.
+
+    Methods:
+        get_queryset: Get the queryset containing all topics.
+        destroy: Delete the topic.
     """
 
     serializer_class = TopicSerializer
     permission_classes = (Authenticate,)
 
     def get_queryset(self):
+        """
+        Get the queryset containing all topics.
+
+        Returns:
+            QuerySet: The queryset containing all topics.
+        """
         return Topic.objects.all()
 
     def destroy(self, request, *args, **kwargs):
+        """
+        Delete the topic.
+
+        This method deletes the specified topic and returns a success response.
+
+        Returns:
+            Response: A response indicating the successful deletion of the topic.
+        """
         try:
             topic = self.get_object()
             topic.delete()
@@ -860,6 +1458,18 @@ class TopicViewSet(viewsets.ModelViewSet):
 
 
 def transfer_hierarchy(circle, user):
+    """
+    Transfer circle hierarchy to a new user.
+
+    This function transfers the circle hierarchy from the current chief admin to a new user.
+
+    Args:
+        circle (Circle): The circle whose hierarchy is being transferred.
+        user (dict): The information of the new user who will become the chief admin.
+
+    Returns:
+        bool: True if the hierarchy transfer is successful, False otherwise.
+    """
     role = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
     member = CircleRole.objects.get(role=CircleRole.MEMBER)
 
@@ -880,10 +1490,29 @@ def transfer_hierarchy(circle, user):
 
 
 class HierarchyTransferAPIView(APIView):
+    """
+    API view to transfer circle hierarchy.
+
+    This view allows transferring the hierarchy of a circle from the current chief admin to a new user.
+
+    Attributes:
+       permission_classes (tuple): The tuple of permission classes for authentication.
+       serializer_class (HierarchyTransferSerializer): The serializer class for hierarchy transfer.
+    """
+
     permission_classes = (Authenticate,)
     serializer_class = HierarchyTransferSerializer
 
     def post(self, request):
+        """
+        Transfer the circle hierarchy to a new user.
+
+        This method handles the POST request for transferring the circle hierarchy.
+        It takes the new user's information from the request data and performs the hierarchy transfer.
+
+        Returns:
+            Response: A response indicating the success or failure of the hierarchy transfer.
+        """
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         circle_id = serializer.validated_data["circle_id"]
@@ -929,10 +1558,29 @@ class HierarchyTransferAPIView(APIView):
 
 
 class HierarchyDeleteAPIView(APIView):
+    """
+    API view to delete circle hierarchy.
+
+    This view allows deleting the hierarchy of a circle.
+
+    Attributes:
+       permission_classes (tuple): The tuple of permission classes for authentication.
+       serializer_class (HierarchyDeleteSerializer): The serializer class for hierarchy deletion.
+    """
+
     permission_classes = (Authenticate,)
     serializer_class = HierarchyDeleteSerializer
 
     def post(self, request):
+        """
+        Delete the hierarchy of a circle.
+
+        This method handles the POST request for deleting the hierarchy of a circle.
+        It takes the circle_id from the request data and performs the hierarchy deletion.
+
+        Returns:
+            Response: A response indicating the success or failure of the hierarchy deletion.
+        """
         circle_id = request.data["circle_id"]
         circle = Circle.objects.filter(id=circle_id)
 
@@ -965,11 +1613,29 @@ class HierarchyDeleteAPIView(APIView):
 
 
 class CircleInviteViewSet(BulkCreateCircleInviteMixin, viewsets.ModelViewSet):
+    """
+    Viewset to create, list, update and delete circle invites.
+
+    This viewset provides endpoints to manage circle invites. It supports
+    bulk creation of circle invites and paginated listing of invites.
+
+    Attributes:
+        permission_classes (tuple): The tuple of permission classes for authentication.
+        model (CircleInvite): The model class for circle invites.
+        pagination_class (CircleInvitePagination): The pagination class for listing invites.
+    """
+
     permission_classes = (Authenticate,)
     model = CircleInvite
     pagination_class = CircleInvitePagination
 
     def get_serializer_class(self):
+        """
+        Get the serializer class based on the action.
+
+        Returns:
+            serializer_class (class): The serializer class to use based on the action.
+        """
         if self.action == "create":
             return CircleInviteCreateSerializer
         elif self.action == "update":
@@ -977,9 +1643,26 @@ class CircleInviteViewSet(BulkCreateCircleInviteMixin, viewsets.ModelViewSet):
         return CircleInviteSerializer
 
     def create(self, request, *args, **kwargs):
+        """
+        Create circle invites.
+
+        This method handles the POST request for creating circle invites.
+
+        Returns:
+            Response: A response indicating the success or failure of the invite creation.
+        """
         return super(CircleInviteViewSet, self).create(request, *args, **kwargs)
 
     def list(self, request):
+        """
+        List circle invites.
+
+        This method handles the GET request for listing circle invites. It supports
+        pagination and filtering based on user info.
+
+        Returns:
+            Response: A paginated response containing the list of circle invites.
+        """
         params = request.GET
         user_info = logged_user_info(request)["id"]
         self._deleted_users_circle_invites(user_info)
@@ -989,6 +1672,14 @@ class CircleInviteViewSet(BulkCreateCircleInviteMixin, viewsets.ModelViewSet):
         return self.get_paginated_response(serializer.data)
 
     def _deleted_users_circle_invites(self, user_info):
+        """
+        Delete circle invites for deleted users.
+
+        This method deletes circle invites for users who have been deleted.
+
+        Args:
+            user_info (str | None): The ID of the logged-in user.
+        """
         user_details = User().details(user_id=user_info)
         if not user_details:
             invites = CircleInvite.objects.filter(Q(sender=user_info) | Q(recipient=user_info))
@@ -1002,6 +1693,18 @@ class CircleInviteViewSet(BulkCreateCircleInviteMixin, viewsets.ModelViewSet):
                 ).delete()
 
     def _get_invites(self, params, user_info):
+        """
+        Get circle invites.
+
+        This method gets circle invites based on the given parameters.
+
+        Args:
+            params (dict): The dictionary of query parameters.
+            user_info (str): The ID of the logged-in user.
+
+        Returns:
+            queryset: The queryset containing the circle invites.
+        """
         invitation_type = params.get("type")
         joined = params.get("joined")
         circle = params.get("circle")
@@ -1014,6 +1717,17 @@ class CircleInviteViewSet(BulkCreateCircleInviteMixin, viewsets.ModelViewSet):
         return invites
 
     def _get_sent_invites(self, user_info, circle, joined):
+        """
+        Get circle invites sent by the specified user, filtered based on optional criteria.
+
+        Args:
+            user_info (int): ID of the sender user.
+            circle (Circle or None): Optional circle filter for the invites.
+            joined (str or None): Optional joined status filter (e.g., "true" or "false").
+
+        Returns:
+            QuerySet: A queryset containing the filtered circle invites.
+        """
         if not circle and not joined:
             invites = CircleInvite.objects.filter(sender=user_info, joined=True)
         elif circle and joined is not None:
@@ -1027,6 +1741,17 @@ class CircleInviteViewSet(BulkCreateCircleInviteMixin, viewsets.ModelViewSet):
         return invites
 
     def _get_received_invites(self, user_info, circle, joined):
+        """
+        Get circle invites received by the specified user, filtered based on optional criteria.
+
+        Args:
+            user_info (int): ID of the recipient user.
+            circle (Circle or None): Optional circle filter for the invites.
+            joined (str or None): Optional joined status filter (e.g., "true" or "false").
+
+        Returns:
+            QuerySet: A queryset containing the filtered circle invites.
+        """
         if not circle and not joined:
             invites = CircleInvite.objects.filter(recipient=user_info, joined=False)
         elif circle and joined is not None:
@@ -1040,10 +1765,31 @@ class CircleInviteViewSet(BulkCreateCircleInviteMixin, viewsets.ModelViewSet):
         return invites
 
     def _convert_to_bool(self, value):
+        """
+        Convert a string value to a boolean value.
+
+        Args:
+            value (str): The input string value.
+
+        Returns:
+            bool: The boolean representation of the input string value.
+        """
         return False if value.lower() == "false" else True
 
 
 def circle_invite_accept(sender, recipient, circle):
+    """
+    Accept a circle invitation for a user and add them as a member to the circle.
+
+    Args:
+        sender (dict): Information about the sender of the invitation.
+        recipient (dict): Information about the recipient/user who is accepting the invitation.
+        circle (Circle): The circle to which the invitation is being accepted.
+
+    Returns:
+        bool: True if the invitation is accepted and the user is added as a member to the circle,
+              False otherwise (e.g., if the user is already a member of the circle).
+    """
     circle_subscribers = CircleSubscriberRole.objects.filter(user_id=recipient["id"], circle=circle)
     member = CircleRole.objects.get(role=CircleRole.MEMBER)
     if not circle_subscribers:
@@ -1064,6 +1810,31 @@ def circle_invite_accept(sender, recipient, circle):
 
 
 class CircleInviteAcceptViewSet(APIView):
+    """
+    Viewset to accept circle invitations.
+
+    Accepts a POST request with data to accept one or multiple circle invitations.
+    The data should be in the format:
+    {
+        "sender": "sender_user_id",
+        "recipient": "recipient_user_id",
+        "circle": "circle_id"
+    }
+
+    If the recipient is not provided in the data, the authenticated user (request.user_id) will be used.
+    If the request data is a list, multiple invitations can be accepted in bulk.
+
+    Permissions:
+        - The user must be authenticated.
+
+    Serializer:
+        - CircleInviteAcceptSerializer: Serializer for the invitation data.
+
+    Response:
+        - 200 OK: For successful acceptance of invitations.
+        - 500 Internal Server Error: If there's an issue with the data or database.
+    """
+
     permission_classes = (Authenticate,)
     serializer_class = CircleInviteAcceptSerializer
 
@@ -1096,7 +1867,21 @@ class CircleInviteAcceptViewSet(APIView):
 
 class GetCircleUniqueNameView(APIView):
     """
-    API View to mute receiving messages from some other user.
+    API View to check the uniqueness of a circle name.
+
+    This view allows users to check whether a given circle name is unique or already exists.
+    The name to be checked should be provided as a query parameter "name" in the GET request.
+
+    Permissions:
+        - The user must be authenticated.
+
+    Query Parameters:
+        - name (str, required): The name to be checked for uniqueness.
+
+    Response:
+        - 200 OK: If the name is unique and doesn't exist in any existing circle.
+        - 400 Bad Request: If the name contains special characters or emojis.
+        - 400 Bad Request: If the name already exists in an existing circle.
     """
 
     permission_classes = (Authenticate,)

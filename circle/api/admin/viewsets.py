@@ -12,7 +12,15 @@ from circle.api.utils import GenericPagination
 
 class CircleListAPI(APIView, GenericPagination):
     """
-    API to list all circles and filter based on created_at
+    API View to list all circles and filter based on created_at.
+
+    This view allows users to retrieve a list of all circles and provides filtering based on the creation date.
+
+    Query Parameters:
+        created_at (str, optional): Filters the circles based on the creation date. Expected format: "YYYY-MM-DD".
+
+    Returns:
+        Response: A paginated response containing a list of circles with details.
     """
 
     serializers_class = admin_serializers.CircleListSerializer
@@ -20,6 +28,14 @@ class CircleListAPI(APIView, GenericPagination):
     page_size = 100
 
     def get(self, request):
+        """
+        Get a list of circles.
+
+        This method retrieves a list of all circles or filters the circles based on the creation date.
+
+        Returns:
+           Response: A paginated response containing a list of circles with details.
+        """
         if request.query_params.get("created_at"):
             circles = circle_models.Circle.objects.filter(
                 created_at__gte=request.query_params.get("created_at")
@@ -33,12 +49,27 @@ class CircleListAPI(APIView, GenericPagination):
 
 class CircleExportCSV(APIView):
     """
-    Export Circle list into a CSV file
+    API View to export the Circle list into a CSV file.
+
+    This view allows users to export the list of circles into a CSV file. The exported CSV file will contain details
+    such as circle ID, name, owner, circle users count, created date, hierarchy, and total children count.
+
+    Returns:
+        HttpResponse: An HTTP response with the CSV file containing the circle data.
     """
 
     permission_classes = (Authenticate,)
 
     def get(self):
+        """
+        Export Circle list into a CSV file.
+
+        This method exports the list of circles into a CSV file. The exported CSV file will contain details
+        such as circle ID, name, owner, circle users count, created date, hierarchy, and total children count.
+
+        Returns:
+            HttpResponse: An HTTP response with the CSV file containing the circle data.
+        """
         response = HttpResponse(content_type="text/csv")
         response["Content-Disposition"] = 'attachment; filename="circles_list.csv"'
         writer = csv.writer(response)
@@ -71,13 +102,28 @@ class CircleExportCSV(APIView):
 
 class CircleDefaultConfigAPI(APIView):
     """
-    API to get Circle default configurations & permissions
+    API View to get Circle default configurations and permissions.
+
+    This view allows users to retrieve the default configurations and permissions for creating a Circle.
+    It returns the default circle type.
+
+    Returns:
+        Response: A response containing the default circle configuration and permissions.
     """
 
     permission_classes = (Authenticate,)
     serializer_class = admin_serializers.CircleDefaultConfSerializer
 
     def get(self, request):
+        """
+        Get Circle default configurations and permissions.
+
+        This method retrieves the default configurations and permissions for creating a Circle.
+        It returns the default circle type.
+
+        Returns:
+            Response: A response containing the default circle configuration and permissions.
+        """
         default_config = {
             "circle_type": circle_models.Circle._meta.get_field("circle_type").default,
         }

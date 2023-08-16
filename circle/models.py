@@ -7,6 +7,16 @@ from common.models import BaseTimeStampedModel
 
 
 class Topic(BaseTimeStampedModel):
+    """
+    Topic model represents a topic or sub-topic in your application.
+
+    :param str name: The name of the topic.
+    :param str image: The URL of the image related to the topic. (nullable)
+    :param str description: The description of the topic. (nullable)
+    :param str parent: The parent topic of this topic. (nullable)
+    :param str type: The type of the topic. Choices: '1' (Topic), '2' (Sub Topic), '3' (Sub Sub Topic). Default: '1'.
+    """
+
     TOPIC_TYPE = [("1", "Topic"), ("2", "Sub Topic"), ("3", "Sub Sub Topic")]
 
     name = models.CharField(max_length=255)
@@ -27,6 +37,38 @@ class Topic(BaseTimeStampedModel):
 
 
 class Circle(BaseTimeStampedModel):
+    """
+    Circle model represents a community or group of members united by a common interest or purpose.
+
+    :param str name: The name of the circle.
+    :param str image: The URL of the image associated with the circle.
+    :param str description: A description of the circle.
+    :param str link: A link associated with the circle.
+    :param str privacy: The privacy setting of the circle. Choices are 'Public' or 'Private'.
+    :param UUID room_id: A unique identifier for the circle's room.
+    :param bool is_purchased: Whether the circle has been purchased or not.
+    :param dict branding: A dictionary containing branding information for the circle.
+    :param bool is_tenant: Whether the circle is a tenant or not.
+    :param str sites: A string containing information about the circle's associated sites.
+    :param str about_me: Additional information or notes about the circle.
+    :param str circle_type: The type of the circle. Choices are 'PhoneVerified', 'Basic', or 'FullyVerified'.
+    :param str sub_circle_status: The status of sub-circles within this circle. Choices are 'Approved', 'Rejected', or 'Pending'.
+    :param bool hierarchy: Whether the circle has a hierarchy or not.
+    :param int circle_users_count: The count of users associated with the circle.
+    :param int total_children_count: The total count of children circles.
+    :param int sub_circle_count: The count of sub-circles within this circle.
+    :param int gensis_circle_id: The ID of the genesis circle for this circle.
+    :param bool app_id: Whether the circle has an associated app ID or not.
+
+    :param str owner_id: The ID of the circle's owner.
+
+    :param Circle parent: The parent circle of this circle. (ForeignKey relationship)
+
+    :param Topic topic: The topic associated with this circle. (ForeignKey relationship)
+
+    Note: This model inherits from the BaseTimeStampedModel class.
+    """
+
     PRIVACY_OPTIONS = [("1", "Public"), ("2", "Private")]
     CIRCLE_TYPES = [("1", "PhoneVerified"), ("2", "Basic"), ("3", "FullyVerified")]
     SUB_CIRCLE_STATUS = [("1", "Approved"), ("2", "Rejected"), ("3", "Pending")]
@@ -78,6 +120,24 @@ class Circle(BaseTimeStampedModel):
 
 
 class CircleRole(BaseTimeStampedModel):
+    """
+    Represents a circle's role model for managing roles and permissions in the circles .
+
+    :param str name: The name of the user.
+    :param int role: The role of the user. Possible values are:
+
+        - DEFAULT_ADMIN (0): A default administrative user.
+        - CHIEF_ADMIN (10): The chief administrative user with the highest privileges.
+        - ADMIN (20): An administrative user with standard privileges.
+        - MODERATOR (30): A user with moderator privileges.
+        - MEMBER (40): A regular member with basic privileges.
+
+    :param str permissions: Optional. A string representing the user's additional permissions.
+
+    Note: The `role` field should be set to one of the predefined constants above. It determines the level of access
+    and permissions the user has within the circles.
+    """
+
     DEFAULT_ADMIN = 0
     CHIEF_ADMIN = 10
     ADMIN = 20
@@ -107,6 +167,22 @@ class CircleRole(BaseTimeStampedModel):
 
 
 class CircleSubscriberRole(BaseTimeStampedModel):
+    """
+    Represents the relationship between a Circle and its Subscribers, specifying their roles.
+
+    Attributes:
+        circle (Circle): The Circle to which the subscriber belongs.
+        role (CircleRole): The role of the subscriber within the Circle.
+        user_id (str, optional): An identifier for the subscriber user (can be null/blank).
+    """
+
+    """
+    CircleSubscriberRole model represents a subscriber's role in a specific Circle within the application.
+
+        :param Circle circle: The Circle to which the subscriber is associated.
+        :param CircleRole role: The role of the subscriber within the Circle.
+        :param str user_id: The unique identifier of the user who is the subscriber.
+    """
     circle = models.ForeignKey(
         Circle,
         related_name="subscribers",
@@ -124,6 +200,15 @@ class CircleSubscriberRole(BaseTimeStampedModel):
 
 
 class SubscriptionPlan(BaseTimeStampedModel):
+    """
+    This model represents a subscription plan in the application.
+
+        :param str name: The name of the subscription plan.
+        :param Decimal price: The price of the subscription plan.
+        :param int storage: The storage limit of the subscription plan.
+        :param bool is_custom_fields_allowed: Indicates whether custom fields are allowed for this subscription plan.
+    """
+
     name = models.CharField(max_length=255)
     price = models.DecimalField(default=0.00, max_digits=10, decimal_places=2)
     storage = models.IntegerField(default=0)
@@ -134,6 +219,11 @@ class SubscriptionPlan(BaseTimeStampedModel):
 
 
 class Customer(BaseTimeStampedModel):
+    """
+    This class represents a Customer with basic information such as name and address,
+    along with optional owner, app, and plan IDs. It inherits from the BaseTimeStampedModel.
+    """
+
     name = models.CharField(max_length=255)
     address = models.CharField(max_length=255, null=True, blank=True)
     owner_id = models.CharField(max_length=255, null=True, blank=True)
@@ -145,6 +235,11 @@ class Customer(BaseTimeStampedModel):
 
 
 class AppBranding(BaseTimeStampedModel):
+    """
+    This model allows the customer to customize their app's branding, such as logo and color scheme,
+    to create a personalized look and feel for their users
+    """
+
     logo = models.CharField(max_length=255, null=True, blank=True)
     header_color = models.CharField(max_length=255, null=True, blank=True)
     background_color = models.CharField(max_length=255, null=True, blank=True)
@@ -161,6 +256,8 @@ class AppBranding(BaseTimeStampedModel):
 
 
 class CustomField(BaseTimeStampedModel):
+    """This model represents a custom field associated with a Circle."""
+
     name = models.CharField(max_length=255)
     type = models.CharField(max_length=255)
     value = models.CharField(max_length=255)
@@ -176,6 +273,15 @@ class CustomField(BaseTimeStampedModel):
 
 
 class ChatMessage(models.Model):
+    """
+    Represents a chat message with various actions that can be taken on it.
+
+    Parameters:
+        message_id (str): The unique identifier for the chat message.
+        action (str): The action taken on the message, which can be one of the following: "like", "dislike", "forward", or "reply".
+        action_by (str, optional): The user or entity responsible for taking the action on the message.
+    """
+
     ACTIONS = (
         ("like", "like"),
         ("dislike", "dislike"),
@@ -189,6 +295,44 @@ class ChatMessage(models.Model):
 
 
 class CirclePermission(BaseTimeStampedModel):
+    """
+    Model representing the permissions granted to users within a circle.
+
+    Parameters:
+        - circle: ForeignKey to the Circle model, the circle to which these permissions belong.
+        - user_exit: BooleanField, indicates whether users can exit the circle.
+        - pin_message_id: CharField, the ID of the pinned message in the circle, if any.
+        - pin_message_text: TextField, the text content of the pinned message, if any.
+        - link_expired: BooleanField, indicates if the invite link for the circle has expired.
+        - link_expire_time: DateTimeField, the time when the invite link will expire.
+        - Various integer fields, representing different permissions levels for different actions:
+            - change_circle_info
+            - delete_messages
+            - ban_users
+            - invite_users_via_link
+            - pin_new_messages
+            - create_sub_circles
+            - delete_sub_circles
+            - add_delete_other_admins
+            - add_delete_moderator
+            - add_delete_user
+            - assign_moderator_in_sub_circles
+            - user_join_permissions
+            - post_messages
+            - circle_privacy_change
+            - change_super_admin (Note: this field may have been renamed)
+            - shuffle_circles
+            - archive_admin
+            - archive_moderator
+            - backup_circle
+            - mhl
+            - filter_members
+            - post_level
+            - circle_moderation
+
+        Note: The integer fields represent permission levels, with higher values granting more permissions.
+    """
+
     circle = models.ForeignKey(
         Circle,
         related_name="permissions",
@@ -228,6 +372,17 @@ class CirclePermission(BaseTimeStampedModel):
 
 
 class CircleInvite(models.Model):
+    """
+    Represents a circle invitation instance.
+
+    Attributes:
+        created (datetime): The date and time when the invitation was created.
+        sender (str, optional): The name of the person who sent the invitation. Can be empty.
+        recipient (str, optional): The name of the person who received the invitation. Can be empty.
+        circle (Circle): The circle to which the invitation belongs. Represents a foreign key relationship with the Circle model.
+        joined (bool): Indicates whether the recipient has joined the circle (True) or not (False).
+    """
+
     created = models.DateTimeField(auto_now_add=True)
     sender = models.CharField(max_length=255, null=True, blank=True)
     recipient = models.CharField(max_length=255, null=True, blank=True)

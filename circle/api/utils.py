@@ -13,6 +13,22 @@ from circle.models import CircleInvite
 
 
 def get_circle_by_id(circle_id: int) -> Circle:
+    """
+    Retrieve a Circle object by its ID.
+
+    Parameters:
+        circle_id (int): The ID of the Circle to retrieve.
+
+    Returns:
+        Circle: The Circle object matching the given ID.
+
+    Raises:
+        Circle.DoesNotExist: If no Circle exists with the given ID.
+
+    Note:
+        - This function fetches the Circle object from the database based on its primary key (ID).
+        - If the Circle with the specified ID does not exist, it raises a Circle.DoesNotExist exception.
+    """
     try:
         return Circle.objects.get(pk=circle_id)
     except Circle.DoesNotExist:
@@ -20,6 +36,20 @@ def get_circle_by_id(circle_id: int) -> Circle:
 
 
 def get_level(circle):
+    """
+    Calculate the level of a Circle in the hierarchy.
+
+    Parameters:
+        circle (Circle): The Circle object for which the level needs to be determined.
+
+    Returns:
+        int: The level of the Circle in the hierarchy.
+
+    Note:
+        - The level of a Circle is determined by counting the number of parent Circles in the hierarchy.
+        - If the Circle has no parent (i.e., it is the root of the hierarchy), the level is 0.
+        - If the Circle has one parent, its level is 1, and so on.
+    """
     if circle.parent is None:
         return 0
     parents = Circle.objects.filter(pk=circle.parent.pk) | circle.parent.get_parent_circles()
@@ -27,6 +57,20 @@ def get_level(circle):
 
 
 def get_maximum_level(circle, count):
+    """
+    Calculate the maximum level of the hierarchy from a given Circle.
+
+    Parameters:
+        circle (Circle): The starting Circle from which to calculate the maximum level.
+        count (int): The current count of levels in the hierarchy.
+
+    Returns:
+        int: The maximum level of the hierarchy starting from the given Circle.
+
+    Note:
+        - This function recursively traverses the hierarchy of Circles to find the maximum level.
+        - The count parameter should be passed as 0 when initially calling the function.
+    """
     childs = Circle.objects.filter(parent=circle.id)
     if childs:
         count = count + 1
@@ -36,6 +80,23 @@ def get_maximum_level(circle, count):
 
 
 def get_all_children(circle, include_self):
+    """
+    Get all the children Circles of the given Circle in the hierarchy.
+
+    Parameters:
+        circle (Circle): The Circle object for which to retrieve all children.
+        include_self (bool): Whether to include the given Circle in the result or not.
+                             Default is False.
+
+    Returns:
+        QuerySet: A QuerySet containing all the children Circles of the given Circle.
+
+    Note:
+        - This function performs a recursive SQL query using common table expressions (CTEs)
+          to fetch all the children Circles in the hierarchy of the given Circle.
+        - If 'include_self' is True, the given Circle itself will be included in the result.
+          Otherwise, it will only return its children.
+    """
     query = f"""
         with recursive group_hierarchy (id, name, parent_id) as
         (
@@ -58,6 +119,22 @@ def get_all_children(circle, include_self):
 
 
 def get_children_filters(circle, include_self):
+    """
+    Helper function to build the filters to retrieve children Circles recursively.
+
+    Parameters:
+        circle (Circle): The Circle object for which to retrieve all children.
+        include_self (bool): Whether to include the given Circle in the result or not.
+
+    Returns:
+        Q: A Q object containing the filters to retrieve children Circles.
+
+    Note:
+        - This function is a recursive helper function used by 'get_all_children'.
+        - It builds the filters to fetch children Circles in the hierarchy recursively.
+        - If 'include_self' is True, the given Circle itself will be included in the result.
+          Otherwise, it will only return its children.
+    """
     filters = Q()
     if include_self:
         filters |= Q(pk=circle.pk)
@@ -69,6 +146,20 @@ def get_children_filters(circle, include_self):
 
 
 def logged_user_info(request) -> dict:
+    """
+    Get information about the logged-in user from the request.
+
+    Parameters:
+        request: The HTTP request object.
+
+    Returns:
+        dict: A dictionary containing information about the logged-in user.
+              The dictionary includes the 'id', 'name', and 'jid' (Jabber ID) of the user.
+
+    Note:
+        - The request object is expected to have 'user_id', 'name', and 'jid' attributes
+          that represent the logged-in user's information.
+    """
     return {
         "id": request.user_id,
         "name": request.name,
@@ -77,11 +168,39 @@ def logged_user_info(request) -> dict:
 
 
 def get_total_children_count(circle):
+    """
+    Get the total number of children Circles, including the given Circle, in the hierarchy.
+
+    Parameters:
+        circle (Circle): The Circle object for which to calculate the total children count.
+
+    Returns:
+        int: The total number of children Circles in the hierarchy, including the given Circle.
+
+    Note:
+        - This function uses the 'get_all_children' function to fetch all children Circles
+          in the hierarchy, and then calculates the count.
+        - The given Circle itself is also counted as a child, so the final count is reduced by 1.
+    """
     total_count = get_all_children(circle, include_self=True)
     return len(total_count) - 1
 
 
 def get_circle_users_count(circle):
+    """
+    Get the total count of distinct users associated with the given Circle.
+
+    Parameters:
+        circle (Circle): The Circle object for which to calculate the total user count.
+
+    Returns:
+        int: The total count of distinct users associated with the Circle.
+
+    Note:
+        - This function queries the 'CircleSubscriberRole' model to retrieve all user IDs
+          associated with the given Circle and then counts the distinct user IDs.
+        - The 'Default Admin' role users are excluded from the count.
+    """
     circle_role = (
         CircleSubscriberRole.objects.filter(circle=circle)
         .values_list("user_id", flat=True)
@@ -92,11 +211,33 @@ def get_circle_users_count(circle):
 
 
 def get_sub_circle_count(obj):
+    """
+    Get the count of sub-circles (children) under the given Circle.
+
+    Parameters:
+        obj (Circle): The Circle object for which to calculate the sub-circle count.
+
+    Returns:
+        int: The count of sub-circles (children) under the given Circle.
+    """
     circles = Circle.objects.filter(parent=obj.id)
     return circles.count()
 
 
 def get_gensis_circle_id(instance):
+    """
+    Get the ID of the genesis circle for the given Circle instance.
+
+    Parameters:
+        instance (Circle): The Circle instance for which to get the genesis circle ID.
+
+    Returns:
+        int: The ID of the genesis circle for the given Circle instance.
+
+    Note:
+        - If the given Circle is the root (has no parent), its own ID is returned.
+        - If the given Circle has parents, the ID of the root parent (genesis circle) is returned.
+    """
     if instance.parent is None:
         return instance.id
     parents = Circle.objects.filter(pk=instance.parent.pk) | instance.parent.get_parent_circles()
@@ -108,6 +249,20 @@ def get_gensis_circle_id(instance):
 
 
 def get_hierarchy_status(circle, user_id):
+    """
+    Get the hierarchy status of the given Circle for the specified user.
+
+    Parameters:
+        circle (Circle): The Circle object for which to check the hierarchy status.
+        user_id (int): The ID of the user whose hierarchy status is to be checked.
+
+    Returns:
+        bool: True if the user has hierarchy status in the Circle, False otherwise.
+
+    Note:
+        - The hierarchy status is checked based on whether the user is the root parent or
+          a member of the root parent Circle hierarchy.
+    """
     if not circle.parent:
         return get_hierarchy_status_for_root(circle, user_id)
 
@@ -120,6 +275,22 @@ def get_hierarchy_status(circle, user_id):
 
 
 def get_hierarchy_status_for_root(circle, user_id):
+    """
+    Get the hierarchy status for the specified user in the given Circle, considering the Circle as the root.
+
+    Parameters:
+        circle (Circle): The Circle object for which to check the hierarchy status.
+        user_id (int): The ID of the user whose hierarchy status is to be checked.
+
+    Returns:
+        bool: True if the user has hierarchy status in the Circle, False otherwise.
+
+    Note:
+        - The function checks whether the user is the chief admin of the given Circle or any of its sub-circles.
+        - If the Circle has sub-circles, it checks if the user is the chief admin of all sub-circles.
+        - If the Circle has multiple owners, it checks if the user is the chief admin of any sub-circle with the same owner.
+        - If the Circle is the root and has no sub-circles, it returns False.
+    """
     admin = CircleSubscriberRole.objects.filter(circle=circle, user_id=user_id)
     chief_admin = admin[0].role.role if admin else ""
     childrens = get_all_children(circle, include_self=True)
@@ -155,6 +326,21 @@ def get_hierarchy_status_for_root(circle, user_id):
 
 
 def get_hierarchy_status_for_non_root(circle, root_parent, user_id):
+    """
+    Get the hierarchy status for the specified user in the given Circle, considering the Circle as a non-root circle.
+
+    Parameters:
+        circle (Circle): The Circle object for which to check the hierarchy status.
+        root_parent (Circle): The root parent Circle object of the given Circle.
+        user_id (int): The ID of the user whose hierarchy status is to be checked.
+
+    Returns:
+        bool: True if the user has hierarchy status in the Circle, False otherwise.
+
+    Note:
+        - The function checks whether the user is the owner of the Circle or any of its sibling Circles with the same owner.
+        - If the Circle has multiple owners, it checks if the user is the owner of any sibling Circle with the same owner.
+    """
     childrens = get_all_children(root_parent, include_self=True)
     if len(childrens) >= 1:
         hierarchy = [
@@ -168,6 +354,20 @@ def get_hierarchy_status_for_non_root(circle, root_parent, user_id):
 
 
 def update_parent_hierarchy(parent, hierarchy: bool = False):
+    """
+    Update the hierarchy status and other related attributes for the parent Circle.
+
+    Parameters:
+        parent (Circle): The parent Circle object to update.
+        hierarchy (bool, optional): The hierarchy status to set for the parent Circle. If not provided, the hierarchy
+                                    status is determined based on the Circle's owner's hierarchy status.
+
+    Note:
+        - The function updates the hierarchy status and other attributes like sub_circle_count and total_children_count
+          for the parent Circle.
+        - If the 'hierarchy' parameter is not provided, the function calculates the hierarchy status based on the
+          parent Circle's owner's hierarchy status.
+    """
     if parent:
         parent.hierarchy = hierarchy if hierarchy else get_hierarchy_status(parent, parent.owner_id)
         parent.sub_circle_count = get_sub_circle_count(parent)
@@ -176,6 +376,21 @@ def update_parent_hierarchy(parent, hierarchy: bool = False):
 
 
 def circle_properties_update(instance, hierarchy: bool = False):
+    """
+    Update the properties of the Circle instance.
+
+    Parameters:
+        instance (Circle): The Circle instance to update.
+        hierarchy (bool, optional): The hierarchy status to set for the Circle. If not provided, the hierarchy status is
+                                    determined based on the Circle's owner's hierarchy status.
+
+    Note:
+        - The function updates various properties of the Circle instance, including 'gensis_circle_id', 'hierarchy',
+          'subcircle_count', 'total_children_count', and 'circle_users_count'.
+        - If the 'hierarchy' parameter is not provided, the function calculates the hierarchy status based on the
+          Circle's owner's hierarchy status.
+        - Additionally, the function updates the parent Circle's hierarchy status using 'update_parent_hierarchy'.
+    """
     instance.gensis_circle_id = get_gensis_circle_id(instance)
     instance.hierarchy = get_hierarchy_status(instance, instance.owner_id)
     instance.subcircle_count = get_sub_circle_count(instance)
@@ -186,6 +401,19 @@ def circle_properties_update(instance, hierarchy: bool = False):
 
 
 def s3_url_extract(url):
+    """
+    Extract the correct S3 URL from the given URL.
+
+    Parameters:
+       url (str): The URL to extract the S3 URL from.
+
+    Returns:
+       str: The correct S3 URL based on the given URL.
+
+    Note:
+       - The function checks the provided URL for specific substrings to determine the correct S3 URL and returns it.
+       - If none of the expected substrings are found, the function returns the default S3 URL: "https://media.aapoon.com".
+    """
     if "socialchain-dev" in url or "mediadev" in url:
         return "https://mediadev.aapoon.com"
     elif "socialchain-prod" in url or "media.aapoon.com" in url:
@@ -195,6 +423,21 @@ def s3_url_extract(url):
 
 
 def clear_bucket_from_path(path):
+    """
+    Clear the bucket name from the given S3 path.
+
+    Parameters:
+        path (str): The S3 path to clear the bucket name from.
+
+    Returns:
+        str: The S3 path without the bucket name.
+
+    Note:
+        - The function checks the provided path for specific substrings indicating the bucket name and removes it.
+        - If the path contains either "/socialchain-dev" or "/socialchain-prod", the function removes that part from
+          the path and returns the updated path.
+        - If none of the expected substrings are found, the function returns the original path as-is.
+    """
     if "socialchain-dev" in path:
         path = path.replace("/socialchain-dev", "")
         return path
@@ -206,6 +449,20 @@ def clear_bucket_from_path(path):
 
 
 def abuse_mail_msg(msg):
+    """
+    Send an email reporting message abuse.
+
+    Parameters:
+        msg (dict): The message data containing "message_ids".
+
+    Note:
+        - The function sends an email reporting message abuse to the specified email address.
+        - The email includes the content of the message identified by "message_ids" in the email body.
+        - The email is sent from "support@aapoon.net" to "support@aapoon.net".
+        - The email content is rendered using the template "config/email/message_abuse.html".
+        - The email is sent using the "send_mail" function with "utf-8" charset.
+        - Any failure during sending the email will not raise an exception due to "fail_silently=True".
+    """
     subject = "Report Message Abuse"
     from_email = "support@aapoon.net"
     toemail = "support@aapoon.net"
@@ -227,6 +484,23 @@ def abuse_mail_msg(msg):
 
 
 class GenericPagination(pagination.PageNumberPagination):
+    """
+    Custom pagination class to modify the behavior of paginated responses.
+
+    Attributes:
+        page_size (int): Number of items to display per page. Default is 20.
+        page_size_query_param (str): The query parameter name to control the page size. Default is "page_size".
+
+    Methods:
+        get_paginated_response(data): Generate the paginated response with additional data.
+
+    Note:
+        - This class extends the Django REST Framework's PageNumberPagination class to customize the pagination.
+        - The page_size attribute controls the default number of items to display per page.
+        - The page_size_query_param attribute specifies the query parameter name to control the page size through
+          the request URL.
+    """
+
     page_size = 20
     page_size_query_param = "page_size"
 
@@ -254,6 +528,20 @@ class GenericPagination(pagination.PageNumberPagination):
 
 
 class CircleInvitePagination(pagination.PageNumberPagination):
+    """
+    Custom pagination class to modify the behavior of paginated responses for circle invites.
+
+    Attributes:
+        page_size (int): Number of items to display per page. Default is 20.
+
+    Methods:
+        get_paginated_response(data): Generate the paginated response with additional data.
+
+    Note:
+        - This class extends the Django REST Framework's PageNumberPagination class to customize the pagination.
+        - The page_size attribute controls the default number of items to display per page.
+    """
+
     page_size = 20
 
     def get_paginated_response(self, data):
