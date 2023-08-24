@@ -457,6 +457,8 @@ class CircleListSerializer(BaseCircleSerializer):
             "circle_users_count",
             "topic",
             "created_by",
+            "created_at",
+            "updated_at",
         )
         extra_kwargs = {
             "id": {"read_only": True},
