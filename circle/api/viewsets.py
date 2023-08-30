@@ -50,6 +50,7 @@ from circle.api.utils import (
     get_circle_by_id,
     get_gensis_circle_id,
     update_parent_hierarchy,
+    get_hierarchy_status,
 )
 from circle.api.mixins import BulkCreateCircleInviteMixin
 from circle.helpers.ejjaberd import (
@@ -1186,6 +1187,7 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
                     self.validate_circle_hierarchy(logged_user, user, role, circle)
                     circle_service.validate_circle_add_user(request, user, role, circle)
                     circle_service.circle_add_user(circle, user, role)
+                    self.validate_transferred_circle_hierarchy(circle, user, role)
                     self.circle_add_default_admin(circle, user, role)
                     self.circle_remove_default_admin(circle, user, role)
 
@@ -1201,6 +1203,7 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
                     self.validate_circle_hierarchy(logged_user, user, role, circle)
                     circle_service.validate_circle_add_user(request, user, role, circle)
                     circle_service.circle_add_user(circle, user, role)
+                    self.validate_transferred_circle_hierarchy(circle, user, role)
                     self.circle_add_default_admin(circle, user, role)
                     self.circle_remove_default_admin(circle, user, role)
 
@@ -1234,6 +1237,23 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
             if subscriber and role == member and circle.hierarchy:
                 circle.hierarchy = False
                 circle.save()
+
+    def validate_transferred_circle_hierarchy(self, circle, user, role):
+        """
+        Validate and update the hierarchy status of a transferred circle based on the new Chief Admin.
+
+        Args:
+            circle (Circle): The Circle instance being transferred.
+            user (dict): The user dictionary containing user information.
+            role (CircleRole): The role of the user in the circle.
+
+        Returns:
+            None:
+        """
+        chief_admin = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
+        if role == chief_admin:
+            circle.hierarchy = get_hierarchy_status(circle, user["id"])
+            circle.save()
 
     def circle_add_default_admin(self, circle, user, role):
         """
