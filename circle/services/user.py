@@ -93,6 +93,7 @@ class User:
         Note:
             - If either phone_number or country_code is not provided, the user details will not be fetched, and an empty dictionary will be returned.
         """
+
         request_data: dict = {
             "phone_number": phone_number,
             "country_code": country_code,
@@ -184,8 +185,7 @@ def user_notify_chat(
             headers=headers,
         )
         response.raise_for_status()
-        result = response.json
+        result = response.json()
     except (requests.exceptions.RequestException, requests.exceptions.HTTPError):
         result = {}
-    finally:
-        return result
+    return result

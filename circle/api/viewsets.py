@@ -576,7 +576,7 @@ class CircleViewSet(BaseCircleViewSet):
             Response: A response containing the serialized data of the retrieved circle.
         """
         try:
-            circle = self.get_circle_by_id(kwargs.get("pk", None))
+            circle = self.get_circle_by_id(kwargs.get("pk"))
         except Circle.DoesNotExist:
             return Response({"detail": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST)
         serializer = CircleSerializer(circle, context={"request": request})
@@ -603,7 +603,7 @@ class CircleViewSet(BaseCircleViewSet):
         """
 
         try:
-            circle = self.get_circle_by_id(kwargs.get("pk", None))
+            circle = self.get_circle_by_id(kwargs.get("pk"))
         except Circle.DoesNotExist:
             return Response({"detail": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST)
         serializer = CircleUpdateSerializer(circle, context={"request": request}, data=request.data)

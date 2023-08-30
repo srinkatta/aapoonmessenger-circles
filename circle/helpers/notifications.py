@@ -1,5 +1,7 @@
+import os
 import re
 import uuid
+import phonenumbers
 from typing import Dict
 
 from pyfcm import FCMNotification
@@ -8,6 +10,96 @@ from circle.models import Circle
 from circle.services.user import User
 from circle_service import settings
 from loguru import logger
+
+
+def get_notification_message(name):
+    message_value_dict = {
+        "-6": "%s has replied to a message" % name,
+        "-1": "%s has forwarded a message" % name,
+        "-3": "%s has liked a message" % name,
+        "-4": "%s has disliked a message" % name,
+        "2": "Image",
+        "3": "Video",
+        "4": "Audio",
+        "5": "Document",
+        "11": "Contact",
+    }
+    return message_value_dict
+
+
+def process_xml_content(xml, c):
+    media = re.findall(
+        r'<MEDIA (\S+)=[""]?((?:.(?![""]?\s+(?:\S+)=|\s*\/?[>""]))+.)[""]?>',
+        xml,
+    )
+    commandaction = re.findall(
+        r'<COMMANDACTION (\S+)=[""]?((?:.(?![""]?\s+(?:\S+)=|\s*\/?[>""]))+.)[""]?>',
+        xml,
+    )
+    if media:
+        if media[0][0] == "xmlns" and media[0][1] == "'urn:xmpp:media'":
+            xml = xml.replace("<body>!~~!</body>", "<body>Media</body>")
+            thumbnail = xml.find("<Thumbnail>")
+            if thumbnail > 0:
+                start_index = thumbnail + len("<Thumbnail>")
+                end_index = xml.find("</Thumbnail>")
+                thumbnail_content = xml[start_index:end_index]
+                xml = xml.replace(thumbnail_content, "")
+    if commandaction and c == "11":
+        if commandaction[0][0] == "xmlns" and commandaction[0][1] == "'urn:xmpp:commandaction'":
+            xml = xml.replace("<body>!~~!</body>", "<body>Contact</body>")
+            commandmessage = xml.find("<CommandMessage>")
+            if commandmessage > 0:
+                start_index = commandmessage + len("<CommandMessage>")
+                end_index = xml.find("</CommandMessage>")
+                actual_content = xml[start_index:end_index]
+                updated_content = actual_content.replace("&quot;", '"')
+                xml = xml.replace(actual_content, updated_content)
+
+    return xml
+
+
+def send_ios_notification(ios_topic_name, title, message, xml):
+    # Build the data payload for iOS notification
+    data = {
+        "delivery_receipt_requested": True,
+        "score": "Circle Notification",
+        "notification": {"xml": xml, "title": ios_topic_name, "body": message},
+        "message_id": str(uuid.uuid4()),
+        "to": "/topics/" + ios_topic_name,
+        "priority": "high",
+        "content_available": True,
+    }
+
+    # Send the iOS notification
+    push_service = FCMNotification(api_key=settings.FCM_API_KEY)
+    ios_result = push_service.notify_topic_subscribers(
+        topic_name=ios_topic_name,
+        message_body=message,
+        message_title=title,
+        content_available=True,
+        delay_while_idle=False,
+        badge=0,
+        time_to_live=86400,
+        low_priority=False,
+        data_message=data,
+        extra_kwargs={"mutable_content": True},
+    )
+    print(data)
+    return ios_result
+
+
+
+def send_android_notification(android_topic_name, title, message):
+    data_message = {"Nick": title, "body": message, "priority": "high"}
+    print(data_message)
+
+    # Send the Android notification
+    push_service = FCMNotification(api_key=settings.FCM_API_KEY)
+    android_result = push_service.notify_topic_subscribers(
+        topic_name=android_topic_name, data_message=data_message
+    )
+    return android_result
 
 
 def app_notification(topic_name, message_from, message, xml):
@@ -26,13 +118,10 @@ def app_notification(topic_name, message_from, message, xml):
     Raises:
        Exception: If an error occurs during the notification process.
     """
-    import os
-
     print("basename:    ", os.path.basename(__file__))
     print("dir_name:     ", os.path.dirname(__file__))
     print("Circle Notification")
     circle = Circle.objects.get(room_id=topic_name)
-    import phonenumbers
 
     phone = phonenumbers.parse(f"+{message_from}", None)
 
@@ -46,7 +135,6 @@ def app_notification(topic_name, message_from, message, xml):
         return
 
     title = from_user["name"] + " " + "in" + " " + '"' + circle.name + '"'
-    data_message = {"Nick": title, "body": message, "priority": "high"}
     try:
         permission = circle.permissions.get()
     except Exception as exc:
@@ -58,22 +146,12 @@ def app_notification(topic_name, message_from, message, xml):
         ios_topic_name = topic_name + "-" + "moderation" + "-" + "ios"
     else:
         ios_topic_name = topic_name + "-" + "ios"
-    to = "/topics/" + ios_topic_name
+    android_topic_name = topic_name + "-" + "android"
 
     body = re.findall(r"<body>(.*?)</body>", xml)
     if body:
         name = from_user["name"]
-        message_value_dict = {
-            "-6": "%s has replied to a message" % name,
-            "-1": "%s has forwarded a message" % name,
-            "-3": "%s has liked a message" % name,
-            "-4": "%s has disliked a message" % name,
-            "2": "Image",
-            "3": "Video",
-            "4": "Audio",
-            "5": "Document",
-            "11": "Contact",
-        }
+        message_value_dict = get_notification_message(name)
         a = xml.find("<Bubble>") + len("<Bubble>")
         b = xml.find("</Bubble>")
         c = xml[a:b]
@@ -83,70 +161,18 @@ def app_notification(topic_name, message_from, message, xml):
                 message = message_value_dict[c]
             except BaseException:
                 pass
-            media = re.findall(
-                r'<MEDIA (\S+)=[""]?((?:.(?![""]?\s+(?:\S+)=|\s*\/?[>""]))+.)[""]?>',
-                xml,
-            )
-            commandaction = re.findall(
-                r'<COMMANDACTION (\S+)=[""]?((?:.(?![""]?\s+(?:\S+)=|\s*\/?[>""]))+.)[""]?>',
-                xml,
-            )
-            if media:
-                if media[0][0] == "xmlns" and media[0][1] == "'urn:xmpp:media'":
-                    xml = xml.replace("<body>!~~!</body>", "<body>Media</body>")
-                    thumbnail = xml.find("<Thumbnail>")
-                    if thumbnail > 0:
-                        start_index = thumbnail + len("<Thumbnail>")
-                        end_index = xml.find("</Thumbnail>")
-                        thumbnail_content = xml[start_index:end_index]
-                        xml = xml.replace(thumbnail_content, "")
-            if commandaction and c == "11":
-                if (
-                    commandaction[0][0] == "xmlns"
-                    and commandaction[0][1] == "'urn:xmpp:commandaction'"
-                ):
-                    xml = xml.replace("<body>!~~!</body>", "<body>Contact</body>")
-                    commandmessage = xml.find("<CommandMessage>")
-                    if commandmessage > 0:
-                        start_index = commandmessage + len("<CommandMessage>")
-                        end_index = xml.find("</CommandMessage>")
-                        actual_content = xml[start_index:end_index]
-                        updated_content = actual_content.replace("&quot;", '"')
-                        xml = xml.replace(actual_content, updated_content)
-            data = {
-                "delivery_receipt_requested": True,
-                "score": "Circle Notification",
-                "notification": {"xml": xml, "title": ios_topic_name, "body": message},
-                "message_id": str(uuid.uuid4()),
-                "to": to,
-                "priority": "high",
-                "content_available": True,
-            }
-            push_service = FCMNotification(api_key=settings.FCM_API_KEY)
-            ios_result = push_service.notify_topic_subscribers(
-                topic_name=ios_topic_name,
-                message_body=message,
-                message_title=title,
-                content_available=True,
-                delay_while_idle=False,
-                badge=0,
-                time_to_live=86400,
-                low_priority=False,
-                data_message=data,
-                extra_kwargs={"mutable_content": True},
-            )
 
+            process_xml_content(xml, c)
+
+            # Send iOS notification
+            ios_result = send_ios_notification(ios_topic_name, title, message, xml)
             print("ios")
-            print(data)
             print(ios_result)
             logger.info(f"ios result: , {ios_result}")
-            android_topic_name = topic_name + "-" + "android"
-            print(android_topic_name)
-            android_result = push_service.notify_topic_subscribers(
-                topic_name=android_topic_name, data_message=data_message
-            )
+
+            # Send Android notification
+            android_result = send_android_notification(android_topic_name, title, message)
             print("android")
-            print(data_message)
             print(android_result)
             logger.info(f"Android result: , {android_result}")
             print("Result for Circle")
