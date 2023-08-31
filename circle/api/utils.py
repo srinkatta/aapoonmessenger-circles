@@ -505,22 +505,29 @@ class GenericPagination(pagination.PageNumberPagination):
     page_size_query_param = "page_size"
 
     def get_paginated_response(self, data):
+        """
+        Customize the structure and content of the paginated response.
+
+        Args:
+            data: The paginated data.
+
+        Returns:
+            Response: A Response object containing metadata and the paginated data.
+        """
+        next_link = self.get_next_link() or None
+        if next_link and "https" not in next_link:
+            next_link = self.get_next_link().replace("http", "https")
+
+        previous_link = self.get_next_link() or None
+        if previous_link and "https" not in previous_link:
+            previous_link = self.get_previous_link().replace("http", "https")
+
         return Response(
             OrderedDict(
                 [
                     ("count", self.page.paginator.count),
-                    (
-                        "next",
-                        self.get_next_link().replace("http", "https")
-                        if self.get_next_link()
-                        else None,
-                    ),
-                    (
-                        "previous",
-                        self.get_previous_link().replace("http", "https")
-                        if self.get_previous_link()
-                        else None,
-                    ),
+                    ("next", next_link),
+                    ("previous", previous_link),
                     ("results", data),
                 ]
             )
@@ -545,6 +552,14 @@ class CircleInvitePagination(pagination.PageNumberPagination):
     page_size = 20
 
     def get_paginated_response(self, data):
+        next_link = self.get_next_link() or None
+        if next_link and "https" not in next_link:
+            next_link = self.get_next_link().replace("http", "https")
+
+        previous_link = self.get_next_link() or None
+        if previous_link and "https" not in previous_link:
+            previous_link = self.get_previous_link().replace("http", "https")
+
         params = self.request.GET
         user_info = logged_user_info(self.request)
         user_info = user_info["id"]
@@ -567,22 +582,13 @@ class CircleInvitePagination(pagination.PageNumberPagination):
                 )
             joined = joined.count() if joined else 0
             pending = pending.count() if pending else 0
+
             return Response(
                 OrderedDict(
                     [
                         ("count", self.page.paginator.count),
-                        (
-                            "next",
-                            self.get_next_link().replace("http", "https")
-                            if self.get_next_link()
-                            else None,
-                        ),
-                        (
-                            "previous",
-                            self.get_previous_link().replace("http", "https")
-                            if self.get_previous_link()
-                            else None,
-                        ),
+                        ("next", next_link),
+                        ("previous", previous_link),
                         ("joined", joined),
                         ("pending", pending),
                         ("results", data),
@@ -594,18 +600,8 @@ class CircleInvitePagination(pagination.PageNumberPagination):
                 OrderedDict(
                     [
                         ("count", self.page.paginator.count),
-                        (
-                            "next",
-                            self.get_next_link().replace("http", "https")
-                            if self.get_next_link()
-                            else None,
-                        ),
-                        (
-                            "previous",
-                            self.get_previous_link().replace("http", "https")
-                            if self.get_previous_link()
-                            else None,
-                        ),
+                        ("next", next_link),
+                        ("previous", previous_link),
                         ("results", data),
                     ]
                 )
