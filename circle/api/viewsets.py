@@ -355,6 +355,11 @@ class CircleViewSet(BaseCircleViewSet):
         if circle_users >= 1:
             CircleSubscriberRole.objects.filter(user_id__in=user_ids, circle=circle).delete()
             for user in user_ids:
+                # delete invitation from circle
+                CircleInvite.objects.filter(
+                    Q(sender=user) | Q(recipient=user),
+                    circle=circle,
+                ).delete()
                 user_service = User()
                 logger.info(f"user_id: {user}")
                 user = user_service.details(user_id=user)
