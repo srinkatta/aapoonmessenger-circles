@@ -10,6 +10,7 @@ from rest_framework.response import Response
 
 from circle.models import Circle, CircleSubscriberRole
 from circle.models import CircleInvite
+from django.conf import settings
 
 
 def get_circle_by_id(circle_id: int) -> Circle:
@@ -414,12 +415,9 @@ def s3_url_extract(url):
        - The function checks the provided URL for specific substrings to determine the correct S3 URL and returns it.
        - If none of the expected substrings are found, the function returns the default S3 URL: "https://media.aapoon.com".
     """
-    if "socialchain-dev" in url or "mediadev" in url:
-        return "https://mediadev.aapoon.com"
-    elif "socialchain-prod" in url or "media.aapoon.com" in url:
-        return "https://media.aapoon.com"
-    else:
-        return "https://media.aapoon.com"
+    if settings.AWS_S3_BUCKET_NAME in url or settings.AWS_CDN_DOMAIN in url:
+        return f"https://{settings.AWS_CDN_DOMAIN}.{settings.HOST_DOMAIN}"
+    return f"https://{settings.AWS_CDN_DOMAIN}.{settings.HOST_DOMAIN}"
 
 
 def clear_bucket_from_path(path):
@@ -438,14 +436,9 @@ def clear_bucket_from_path(path):
           the path and returns the updated path.
         - If none of the expected substrings are found, the function returns the original path as-is.
     """
-    if "socialchain-dev" in path:
-        path = path.replace("/socialchain-dev", "")
-        return path
-    elif "socialchain-prod" in path:
-        path = path.replace("/socialchain-prod", "")
-        return path
-    else:
-        return path
+    if settings.AWS_S3_BUCKET_NAME in path:
+        return path.replace(f"/{settings.AWS_S3_BUCKET_NAME}", "")
+    return path
 
 
 def abuse_mail_msg(msg):

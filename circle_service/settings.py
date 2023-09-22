@@ -61,7 +61,7 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "circle_service.urls"
 
-CSRF_TRUSTED_ORIGINS = ["https://dev.aapoon.com", "http://localhost:3000"]
+CSRF_TRUSTED_ORIGINS = os.environ["CSRF_TRUSTED_ORIGINS"]
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
@@ -94,7 +94,7 @@ WSGI_APPLICATION = "circle_service.wsgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": 'django.db.backends.postgresql',
+        "ENGINE": "django.db.backends.postgresql",
         "NAME": os.environ["DB_NAME"],
         "USER": os.environ["DB_USER"],
         "PASSWORD": os.environ["DB_PASSWORD"],
@@ -202,6 +202,10 @@ S3_AWS_SECRET_ACCESS_KEY = os.environ["S3_MEDIA_AWS_SECRET_ACCESS_KEY"]
 AWS_S3_ACL = os.environ["AWS_S3_ACL"]
 AWS_S3_BUCKET_NAME = os.environ["AWS_S3_BUCKET_NAME"]
 CHAT_VIDEO_BUCKET = os.environ["CHAT_VIDEO_BUCKET"]
+
+AWS_CDN_DOMAIN = os.environ["AWS_CDN_DOMAIN"]
+
+HOST_DOMAIN = os.environ["HOST_DOMAIN"]
 
 # Email Config
 DEFAULT_FROM_EMAIL = "support@aapoon.net"
