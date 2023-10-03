@@ -27,7 +27,7 @@ NOTE: Make sure this(SECRET) is same as user microservice otherwise authenticati
 SECRET_KEY = os.environ.get("SECRET")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ["*"]
 
@@ -62,6 +62,7 @@ MIDDLEWARE = [
 ROOT_URLCONF = "circle_service.urls"
 
 CSRF_TRUSTED_ORIGINS = os.environ["CSRF_TRUSTED_ORIGINS"]
+
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
@@ -120,7 +121,7 @@ DATABASES = {
 }
 
 
-# DATABASE_ROUTERS = ["circle_service.db_routers.MasterSlaveRouter"]
+DATABASE_ROUTERS = ["circle_service.db_routers.MasterSlaveRouter"]
 
 # Password validation
 # https://docs.djangoproject.com/en/4.1/ref/settings/#auth-password-validators
