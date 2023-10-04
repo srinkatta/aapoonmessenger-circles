@@ -459,17 +459,19 @@ class NotifyRedirectViewSet(APIView):
         xml = request.data.get("xml")
         vhost = request.data.get("vhost")
 
-        if "vhost" in request.data:
-            if request.data["vhost"] == settings.XMPP_HOST:
-                user_notify_chat(message, message_from, to, xml, vhost)
+        if vhost == settings.XMPP_HOST:
+            user_notify_chat(message, message_from, to, xml, vhost)
 
-            if request.data["vhost"] == "conference" + "." + settings.XMPP_HOST:
-                topic_name = request.data.get("to")
-                t = threading.Thread(
-                    target=app_notification,
-                    args=(topic_name, message_from, message, xml),
-                )
-                t.start()
+        elif vhost == "conference" + "." + settings.XMPP_HOST:
+            topic_name = request.data.get("to")
+            t = threading.Thread(
+                target=app_notification,
+                args=(topic_name, message_from, message, xml),
+            )
+            t.start()
+        else:
+            return Response({"message": "Invalid vhost."}, status=status.HTTP_400_BAD_REQUEST)
+
         return Response({"message": "Notification sent."}, status=200)
 
 

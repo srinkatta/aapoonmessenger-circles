@@ -58,6 +58,7 @@ from circle.helpers.ejjaberd import (
     destroy_room,
     member_xmpp_room_subscribe,
     member_xmpp_room_unsubscribe,
+    member_unsubcribe_topic,
 )
 from circle.middleware.permissions import Authenticate
 from circle.models import (
@@ -356,6 +357,11 @@ class CircleViewSet(BaseCircleViewSet):
         if circle_users >= 1:
             CircleSubscriberRole.objects.filter(user_id__in=user_ids, circle=circle).delete()
             for user in user_ids:
+                # delete invitation from circle
+                CircleInvite.objects.filter(
+                    Q(sender=user) | Q(recipient=user),
+                    circle=circle,
+                ).delete()
                 user_service = User()
                 logger.info(f"user_id: {user}")
                 user = user_service.details(user_id=user)
@@ -364,6 +370,7 @@ class CircleViewSet(BaseCircleViewSet):
                     logger.error(f"No User exists with the given user_id")
                 else:
                     member_xmpp_room_unsubscribe(user["jid"], circle.room_id)
+                    member_unsubcribe_topic(tokens=[user.get("fcm_token")], topic=circle.room_id)
 
     @extend_schema(
         parameters=[
@@ -1322,6 +1329,9 @@ class CircleSubscriberRoleViewSet(BaseCircleViewSet):
                     )
                     if subscriber:
                         member_xmpp_room_unsubscribe(user_jid=user["jid"], room_id=child.room_id)
+                        member_unsubcribe_topic(
+                            tokens=[user.get("fcm_token")], topic=circle.room_id
+                        )
                         subscriber.delete()
 
 
