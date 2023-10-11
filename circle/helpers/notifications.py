@@ -18,6 +18,7 @@ def get_notification_message(name):
         "-1": "%s has forwarded a message" % name,
         "-3": "%s has liked a message" % name,
         "-4": "%s has disliked a message" % name,
+        "1": "Text",
         "2": "Image",
         "3": "Video",
         "4": "Audio",
@@ -89,7 +90,6 @@ def send_ios_notification(ios_topic_name, title, message, xml):
     return ios_result
 
 
-
 def send_android_notification(android_topic_name, title, message):
     data_message = {"Nick": title, "body": message, "priority": "high"}
     print(data_message)
@@ -158,7 +158,8 @@ def app_notification(topic_name, message_from, message, xml):
         no_info_messages = ["-1", "-3", "-4"]
         if body and "-" not in c:
             try:
-                message = message_value_dict[c]
+                message_value = message_value_dict[c]
+                message = body if message_value == "Text" else message_value
             except BaseException:
                 pass
 
