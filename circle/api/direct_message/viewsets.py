@@ -82,6 +82,11 @@ class XMPPMessageViewSet(viewsets.ModelViewSet):
         message_id = request.data["message_id"]
         action = request.data["action"]
         actions = ["like", "dislike"]
+        if not message_id or not action:
+            return Response(
+                {"detail": "Both 'message_id' and 'action' are required and cannot be empty."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         is_exists = True
         if action in actions:
             chat_messages = ChatMessage.objects.filter(
@@ -111,8 +116,7 @@ class XMPPMessageViewSet(viewsets.ModelViewSet):
             return Response(
                 {
                     "success": False,
-                    "message": "The fields message_id, action, action must make a unique set for like, dislike and "
-                    "forward.",
+                    "message": "Action Like/Dislike has been revoked.",
                 }
             )
 
