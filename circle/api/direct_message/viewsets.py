@@ -104,18 +104,18 @@ class XMPPMessageViewSet(viewsets.ModelViewSet):
             print(serializer.initial_data)
             try:
                 serializer.save()
-                return Response({"success": True, "message": "Message stored successfully"})
+                return Response({"status": True, "message": "Message stored successfully"})
             except Exception as e:
                 return Response(
                     {
-                        "success": False,
+                        "status": False,
                         "message": "Error occurred while saving the message {}".format(e),
                     }
                 )
         else:
             return Response(
                 {
-                    "success": False,
+                    "status": False,
                     "message": "Action Like/Dislike has been revoked.",
                 }
             )
