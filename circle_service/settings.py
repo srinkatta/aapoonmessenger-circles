@@ -212,9 +212,18 @@ HOST_DOMAIN = os.environ["HOST_DOMAIN"]
 DEFAULT_FROM_EMAIL = "support@aapoon.net"
 SUPPORT_EMAIL = "support@aapoon.net"
 
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+# EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_BACKEND = "postmarker.django.EmailBackend"
 EMAIL_HOST = os.environ["EMAIL_HOST"]
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.environ["EMAIL_HOST_USER"]
 EMAIL_HOST_PASSWORD = os.environ["EMAIL_HOST_PASSWORD"]
+
+# postmark
+POSTMARK_SERVER_TOKEN = os.environ["POSTMARK_SERVER_TOKEN"]
+POSTMARK = {
+    "TOKEN": POSTMARK_SERVER_TOKEN,
+    "TEST_MODE": False,
+    "VERBOSITY": 0,
+}
