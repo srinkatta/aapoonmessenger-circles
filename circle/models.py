@@ -106,6 +106,9 @@ class Circle(BaseTimeStampedModel):
     )
     topic = models.ManyToManyField(Topic, blank=True)
 
+    class MPTTMeta:
+        order_insertion_by = ["name"]
+
     def __str__(self):
         return f"ID: {self.id}, Name: {self.name}"
 
