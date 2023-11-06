@@ -2,7 +2,7 @@ import json
 import uuid
 
 from django.db import models
-from mptt.models import TreeForeignKey
+from mptt.models import TreeForeignKey, MPTTModel
 from common.models import BaseTimeStampedModel
 
 
@@ -37,7 +37,7 @@ class Topic(BaseTimeStampedModel):
         return f"ID: {self.id} Name: {self.name}"
 
 
-class Circle(BaseTimeStampedModel):
+class Circle(BaseTimeStampedModel, MPTTModel):
     """
     Circle model represents a community or group of members united by a common interest or purpose.
 
@@ -107,6 +107,7 @@ class Circle(BaseTimeStampedModel):
     topic = models.ManyToManyField(Topic, blank=True)
 
     class MPTTMeta:
+        level_attr = "mptt_level"
         order_insertion_by = ["name"]
 
     def __str__(self):
