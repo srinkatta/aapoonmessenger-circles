@@ -188,12 +188,14 @@ class BaseCircleSerializer(BaseSerializer):
         super(BaseCircleSerializer, self).__init__(*args, **kwargs)
 
     def __get_circle_permission(self, circle):
-        self.permission = circle.permissions.filter().first()
+        self.permission = circle.permissions.filter().select_related("circle").first()
 
     def __get_circle_role(self, circle, user_id):
-        self.circle_role = CircleSubscriberRole.objects.filter(
-            circle=circle, user_id=user_id
-        ).first()
+        self.circle_role = (
+            CircleSubscriberRole.objects.filter(circle=circle, user_id=user_id)
+            .select_related("circle")
+            .first()
+        )
 
     def get_role(self, circle):
         user_id = self.context["request"].user_id
@@ -773,8 +775,7 @@ class CircleHierarchySerializer(CircleListSerializer):
         )
 
     def get_sub_circle_count(self, circle):
-        circles = Circle.objects.filter(parent=circle.id)
-        return circles.count()
+        return circle.sub_circle_count
 
     def get_gensis_circle_id(self, circle):
         if not circle.parent:

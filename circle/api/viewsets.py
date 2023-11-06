@@ -410,10 +410,13 @@ class CircleViewSet(BaseCircleViewSet):
             circles = self.circle_name_search(request)
 
         else:
-            final_circles = CircleSubscriberRole.objects.filter(user_id=request.user_id)
+            final_circles = (
+                CircleSubscriberRole.objects.filter(user_id=request.user_id)
+                .select_related("circle")
+                .values_list("circle__id", flat=True)
+            )
 
-            circles = [circle.circle.id for circle in final_circles]
-            circles = Circle.objects.filter(id__in=circles)
+            circles = Circle.objects.filter(id__in=final_circles).select_related("parent")
 
         queryset = circles.order_by("-id")
         page = self.paginate_queryset(queryset)
@@ -483,11 +486,14 @@ class CircleViewSet(BaseCircleViewSet):
         """
         name = request.GET["name"]
         name = name.lower()
-        final_circles = CircleSubscriberRole.objects.filter(user_id=request.user_id)
 
-        circles = [circle.circle.id for circle in final_circles]
-        circles = Circle.objects.filter(id__in=circles)
+        final_circles = (
+            CircleSubscriberRole.objects.filter(user_id=request.user_id)
+            .select_related("circle")
+            .values_list("circle__id", flat=True)
+        )
 
+        circles = Circle.objects.filter(id__in=final_circles)
         qs = circles.annotate(name_lower=Lower("name"))
         circles = qs.filter(name_lower__icontains=name)
         return circles
