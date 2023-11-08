@@ -409,6 +409,18 @@ class CircleViewSet(BaseCircleViewSet):
         elif "name" in request.GET:
             circles = self.circle_name_search(request)
 
+        elif "site" in request.GET:
+            chief_admin = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
+            final_circles = CircleSubscriberRole.objects.filter(user_id=request.user_id)
+
+            circles = [
+                circle.circle.id
+                for circle in final_circles
+                if not (circle.circle.parent is not None and circle.role == chief_admin)
+            ]
+
+            circles = Circle.objects.filter(id__in=circles)
+
         else:
             final_circles = CircleSubscriberRole.objects.filter(user_id=request.user_id)
 
@@ -963,15 +975,12 @@ class CircleViewSet(BaseCircleViewSet):
             Response: A paginated response containing the serialized data of the associated circles.
         """
         role = request.GET.get("role", "")
-        if role == "myorg":
+        if role == "myorg" or role == 10:
             circle_ids = []
-            subscribed_circle_ids = (
-                CircleSubscriberRole.objects.filter(
-                    user_id=request.user_id,
-                )
-                .exclude(role=CircleRole.DEFAULT_ADMIN)
-                .values_list("circle_id", flat=True)
-            )
+            chief_admin = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
+            subscribed_circle_ids = CircleSubscriberRole.objects.filter(
+                user_id=request.user_id, role=chief_admin
+            ).values_list("circle_id", flat=True)
             for circle_id in subscribed_circle_ids:
                 circle = get_circle_by_id(circle_id)
                 if circle.parent is None and circle.total_children_count >= 1:
