@@ -975,22 +975,27 @@ class CircleViewSet(BaseCircleViewSet):
             Response: A paginated response containing the serialized data of the associated circles.
         """
         role = request.GET.get("role", "")
-        if role == "myorg" or role == 10:
-            circle_ids = []
-            chief_admin = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
-            subscribed_circle_ids = CircleSubscriberRole.objects.filter(
-                user_id=request.user_id, role=chief_admin
-            ).values_list("circle_id", flat=True)
-            for circle_id in subscribed_circle_ids:
-                circle = get_circle_by_id(circle_id)
-                if circle.parent is None and circle.total_children_count >= 1:
-                    # Only add the genesis circle if it has no parent
-                    gensis_circle_id = get_gensis_circle_id(circle)
-                    circle_ids.append(gensis_circle_id)
-        else:
-            circle_ids = CircleSubscriberRole.objects.filter(
-                role__role=role, user_id=request.user_id
-            ).values_list("circle_id", flat=True)
+        circle_ids = []
+        chief_admin = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
+        subscribed_circle_ids = CircleSubscriberRole.objects.filter(
+            user_id=request.user_id, role=chief_admin
+        ).values_list("circle_id", flat=True)
+
+        for circle_id in subscribed_circle_ids:
+            circle = get_circle_by_id(circle_id)
+
+            if role == "myorg" and circle.parent is None and circle.total_children_count >= 1:
+                gensis_circle_id = get_gensis_circle_id(circle)
+                circle_ids.append(gensis_circle_id)
+            elif role in ["10", 10] and circle.parent is None and circle.total_children_count == 0:
+                circle_ids.append(circle_id)
+            elif str(role) in {"0", "20", "30", "40"}:
+                circle_ids.extend(
+                    CircleSubscriberRole.objects.filter(
+                        role__role=int(role), user_id=request.user_id
+                    ).values_list("circle_id", flat=True)
+                )
+
         circles = Circle.objects.filter(id__in=circle_ids).order_by("-id")
         page = self.paginate_queryset(circles)
         serializer = CircleListSerializer(page, many=True, context={"request": request})
