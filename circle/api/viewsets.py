@@ -380,6 +380,18 @@ class CircleViewSet(BaseCircleViewSet):
                 required=False,
                 type=str,
             ),
+            OpenApiParameter(
+                name="origin",
+                description="Identify request origin (web or mobile)",
+                required=False,
+                type=str,
+            ),
+            OpenApiParameter(
+                name="name",
+                description="Filter circle by name",
+                required=False,
+                type=str,
+            ),
         ]
     )
     def list(self, request, *args, **kwargs):
@@ -408,6 +420,8 @@ class CircleViewSet(BaseCircleViewSet):
 
         elif "name" in request.GET:
             circles = self.circle_name_search(request)
+        elif "origin" in request.GET and request.GET.get("origin") == "web":
+            circles = self.filter_circle_for_web(request)
 
         else:
             final_circles = CircleSubscriberRole.objects.filter(user_id=request.user_id)
@@ -490,6 +504,15 @@ class CircleViewSet(BaseCircleViewSet):
 
         qs = circles.annotate(name_lower=Lower("name"))
         circles = qs.filter(name_lower__icontains=name)
+        return circles
+
+    def filter_circle_for_web(self, request):
+        # filter all the parent circles
+        final_circles = CircleSubscriberRole.objects.filter(user_id=request.user_id)
+
+        circles = [circle.circle.id for circle in final_circles]
+        circles = Circle.objects.filter(id__in=circles).exclude(parent__isnull=False)
+
         return circles
 
     def create(self, request, *args, **kwargs):
@@ -982,7 +1005,10 @@ class CircleViewSet(BaseCircleViewSet):
             circle_ids = CircleSubscriberRole.objects.filter(
                 role__role=role, user_id=request.user_id
             ).values_list("circle_id", flat=True)
-        circles = Circle.objects.filter(id__in=circle_ids).order_by("-id")
+
+        circles = (
+            Circle.objects.filter(id__in=circle_ids).exclude(parent__isnull=False).order_by("-id")
+        )
         page = self.paginate_queryset(circles)
         serializer = CircleListSerializer(page, many=True, context={"request": request})
         return self.get_paginated_response(serializer.data)
