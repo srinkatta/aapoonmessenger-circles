@@ -119,9 +119,7 @@ class Circle(BaseTimeStampedModel, MPTTModel):
         return json.loads(self.sites)
 
     def get_parent_circles(self):
-        if self.parent is None:
-            return Circle.objects.none()
-        return Circle.objects.filter(pk=self.parent.pk) | self.parent.get_parent_circles()
+        return self.get_ancestors(include_self=True)
 
 
 class CircleRole(BaseTimeStampedModel):
