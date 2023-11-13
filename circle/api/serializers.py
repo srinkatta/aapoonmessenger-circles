@@ -5,12 +5,6 @@ from loguru import logger
 from rest_flex_fields import FlexFieldsModelSerializer
 from rest_framework import serializers
 
-from circle.api.utils import (
-    clear_bucket_from_path,
-    get_all_children,
-    get_maximum_level,
-    s3_url_extract,
-)
 from circle.models import (
     AppBranding,
     Circle,
@@ -24,13 +18,14 @@ from circle.models import (
     Topic,
 )
 from circle.services.user import User
+from circle.api import utils as circle_utils
 
 
 class TopicSerializer(FlexFieldsModelSerializer):
     def cloudfront_cdn(self, logo):
         parsed_url = urlparse(logo)
-        s3_url = s3_url_extract(logo)
-        key = clear_bucket_from_path(parsed_url.path)
+        s3_url = circle_utils.s3_url_extract(logo)
+        key = circle_utils.clear_bucket_from_path(parsed_url.path)
         logo = s3_url + key
         return logo
 
@@ -51,8 +46,8 @@ class TopicSerializer(FlexFieldsModelSerializer):
 class BaseSerializer(FlexFieldsModelSerializer):
     def cloudfront_cdn(self, logo):
         parsed_url = urlparse(logo)
-        s3_url = s3_url_extract(logo)
-        key = clear_bucket_from_path(parsed_url.path)
+        s3_url = circle_utils.s3_url_extract(logo)
+        key = circle_utils.clear_bucket_from_path(parsed_url.path)
         logo = s3_url + key
         return logo
 
@@ -179,44 +174,64 @@ class BaseCircleSerializer(BaseSerializer):
             "id": {"read_only": True},
         }
 
+    def __init__(self, *args, **kwargs):
+        # Extract the 'permission' parameter from kwargs and assign it to the instance
+        self.permission = None
+        self.circle_role = None
+
+        # Call the parent class's __init__ method
+        super(BaseCircleSerializer, self).__init__(*args, **kwargs)
+
+    def get_circle_permission(self, circle):
+        self.permission = circle.permissions.filter().select_related("circle").first()
+        return self.permission
+
+    def get_circle_role(self, circle, user_id):
+        self.circle_role = (
+            CircleSubscriberRole.objects.filter(circle=circle, user_id=user_id)
+            .select_related("circle")
+            .first()
+        )
+        return self.circle_role
+
     def get_role(self, circle):
         user_id = self.context["request"].user_id
-        circle_role = CircleSubscriberRole.objects.filter(circle=circle, user_id=user_id).first()
+        circle_role = self.circle_role or self.get_circle_role(circle, user_id)
         if circle_role:
             return circle_role.role.role
         return None
 
     def get_is_owner(self, circle):
         user_id = self.context["request"].user_id
-        circle_role = CircleSubscriberRole.objects.filter(circle=circle, user_id=user_id).first()
+        circle_role = self.circle_role or self.get_circle_role(circle, user_id)
         if circle_role and circle_role.role.role == CircleRole.CHIEF_ADMIN:
             return True
         return False
 
     def get_is_admin(self, circle):
         user_id = self.context["request"].user_id
-        circle_role = CircleSubscriberRole.objects.filter(circle=circle, user_id=user_id).first()
+        circle_role = self.circle_role or self.get_circle_role(circle, user_id)
         if circle_role and circle_role.role.role == CircleRole.ADMIN:
             return True
         return False
 
     def get_is_default_admin(self, circle):
         user_id = self.context["request"].user_id
-        circle_role = CircleSubscriberRole.objects.filter(circle=circle, user_id=user_id).first()
+        circle_role = self.circle_role or self.get_circle_role(circle, user_id)
         if circle_role and circle_role.role.role == CircleRole.DEFAULT_ADMIN:
             return True
         return False
 
     def get_is_moderator(self, circle):
         user_id = self.context["request"].user_id
-        circle_role = CircleSubscriberRole.objects.filter(circle=circle, user_id=user_id).first()
+        circle_role = self.circle_role or self.get_circle_role(circle, user_id)
         if circle_role and circle_role.role.role == CircleRole.MODERATOR:
             return True
         return False
 
     def get_is_user(self, circle):
         user_id = self.context["request"].user_id
-        circle_role = CircleSubscriberRole.objects.filter(circle=circle, user_id=user_id).first()
+        circle_role = self.circle_role or self.get_circle_role(circle, user_id)
         if not circle_role:
             return True
         return False
@@ -228,22 +243,16 @@ class BaseCircleSerializer(BaseSerializer):
         return circle.sites
 
     def get_level(self, circle):
-        if circle.parent is None:
-            return 0
-        parents = Circle.objects.filter(pk=circle.parent.pk) | circle.parent.get_parent_circles()
-        return len(parents)
+        return circle_utils.get_level(circle)
 
     def get_total_count(self, circle):
-        total_count = get_all_children(circle, include_self=True)
-        return total_count.count()
+        return circle.get_descendant_count() + 1
 
     def get_total_children_count(self, circle):
-        total_count = self.get_total_count(circle)
-        return total_count - 1
+        return circle.get_descendant_count()
 
     def get_sub_circle_count(self, circle):
-        sub_circles = Circle.objects.filter(parent=circle.id)
-        return sub_circles.count()
+        return circle.sub_circle_count
 
     def get_circle_users(self, circle):
         circle_role = (
@@ -255,7 +264,7 @@ class BaseCircleSerializer(BaseSerializer):
         return circle_users
 
     def get_max_level(self, circle, count=0):
-        return get_maximum_level(circle, count)
+        return circle_utils.get_maximum_level(circle, count)
 
     def get_circle_users_count(self, circle):
         circle_users_count = self.get_circle_users(circle)
@@ -271,152 +280,145 @@ class BaseCircleSerializer(BaseSerializer):
         return admins.count()
 
     def get_circle_moderation(self, circle):
-        permission = circle.permissions.filter().first()
+        permission = self.permission or self.get_circle_permission(circle)
         if permission:
             return permission.circle_moderation
 
     def get_archive_admin(self, circle):
-        permission = circle.permissions.filter().first()
+        permission = self.permission or self.get_circle_permission(circle)
         if permission:
             return permission.archive_admin
 
     def get_archive_moderator(self, circle):
-        permission = circle.permissions.filter().first()
+        permission = self.permission or self.get_circle_permission(circle)
         if permission:
             return permission.archive_moderator
 
     def get_assign_moderator_in_sub_circles(self, circle):
-        permission = circle.permissions.filter().first()
+        permission = self.permission or self.get_circle_permission(circle)
         if permission:
             return permission.assign_moderator_in_sub_circles
 
     def get_user_join_permissions(self, circle):
-        permission = circle.permissions.filter().first()
+        permission = self.permission or self.get_circle_permission(circle)
         if permission:
             return permission.user_join_permissions
 
     def get_backup_circle(self, circle):
-        permission = circle.permissions.filter().first()
+        permission = self.permission or self.get_circle_permission(circle)
         if permission:
             return permission.backup_circle
 
     def get_ban_users(self, circle):
-        permission = circle.permissions.filter().first()
+        permission = self.permission or self.get_circle_permission(circle)
         if permission:
             return permission.ban_users
 
     def get_delete_messages(self, circle):
-        permission = circle.permissions.filter().first()
+        permission = self.permission or self.get_circle_permission(circle)
         if permission:
             return permission.delete_messages
 
     def get_delete_sub_circles(self, circle):
-        permission = circle.permissions.filter().first()
+        permission = self.permission or self.get_circle_permission(circle)
         if permission:
             return permission.delete_sub_circles
 
     def get_filter_members(self, circle):
-        permission = circle.permissions.filter().first()
+        permission = self.permission or self.get_circle_permission(circle)
         if permission:
             return permission.filter_members
 
     def get_link_expire_time(self, circle):
-        permission = circle.permissions.filter().first()
+        permission = self.permission or self.get_circle_permission(circle)
         if permission:
             return permission.link_expire_time
 
     def get_link_expired(self, circle):
-        permission = circle.permissions.filter().first()
+        permission = self.permission or self.get_circle_permission(circle)
         if permission:
             return permission.link_expired
 
     def get_mhl(self, circle):
-        permission = circle.permissions.filter().first()
+        permission = self.permission or self.get_circle_permission(circle)
         if permission:
             return permission.mhl
 
     def get_pin_message_text(self, circle):
-        permission = circle.permissions.filter().first()
+        permission = self.permission or self.get_circle_permission(circle)
         if permission:
             return permission.pin_message_text
 
     def get_pin_message_id(self, circle):
-        permission = circle.permissions.filter().first()
+        permission = self.permission or self.get_circle_permission(circle)
         if permission:
             return permission.pin_message_id
 
     def get_shuffle_circles(self, circle):
-        permission = circle.permissions.filter().first()
+        permission = self.permission or self.get_circle_permission(circle)
         if permission:
             return permission.shuffle_circles
 
     def get_post_level(self, circle):
-        permission = circle.permissions.filter().first()
+        permission = self.permission or self.get_circle_permission(circle)
         if permission:
             return permission.post_level
 
     def get_post_messages(self, circle):
-        permission = circle.permissions.filter().first()
+        permission = self.permission or self.get_circle_permission(circle)
         if permission:
             return permission.post_messages
 
     def get_invite_users_via_link(self, circle):
-        permission = circle.permissions.filter().first()
+        permission = self.permission or self.get_circle_permission(circle)
         if permission:
             return permission.invite_users_via_link
 
     def get_user_exit(self, circle):
         user_id = self.context["request"].user_id
-        permission = circle.permissions.filter().first()
+        permission = self.permission or self.get_circle_permission(circle)
         if permission and CircleSubscriberRole.objects.filter(circle=circle, user_id=user_id):
             return True
         else:
             return False
 
     def get_circle_privacy_change(self, circle):
-        permission = circle.permissions.filter().first()
+        permission = self.permission or self.get_circle_permission(circle)
         if permission:
             return permission.circle_privacy_change
 
     def get_add_delete_user(self, circle):
-        permission = circle.permissions.filter().first()
+        permission = self.permission or self.get_circle_permission(circle)
         if permission:
             return permission.add_delete_user
 
     def get_add_delete_other_admins(self, circle):
-        permission = circle.permissions.filter().first()
+        permission = self.permission or self.get_circle_permission(circle)
         if permission:
             return permission.add_delete_other_admins
 
     def get_add_delete_moderator(self, circle):
-        permission = circle.permissions.filter().first()
+        permission = self.permission or self.get_circle_permission(circle)
         if permission:
             return permission.add_delete_moderator
 
     def get_create_sub_circles(self, circle):
-        permission = circle.permissions.filter().first()
+        permission = self.permission or self.get_circle_permission(circle)
         if permission:
             return permission.create_sub_circles
 
     def get_pin_new_messages(self, circle):
-        permission = circle.permissions.filter().first()
+        permission = self.permission or self.get_circle_permission(circle)
         if permission:
             return permission.pin_new_messages
 
     def get_change_circle_info(self, circle):
-        permission = circle.permissions.filter().first()
+        permission = self.permission or self.get_circle_permission(circle)
         if permission:
             return permission.change_circle_info
 
     def get_gensis_circle_id(self, circle):
-        if not circle.parent:
-            return circle.id
-        parents = circle.parent.get_parent_circles() | Circle.objects.filter(pk=circle.parent.pk)
-        if parents:
-            root_parent = parents.order_by().first()
-            return root_parent.id
-        else:
-            return circle.id
+        return circle_utils.get_gensis_circle_id(circle)
 
 
 class CircleListSerializer(BaseCircleSerializer):
@@ -531,14 +533,7 @@ class CircleSerializer(BaseCircleSerializer):
             return []
 
     def get_gensis_circle_id(self, circle):
-        if not circle.parent:
-            return circle.id
-        parents = circle.parent.get_parent_circles() | Circle.objects.filter(pk=circle.parent.pk)
-        if parents:
-            root_parent = parents.order_by().first()
-            return root_parent.id
-        else:
-            return circle.id
+        return circle_utils.get_gensis_circle_id(circle)
 
 
 class CircleUpdateSerializer(BaseCircleSerializer):
@@ -761,14 +756,7 @@ class CircleHierarchySerializer(CircleListSerializer):
         return circles.count()
 
     def get_gensis_circle_id(self, circle):
-        if not circle.parent:
-            return circle.id
-        parents = circle.parent.get_parent_circles() | Circle.objects.filter(pk=circle.parent.pk)
-        if parents:
-            root_parent = parents.order_by().first()
-            return root_parent.id
-        else:
-            return circle.id
+        return circle_utils.get_gensis_circle_id(circle)
 
 
 class CircleHierarchySearchSerializer(CircleListSerializer):
@@ -795,14 +783,7 @@ class CircleHierarchySearchSerializer(CircleListSerializer):
         )
 
     def get_gensis_circle_id(self, circle):
-        if not circle.parent:
-            return circle.id
-        parents = circle.parent.get_parent_circles() | Circle.objects.filter(pk=circle.parent.pk)
-        if parents:
-            root_parent = parents.order_by().first()
-            return root_parent.id
-        else:
-            return circle.id
+        return circle_utils.get_gensis_circle_id(circle)
 
 
 class HierarchyTransferSerializer(serializers.Serializer):
