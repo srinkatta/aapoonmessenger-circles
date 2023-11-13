@@ -26,3 +26,4 @@ urlpatterns = [
         name="redoc",
     ),
 ]
+urlpatterns += [path("silk/", include("silk.urls", namespace="silk"))]
