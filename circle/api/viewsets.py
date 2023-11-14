@@ -409,6 +409,18 @@ class CircleViewSet(BaseCircleViewSet):
         elif "name" in request.GET:
             circles = self.circle_name_search(request)
 
+        elif "site" in request.GET:
+            chief_admin = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
+            final_circles = CircleSubscriberRole.objects.filter(user_id=request.user_id)
+
+            circles = [
+                circle.circle.id
+                for circle in final_circles
+                if not (circle.circle.parent is not None and circle.role == chief_admin)
+            ]
+
+            circles = Circle.objects.filter(id__in=circles)
+
         else:
             final_circles = CircleSubscriberRole.objects.filter(user_id=request.user_id)
 
@@ -963,25 +975,50 @@ class CircleViewSet(BaseCircleViewSet):
             Response: A paginated response containing the serialized data of the associated circles.
         """
         role = request.GET.get("role", "")
+        circle_ids = []
+        chief_admin = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
         if role == "myorg":
-            circle_ids = []
+            # Fetch cheif admins main/genesis circles within the hierarchy
             subscribed_circle_ids = (
-                CircleSubscriberRole.objects.filter(
+                CircleSubscriberRole.objects.select_related("subscribers")
+                .filter(
                     user_id=request.user_id,
+                    role=chief_admin,
+                    circle__parent=None,
+                    circle__total_children_count__gte=1,
                 )
-                .exclude(role=CircleRole.DEFAULT_ADMIN)
                 .values_list("circle_id", flat=True)
             )
-            for circle_id in subscribed_circle_ids:
-                circle = get_circle_by_id(circle_id)
-                if circle.parent is None and circle.total_children_count >= 1:
-                    # Only add the genesis circle if it has no parent
-                    gensis_circle_id = get_gensis_circle_id(circle)
-                    circle_ids.append(gensis_circle_id)
-        else:
-            circle_ids = CircleSubscriberRole.objects.filter(
-                role__role=role, user_id=request.user_id
-            ).values_list("circle_id", flat=True)
+            circle_ids.extend(subscribed_circle_ids)
+
+        elif int(role) == CircleRole.CHIEF_ADMIN:
+            # Fetch single circles of cheif admin
+            subscribed_circle_ids = (
+                CircleSubscriberRole.objects.select_related("subscribers")
+                .filter(
+                    user_id=request.user_id,
+                    role=chief_admin,
+                    circle__parent=None,
+                    circle__total_children_count=0,
+                )
+                .values_list("circle_id", flat=True)
+            )
+            circle_ids.extend(subscribed_circle_ids)
+
+        elif int(role) in [
+            CircleRole.ADMIN,
+            CircleRole.DEFAULT_ADMIN,
+            CircleRole.MODERATOR,
+            CircleRole.MEMBER,
+        ]:
+            # Fetch circles based on role
+            subscribed_circle_ids = (
+                CircleSubscriberRole.objects.select_related("subscribers")
+                .filter(user_id=request.user_id, role__role=role)
+                .values_list("circle_id", flat=True)
+            )
+            circle_ids.extend(subscribed_circle_ids)
+
         circles = Circle.objects.filter(id__in=circle_ids).order_by("-id")
         page = self.paginate_queryset(circles)
         serializer = CircleListSerializer(page, many=True, context={"request": request})
