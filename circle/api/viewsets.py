@@ -980,13 +980,13 @@ class CircleViewSet(BaseCircleViewSet):
         if role == "myorg":
             # Fetch cheif admins main/genesis circles within the hierarchy
             subscribed_circle_ids = (
-                CircleSubscriberRole.objects.filter(
+                CircleSubscriberRole.objects.select_related("subscribers")
+                .filter(
                     user_id=request.user_id,
                     role=chief_admin,
                     circle__parent=None,
                     circle__total_children_count__gte=1,
                 )
-                .select_related("subscribers")
                 .values_list("circle_id", flat=True)
             )
             circle_ids.extend(subscribed_circle_ids)
@@ -994,13 +994,13 @@ class CircleViewSet(BaseCircleViewSet):
         elif int(role) == CircleRole.CHIEF_ADMIN:
             # Fetch single circles of cheif admin
             subscribed_circle_ids = (
-                CircleSubscriberRole.objects.filter(
+                CircleSubscriberRole.objects.select_related("subscribers")
+                .filter(
                     user_id=request.user_id,
                     role=chief_admin,
                     circle__parent=None,
                     circle__total_children_count=0,
                 )
-                .select_related("subscribers")
                 .values_list("circle_id", flat=True)
             )
             circle_ids.extend(subscribed_circle_ids)
@@ -1013,8 +1013,8 @@ class CircleViewSet(BaseCircleViewSet):
         ]:
             # Fetch circles based on role
             subscribed_circle_ids = (
-                CircleSubscriberRole.objects.filter(user_id=request.user_id, role__role=role)
-                .select_related("subscribers")
+                CircleSubscriberRole.objects.select_related("subscribers")
+                .filter(user_id=request.user_id, role__role=role)
                 .values_list("circle_id", flat=True)
             )
             circle_ids.extend(subscribed_circle_ids)
