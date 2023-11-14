@@ -25,6 +25,7 @@ class S3UploadPolicySerializer(serializers.Serializer):
         self.aws_access_key = settings.S3_AWS_ACCESS_KEY_ID
         self.aws_secret_key = settings.S3_AWS_SECRET_ACCESS_KEY
         self.bucket = settings.AWS_S3_BUCKET_NAME
+        self.region = settings.AWS_S3_BUCKET_REGION_NAME
         self.key = key
         self.expires_after = expires_after
         self.acl = acl
@@ -46,6 +47,8 @@ class S3UploadPolicySerializer(serializers.Serializer):
             "key": self.key,
             "AWSAccessKeyId": self.aws_access_key,
             "AWSSecretKey": self.aws_secret_key,
+            "AWSS3BucketName": self.bucket,
+            "AWSS3RegionName": self.region,
             "acl": self.acl,
             "policy": policy,
             "signature": signature,
@@ -69,6 +72,7 @@ class S3UploadPolicySerializer(serializers.Serializer):
         conditions = [
             {"bucket": self.bucket},
             {"acl": self.acl},
+            {"region": self.region},
             {"success_action_status": "201"},
         ]
         if self.success_action_redirect:
@@ -132,6 +136,7 @@ class VideoUploadSerializer(serializers.Serializer):
         self.aws_access_key = settings.S3_AWS_ACCESS_KEY_ID
         self.aws_secret_key = settings.S3_AWS_SECRET_ACCESS_KEY
         self.bucket = settings.CHAT_VIDEO_BUCKET
+        self.region = settings.AWS_S3_BUCKET_REGION_NAME
         self.key = key
         self.expires_after = expires_after
         self.acl = acl
@@ -154,6 +159,8 @@ class VideoUploadSerializer(serializers.Serializer):
             "key": self.key,
             "AWSAccessKeyId": self.aws_access_key,
             "AWSSecretKey": self.aws_secret_key,
+            "AWSS3BucketName": self.bucket,
+            "AWSS3RegionName": self.region,
             "acl": self.acl,
             "policy": policy,
             "signature": signature,
@@ -177,6 +184,7 @@ class VideoUploadSerializer(serializers.Serializer):
         conditions = [
             {"bucket": self.bucket},
             {"acl": self.acl},
+            {"region": self.region},
             {"success_action_status": "201"},
         ]
         if self.success_action_redirect:
