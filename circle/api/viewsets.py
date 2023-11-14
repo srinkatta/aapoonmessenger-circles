@@ -979,30 +979,44 @@ class CircleViewSet(BaseCircleViewSet):
         chief_admin = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
         if role == "myorg":
             # Fetch cheif admins main/genesis circles within the hierarchy
-            subscribed_circle_ids = CircleSubscriberRole.objects.filter(
-                user_id=request.user_id,
-                role=chief_admin,
-                circle__parent=None,
-                circle__total_children_count__gte=1,
-            ).values_list("circle_id", flat=True)
+            subscribed_circle_ids = (
+                CircleSubscriberRole.objects.filter(
+                    user_id=request.user_id,
+                    role=chief_admin,
+                    circle__parent=None,
+                    circle__total_children_count__gte=1,
+                )
+                .select_related("subscribers")
+                .values_list("circle_id", flat=True)
+            )
             circle_ids.extend(subscribed_circle_ids)
 
-        elif role in ["10", 10]:
+        elif int(role) == CircleRole.CHIEF_ADMIN:
             # Fetch single circles of cheif admin
-            subscribed_circle_ids = CircleSubscriberRole.objects.filter(
-                user_id=request.user_id,
-                role=chief_admin,
-                circle__parent=None,
-                circle__total_children_count=0,
-            ).values_list("circle_id", flat=True)
+            subscribed_circle_ids = (
+                CircleSubscriberRole.objects.filter(
+                    user_id=request.user_id,
+                    role=chief_admin,
+                    circle__parent=None,
+                    circle__total_children_count=0,
+                )
+                .select_related("subscribers")
+                .values_list("circle_id", flat=True)
+            )
             circle_ids.extend(subscribed_circle_ids)
 
-        elif str(role) in {"0", "20", "30", "40"}:
+        elif int(role) in [
+            CircleRole.ADMIN,
+            CircleRole.DEFAULT_ADMIN,
+            CircleRole.MODERATOR,
+            CircleRole.MEMBER,
+        ]:
             # Fetch circles based on role
-            role_value = int(role)
-            subscribed_circle_ids = CircleSubscriberRole.objects.filter(
-                user_id=request.user_id, role__role=role_value
-            ).values_list("circle_id", flat=True)
+            subscribed_circle_ids = (
+                CircleSubscriberRole.objects.filter(user_id=request.user_id, role__role=role)
+                .select_related("subscribers")
+                .values_list("circle_id", flat=True)
+            )
             circle_ids.extend(subscribed_circle_ids)
 
         circles = Circle.objects.filter(id__in=circle_ids).order_by("-id")
