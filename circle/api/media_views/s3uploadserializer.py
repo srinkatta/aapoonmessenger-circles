@@ -53,10 +53,10 @@ class S3UploadPolicySerializer(serializers.Serializer):
             "policy": policy,
             "signature": signature,
             "expiry": expiry_str,
-            "epoch_time": int(
-                (datetime.now(timezone.utc) + self.expires_after).timestamp()
-            ),
+            "epoch_time": int((datetime.now(timezone.utc) + self.expires_after).timestamp()),
             "s3:x-amz-server-side-encryption": "aws:kms",
+            "x-amz-server-side-encryption": "aws:kms",
+            "x-amz-server-side-encryption-aws-kms-key-id": settings.KMS_KEY_ARN,
         }
         if self.success_action_redirect:
             obj["success_action_redirect"] = self.success_action_redirect
@@ -78,18 +78,14 @@ class S3UploadPolicySerializer(serializers.Serializer):
         if self.success_action_redirect:
             conditions.append({"success_action_redirect": self.success_action_redirect})
         if self.key.endswith("${filename}"):
-            conditions.append(
-                ["starts-with", "$key", "%s" % self.key[: -len("${filename}")]]
-            )
+            conditions.append(["starts-with", "$key", "%s" % self.key[: -len("${filename}")]])
         else:
             conditions.append({"key": "%s"} % self.key)
         if self.content_type:
             if self.content_type.startswith("image"):
                 conditions.append(["starts-with", "$Content-Type", "image/"])
             else:
-                conditions.append(
-                    ["starts-with", "$Content-Type", "%s" % self.content_type]
-                )
+                conditions.append(["starts-with", "$Content-Type", "%s" % self.content_type])
 
         expiry_utc = datetime.now(timezone.utc) + self.expires_after
         expiry_str = expiry_utc.strftime("%Y-%m-%dT%H:%M:%S.000Z")
@@ -165,10 +161,10 @@ class VideoUploadSerializer(serializers.Serializer):
             "policy": policy,
             "signature": signature,
             "expiry": expiry_str,
-            "epoch_time": int(
-                (datetime.now(timezone.utc) + self.expires_after).timestamp()
-            ),
+            "epoch_time": int((datetime.now(timezone.utc) + self.expires_after).timestamp()),
             "s3:x-amz-server-side-encryption": "aws:kms",
+            "x-amz-server-side-encryption": "aws:kms",
+            "x-amz-server-side-encryption-aws-kms-key-id": settings.KMS_KEY_ARN,
         }
         if self.success_action_redirect:
             obj["success_action_redirect"] = self.success_action_redirect
@@ -190,18 +186,14 @@ class VideoUploadSerializer(serializers.Serializer):
         if self.success_action_redirect:
             conditions.append({"success_action_redirect": self.success_action_redirect})
         if self.key.endswith("${filename}"):
-            conditions.append(
-                ["starts-with", "$key", "%s" % self.key[: -len("${filename}")]]
-            )
+            conditions.append(["starts-with", "$key", "%s" % self.key[: -len("${filename}")]])
         else:
             conditions.append({"key": "%s"} % self.key)
         if self.content_type:
             if self.content_type.startswith("image"):
                 conditions.append(["starts-with", "$Content-Type", "image/"])
             else:
-                conditions.append(
-                    ["starts-with", "$Content-Type", "%s" % self.content_type]
-                )
+                conditions.append(["starts-with", "$Content-Type", "%s" % self.content_type])
 
         expiry_utc = datetime.now(timezone.utc) + self.expires_after
         expiry_str = expiry_utc.strftime("%Y-%m-%dT%H:%M:%S.000Z")
