@@ -1,12 +1,10 @@
-import logging
 import sys
 
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from circle.models import Circle
-
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 class Command(BaseCommand):
@@ -18,6 +16,7 @@ class Command(BaseCommand):
                 with Circle.objects.disable_mptt_updates():
                     Circle.objects.rebuild()
                     sys.stdout.write(self.style.SUCCESS("Tree rebuild successfully."))
+                    logger.info("Tree rebuild successfully.")
         except Exception as e:
             logger.exception(e)
             sys.stdout.write(self.style.ERROR("Something went wrong while rebuilding the tree."))

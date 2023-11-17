@@ -511,8 +511,8 @@ class CircleViewSet(BaseCircleViewSet):
         name = request.GET["name"]
         name = name.lower()
         final_circles = (
-            CircleSubscriberRole.objects.filter(user_id=request.user_id)
-            .select_related("circle")
+            CircleSubscriberRole.objects.select_related("circle")
+            .filter(user_id=request.user_id)
             .values_list("circle__id", flat=True)
         )
 

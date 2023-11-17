@@ -183,13 +183,13 @@ class BaseCircleSerializer(BaseSerializer):
         super(BaseCircleSerializer, self).__init__(*args, **kwargs)
 
     def get_circle_permission(self, circle):
-        self.permission = circle.permissions.filter().select_related("circle").first()
+        self.permission = circle.permissions.select_related("circle").filter().first()
         return self.permission
 
     def get_circle_role(self, circle, user_id):
         self.circle_role = (
-            CircleSubscriberRole.objects.filter(circle=circle, user_id=user_id)
-            .select_related("circle")
+            CircleSubscriberRole.objects.select_related("circle")
+            .filter(circle=circle, user_id=user_id)
             .first()
         )
         return self.circle_role
