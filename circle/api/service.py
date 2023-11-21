@@ -154,7 +154,7 @@ def circle_add_user(circle, user, role: circle_models.CircleRole | int):
     """
     if role.role == circle_models.CircleRole.MEMBER:
         xmpp_helpers.member_xmpp_room_subscribe(user_jid=user["jid"], room_id=circle.room_id)
-        xmpp_helpers.member_subcribe_topic(tokens=[user.get("fcm_token")], topic=circle.room_id)
+        #xmpp_helpers.member_subcribe_topic(tokens=[user.get("fcm_token")], topic=circle.room_id)
         # for client verification members role save in web server
         circle_subscriber = circle_models.CircleSubscriberRole.objects.filter(
             user_id=user["id"], circle=circle
@@ -174,7 +174,7 @@ def circle_add_user(circle, user, role: circle_models.CircleRole | int):
 
         # User subscribe to XMPP room
         xmpp_helpers.member_xmpp_room_subscribe(user_jid=user["jid"], room_id=circle.room_id)
-        xmpp_helpers.member_subcribe_topic(tokens=[user.get("fcm_token")], topic=circle.room_id)
+        #xmpp_helpers.member_subcribe_topic(tokens=[user.get("fcm_token")], topic=circle.room_id)
     else:
         circle_models.CircleSubscriberRole.objects.filter(user_id=user["id"], circle=circle).update(
             role=role

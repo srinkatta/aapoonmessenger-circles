@@ -2,7 +2,7 @@ import json
 import uuid
 
 from django.db import models
-
+from mptt.models import TreeForeignKey, MPTTModel
 from common.models import BaseTimeStampedModel
 
 
@@ -19,7 +19,7 @@ class Topic(BaseTimeStampedModel):
 
     TOPIC_TYPE = [("1", "Topic"), ("2", "Sub Topic"), ("3", "Sub Sub Topic")]
 
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=255, db_index=True)
     image = models.URLField(null=True, max_length=255, blank=True)
     description = models.TextField(blank=True, null=True)
 
@@ -29,14 +29,15 @@ class Topic(BaseTimeStampedModel):
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
+        db_index=True,
     )
-    type = models.CharField(max_length=5, choices=TOPIC_TYPE, default=1)
+    type = models.CharField(max_length=5, choices=TOPIC_TYPE, default=1, db_index=True)
 
     def __str__(self):
         return f"ID: {self.id} Name: {self.name}"
 
 
-class Circle(BaseTimeStampedModel):
+class Circle(BaseTimeStampedModel, MPTTModel):
     """
     Circle model represents a community or group of members united by a common interest or purpose.
 
@@ -73,18 +74,18 @@ class Circle(BaseTimeStampedModel):
     CIRCLE_TYPES = [("1", "PhoneVerified"), ("2", "Basic"), ("3", "FullyVerified")]
     SUB_CIRCLE_STATUS = [("1", "Approved"), ("2", "Rejected"), ("3", "Pending")]
 
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=255, db_index=True)
     description = models.TextField(blank=True)
     image = models.URLField(null=True, max_length=255, blank=True)
     link = models.CharField(max_length=255, blank=True, null=True)
-    privacy = models.CharField(max_length=5, choices=PRIVACY_OPTIONS, default=2)
+    privacy = models.CharField(max_length=5, choices=PRIVACY_OPTIONS, default=2, db_index=True)
     room_id = models.UUIDField(default=uuid.uuid4, editable=False)
     is_purchased = models.BooleanField(default=False)
     branding = models.JSONField(blank=True, null=True)
     is_tenant = models.BooleanField(default=False)
     sites = models.CharField(max_length=200, blank=True, null=True)
     about_me = models.TextField(blank=True)
-    circle_type = models.CharField(max_length=5, choices=CIRCLE_TYPES, default=3)
+    circle_type = models.CharField(max_length=5, choices=CIRCLE_TYPES, default=3, db_index=True)
     sub_circle_status = models.CharField(max_length=5, choices=SUB_CIRCLE_STATUS, default=1)
     hierarchy = models.BooleanField(default=False)
     circle_users_count = models.IntegerField(default=0)
@@ -93,16 +94,20 @@ class Circle(BaseTimeStampedModel):
     gensis_circle_id = models.IntegerField(default=0)
     app_id = models.BooleanField(default=False)
 
-    owner_id = models.CharField(max_length=255, null=True, blank=True)
+    owner_id = models.CharField(max_length=255, null=True, blank=True, db_index=True)
 
-    parent = models.ForeignKey(
+    parent = TreeForeignKey(
         "self",
         related_name="parent_circle",
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
+        db_index=True,
     )
     topic = models.ManyToManyField(Topic, blank=True)
+
+    class MPTTMeta:
+        order_insertion_by = ["name"]
 
     def __str__(self):
         return f"ID: {self.id}, Name: {self.name}"
@@ -114,9 +119,7 @@ class Circle(BaseTimeStampedModel):
         return json.loads(self.sites)
 
     def get_parent_circles(self):
-        if self.parent is None:
-            return Circle.objects.none()
-        return Circle.objects.filter(pk=self.parent.pk) | self.parent.get_parent_circles()
+        return self.get_ancestors(include_self=True)
 
 
 class CircleRole(BaseTimeStampedModel):
@@ -144,8 +147,8 @@ class CircleRole(BaseTimeStampedModel):
     MODERATOR = 30
     MEMBER = 40
 
-    name = models.CharField(max_length=255)
-    role = models.IntegerField(default=10)
+    name = models.CharField(max_length=255, db_index=True)
+    role = models.IntegerField(default=10, db_index=True)
     permissions = models.CharField(max_length=200, blank=True, null=True)
 
     def set_permissions(self, value):
@@ -187,13 +190,19 @@ class CircleSubscriberRole(BaseTimeStampedModel):
         Circle,
         related_name="subscribers",
         on_delete=models.CASCADE,
+        db_index=True,
     )
     role = models.ForeignKey(
         CircleRole,
         related_name="subscribers",
         on_delete=models.CASCADE,
     )
-    user_id = models.CharField(max_length=255, null=True, blank=True)
+    user_id = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        db_index=True,
+    )
 
     def __str__(self):
         return f"User: {self.user_id}, Circle: {self.circle}, Role: {self.role}"
@@ -337,6 +346,7 @@ class CirclePermission(BaseTimeStampedModel):
         Circle,
         related_name="permissions",
         on_delete=models.CASCADE,
+        db_index=True,
     )
     user_exit = models.BooleanField(default=False)
     pin_message_id = models.CharField(max_length=255, null=True, blank=True)
@@ -384,9 +394,24 @@ class CircleInvite(models.Model):
     """
 
     created = models.DateTimeField(auto_now_add=True)
-    sender = models.CharField(max_length=255, null=True, blank=True)
-    recipient = models.CharField(max_length=255, null=True, blank=True)
-    circle = models.ForeignKey(Circle, related_name="invite", on_delete=models.CASCADE)
+    sender = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        db_index=True,
+    )
+    recipient = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        db_index=True,
+    )
+    circle = models.ForeignKey(
+        Circle,
+        related_name="invite",
+        on_delete=models.CASCADE,
+        db_index=True,
+    )
     joined = models.BooleanField(default=False)
 
     class Meta:

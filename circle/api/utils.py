@@ -36,7 +36,7 @@ def get_circle_by_id(circle_id: int) -> Circle:
         logger.error("no circle exist with the given id")
 
 
-def get_level(circle):
+def get_level(circle: Circle):
     """
     Calculate the level of a Circle in the hierarchy.
 
@@ -51,13 +51,11 @@ def get_level(circle):
         - If the Circle has no parent (i.e., it is the root of the hierarchy), the level is 0.
         - If the Circle has one parent, its level is 1, and so on.
     """
-    if circle.parent is None:
-        return 0
-    parents = Circle.objects.filter(pk=circle.parent.pk) | circle.parent.get_parent_circles()
-    return len(parents)
+    return circle.get_level()
 
 
 def get_maximum_level(circle, count):
+    # TODO: revisit this
     """
     Calculate the maximum level of the hierarchy from a given Circle.
 
@@ -80,7 +78,7 @@ def get_maximum_level(circle, count):
     return count
 
 
-def get_all_children(circle, include_self):
+def get_all_children(circle: Circle, include_self: bool = False):
     """
     Get all the children Circles of the given Circle in the hierarchy.
 
@@ -92,58 +90,8 @@ def get_all_children(circle, include_self):
     Returns:
         QuerySet: A QuerySet containing all the children Circles of the given Circle.
 
-    Note:
-        - This function performs a recursive SQL query using common table expressions (CTEs)
-          to fetch all the children Circles in the hierarchy of the given Circle.
-        - If 'include_self' is True, the given Circle itself will be included in the result.
-          Otherwise, it will only return its children.
     """
-    query = f"""
-        with recursive group_hierarchy (id, name, parent_id) as
-        (
-          select     id,
-                     name,
-                     parent_id
-          from       circle_circle
-          where      parent_id = {circle.pk}
-          union all
-          select     p.id,
-                     p.name,
-                     p.parent_id
-          from       circle_circle p
-          inner join group_hierarchy
-                  on p.parent_id = group_hierarchy.id
-        )
-        select * from group_hierarchy;
-        """
-    return Circle.objects.filter(get_children_filters(circle, include_self))
-
-
-def get_children_filters(circle, include_self):
-    """
-    Helper function to build the filters to retrieve children Circles recursively.
-
-    Parameters:
-        circle (Circle): The Circle object for which to retrieve all children.
-        include_self (bool): Whether to include the given Circle in the result or not.
-
-    Returns:
-        Q: A Q object containing the filters to retrieve children Circles.
-
-    Note:
-        - This function is a recursive helper function used by 'get_all_children'.
-        - It builds the filters to fetch children Circles in the hierarchy recursively.
-        - If 'include_self' is True, the given Circle itself will be included in the result.
-          Otherwise, it will only return its children.
-    """
-    filters = Q()
-    if include_self:
-        filters |= Q(pk=circle.pk)
-    for c in Circle.objects.filter(parent=circle):
-        _r = get_children_filters(c, include_self=True)
-        if _r:
-            filters |= _r
-    return filters
+    return circle.get_descendants(include_self=include_self)
 
 
 def logged_user_info(request) -> dict:
@@ -225,12 +173,12 @@ def get_sub_circle_count(obj):
     return circles.count()
 
 
-def get_gensis_circle_id(instance):
+def get_gensis_circle_id(circle: Circle):
     """
     Get the ID of the genesis circle for the given Circle instance.
 
     Parameters:
-        instance (Circle): The Circle instance for which to get the genesis circle ID.
+        circle (Circle): The Circle instance for which to get the genesis circle ID.
 
     Returns:
         int: The ID of the genesis circle for the given Circle instance.
@@ -239,17 +187,10 @@ def get_gensis_circle_id(instance):
         - If the given Circle is the root (has no parent), its own ID is returned.
         - If the given Circle has parents, the ID of the root parent (genesis circle) is returned.
     """
-    if instance.parent is None:
-        return instance.id
-    parents = Circle.objects.filter(pk=instance.parent.pk) | instance.parent.get_parent_circles()
-    if parents:
-        root_parent = parents[0]
-        return root_parent.id
-    else:
-        return instance.id
+    return circle.get_root().id
 
 
-def get_hierarchy_status(circle, user_id):
+def get_hierarchy_status(circle: Circle, user_id):
     """
     Get the hierarchy status of the given Circle for the specified user.
 
@@ -267,7 +208,7 @@ def get_hierarchy_status(circle, user_id):
     if not circle.parent:
         return get_hierarchy_status_for_root(circle, user_id)
 
-    parents = Circle.objects.filter(pk=circle.parent.pk) | circle.parent.get_parent_circles()
+    parents = circle.get_parent_circles()
     if parents:
         root_parent = parents.order_by().first()
         return get_hierarchy_status_for_non_root(circle, root_parent, user_id)
@@ -275,7 +216,7 @@ def get_hierarchy_status(circle, user_id):
     return False
 
 
-def get_hierarchy_status_for_root(circle, user_id):
+def get_hierarchy_status_for_root(circle: Circle, user_id):
     """
     Get the hierarchy status for the specified user in the given Circle, considering the Circle as the root.
 
