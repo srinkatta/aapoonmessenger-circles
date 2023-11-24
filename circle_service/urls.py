@@ -25,4 +25,5 @@ urlpatterns = [
         SpectacularRedocView.as_view(url_name="schema"),
         name="redoc",
     ),
+    path("api/circles/silk/", include("silk.urls", namespace="silk")),
 ]
