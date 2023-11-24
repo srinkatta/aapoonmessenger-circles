@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "rest_framework_api_key",
     "drf_spectacular",
     "silk",
+    "storages",
     # Custom App
     "circle",
 ]
@@ -156,14 +157,6 @@ USE_I18N = True
 USE_TZ = True
 
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/4.1/howto/static-files/
-
-STATIC_URL = "static/"
-
-# Default primary key field type
-# https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
-
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # REST framework settings
@@ -220,3 +213,21 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.environ["EMAIL_HOST_USER"]
 EMAIL_HOST_PASSWORD = os.environ["EMAIL_HOST_PASSWORD"]
+
+
+AWS_ACCESS_KEY_ID = os.environ["STATIC_AWS_ACCESS_KEY_ID"]
+AWS_SECRET_ACCESS_KEY = os.environ["STATIC_AWS_SECRET_ACCESS_KEY"]
+AWS_STORAGE_BUCKET_NAME = os.environ["STATIC_AWS_STORAGE_BUCKET_NAME"]
+AWS_S3_REGION_NAME = os.environ["STATIC_AWS_S3_REGION_NAME"]
+AWS_S3_CUSTOM_DOMAIN = os.environ["STATIC_AWS_S3_CUSTOM_DOMAIN"]
+
+AWS_S3_OBJECT_PARAMETERS = {
+    "CacheControl": "max-age=86400",  # cache static files for 1 day
+}
+
+# Static files (CSS, JavaScript, Images)
+# https://docs.djangoproject.com/en/4.0/howto/static-files/
+
+AWS_LOCATION = "static"
+STATIC_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/"
+STATICFILES_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
