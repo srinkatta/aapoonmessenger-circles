@@ -26,6 +26,6 @@ urlpatterns = [
         SpectacularRedocView.as_view(url_name="schema"),
         name="redoc",
     ),
-    path("silk/", include("silk.urls", namespace="silk")),
+    path("api/circles/silk/", include("silk.urls", namespace="silk")),
 ]
 urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
