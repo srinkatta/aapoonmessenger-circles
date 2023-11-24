@@ -44,11 +44,13 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_api_key",
     "drf_spectacular",
+    "silk",
     # Custom App
     "circle",
 ]
 
 MIDDLEWARE = [
+    "silk.middleware.SilkyMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
