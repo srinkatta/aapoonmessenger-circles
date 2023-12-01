@@ -1,4 +1,6 @@
-import json
+import re
+from typing import List
+
 import re
 from typing import List
 
@@ -13,10 +15,11 @@ from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from circle.api import service as circle_service
+from circle.api.mixins import BulkCreateCircleInviteMixin
 from circle.api.serializers import (
     AppBrandingSerializer,
     CircleHierarchySerializer,
-    CircleHierarchySearchSerializer,
     CircleRoleSerializer,
     CircleSerializer,
     CircleSubscriberRoleSerializer,
@@ -39,7 +42,6 @@ from circle.api.serializers import (
     CircleInviteAcceptSerializer,
     CircleInputSerializer,
 )
-from circle.api import service as circle_service
 from circle.api.utils import (
     get_all_children,
     get_level,
@@ -52,13 +54,11 @@ from circle.api.utils import (
     update_parent_hierarchy,
     get_hierarchy_status,
 )
-from circle.api.mixins import BulkCreateCircleInviteMixin
 from circle.helpers.ejjaberd import (
     create_xmpp_room,
     destroy_room,
     member_xmpp_room_subscribe,
     member_xmpp_room_unsubscribe,
-    member_unsubcribe_topic,
 )
 from circle.middleware.permissions import Authenticate
 from circle.models import (
@@ -74,7 +74,6 @@ from circle.models import (
     Topic,
 )
 from circle.services.user import User
-from circle.api import service as circle_service
 
 ERROR_MESSAGE = "Sorry, We are  facing an issue currently. Thanks for noticing . We fix it soon."
 
@@ -293,11 +292,9 @@ class CircleViewSet(BaseCircleViewSet):
         else:
             parent_circles = parent.get_parent_circles()
             for circle in parent_circles:
-                parent = Circle.objects.get(id=circle.id)
-
                 role = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
                 super_admins = CircleSubscriberRole.objects.filter(
-                    role=role, circle=parent
+                    role=role, circle=circle
                 ).values_list("user_id", flat=True)
 
                 if not super_admins:
@@ -409,11 +406,31 @@ class CircleViewSet(BaseCircleViewSet):
         elif "name" in request.GET:
             circles = self.circle_name_search(request)
 
-        else:
+        elif "site" in request.GET:
+            chief_admin = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
             final_circles = CircleSubscriberRole.objects.filter(user_id=request.user_id)
 
-            circles = [circle.circle.id for circle in final_circles]
+            circles = [
+                circle.circle.id
+                for circle in final_circles
+                if not (circle.circle.parent is not None and circle.role == chief_admin)
+            ]
+
             circles = Circle.objects.filter(id__in=circles)
+
+        else:
+            final_circles = (
+                CircleSubscriberRole.objects.select_related("circle")
+                .select_related("role")
+                .filter(user_id=request.user_id)
+                .values_list("circle__id", flat=True)
+            )
+
+            circles = (
+                Circle.objects.select_related("parent")
+                .prefetch_related("topic")
+                .filter(id__in=final_circles)
+            )
 
         queryset = circles.order_by("-id")
         page = self.paginate_queryset(queryset)
@@ -458,14 +475,24 @@ class CircleViewSet(BaseCircleViewSet):
         """
         if privacy in ["public", "Public", "1", 1]:
             privacy = 1
-            circles = Circle.objects.filter(privacy=privacy)
-            queryset = circles.exclude(owner_id=self.request.user_id)
+
+            queryset = (
+                Circle.objects.select_related("parent")
+                .prefetch_related("topic")
+                .filter(privacy=privacy)
+                .exclude(owner_id=self.request.user_id)
+            )
             results = self.filter_circle_privacy_name(queryset, name)
             return results
 
         if privacy in ["private", "private", "2", 2]:
             privacy = 2
-            queryset = Circle.objects.filter(owner_id=self.request.user_id, privacy=privacy)
+            queryset = (
+                Circle.objects.select_related("parent")
+                .prefetch_related("topic")
+                .filter(privacy=privacy)
+                .exclude(owner_id=self.request.user_id)
+            )
             results = self.filter_circle_privacy_name(queryset, name)
             return results
 
@@ -483,11 +510,13 @@ class CircleViewSet(BaseCircleViewSet):
         """
         name = request.GET["name"]
         name = name.lower()
-        final_circles = CircleSubscriberRole.objects.filter(user_id=request.user_id)
+        final_circles = (
+            CircleSubscriberRole.objects.select_related("circle")
+            .filter(user_id=request.user_id)
+            .values_list("circle__id", flat=True)
+        )
 
-        circles = [circle.circle.id for circle in final_circles]
-        circles = Circle.objects.filter(id__in=circles)
-
+        circles = Circle.objects.filter(id__in=final_circles)
         qs = circles.annotate(name_lower=Lower("name"))
         circles = qs.filter(name_lower__icontains=name)
         return circles
@@ -963,25 +992,50 @@ class CircleViewSet(BaseCircleViewSet):
             Response: A paginated response containing the serialized data of the associated circles.
         """
         role = request.GET.get("role", "")
+        circle_ids = []
+        chief_admin = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
         if role == "myorg":
-            circle_ids = []
+            # Fetch cheif admins main/genesis circles within the hierarchy
             subscribed_circle_ids = (
-                CircleSubscriberRole.objects.filter(
+                CircleSubscriberRole.objects.select_related("subscribers")
+                .filter(
                     user_id=request.user_id,
+                    role=chief_admin,
+                    circle__parent=None,
+                    circle__total_children_count__gte=1,
                 )
-                .exclude(role=CircleRole.DEFAULT_ADMIN)
                 .values_list("circle_id", flat=True)
             )
-            for circle_id in subscribed_circle_ids:
-                circle = get_circle_by_id(circle_id)
-                if circle.parent is None and circle.total_children_count >= 1:
-                    # Only add the genesis circle if it has no parent
-                    gensis_circle_id = get_gensis_circle_id(circle)
-                    circle_ids.append(gensis_circle_id)
-        else:
-            circle_ids = CircleSubscriberRole.objects.filter(
-                role__role=role, user_id=request.user_id
-            ).values_list("circle_id", flat=True)
+            circle_ids.extend(subscribed_circle_ids)
+
+        elif int(role) == CircleRole.CHIEF_ADMIN:
+            # Fetch single circles of cheif admin
+            subscribed_circle_ids = (
+                CircleSubscriberRole.objects.select_related("subscribers")
+                .filter(
+                    user_id=request.user_id,
+                    role=chief_admin,
+                    circle__parent=None,
+                    circle__total_children_count=0,
+                )
+                .values_list("circle_id", flat=True)
+            )
+            circle_ids.extend(subscribed_circle_ids)
+
+        elif int(role) in [
+            CircleRole.ADMIN,
+            CircleRole.DEFAULT_ADMIN,
+            CircleRole.MODERATOR,
+            CircleRole.MEMBER,
+        ]:
+            # Fetch circles based on role
+            subscribed_circle_ids = (
+                CircleSubscriberRole.objects.select_related("subscribers")
+                .filter(user_id=request.user_id, role__role=role)
+                .values_list("circle_id", flat=True)
+            )
+            circle_ids.extend(subscribed_circle_ids)
+
         circles = Circle.objects.filter(id__in=circle_ids).order_by("-id")
         page = self.paginate_queryset(circles)
         serializer = CircleListSerializer(page, many=True, context={"request": request})
@@ -1569,20 +1623,14 @@ class HierarchyTransferAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         if circle.parent is None:
-            children = Circle.objects.filter(id=circle.id) | get_all_children(
-                circle, include_self=True
-            )
+            children = get_all_children(circle, include_self=True)
             for child in children:
                 transfer_hierarchy(child, user)
         else:
-            parents = (
-                Circle.objects.filter(id=circle.parent.id) | circle.parent.get_parent_circles()
-            )
-            if parents:
-                root_parent = parents
-                children = parents | get_all_children(root_parent[0], include_self=True)
-                for child in children:
-                    transfer_hierarchy(child, user)
+            root_parent: Circle = circle.get_root()
+            children = root_parent.get_family()
+            for child in children:
+                transfer_hierarchy(child, user)
 
         return Response({"message": "Hierarchy Transferred"}, status=200)
 
@@ -1623,21 +1671,14 @@ class HierarchyDeleteAPIView(APIView):
             )
 
         if circle[0].parent is None:
-            childrens = circle | get_all_children(circle[0], include_self=True)
+            childrens = get_all_children(circle[0], include_self=True)
             for child in childrens:
                 destroy_room(child.room_id)
                 child.delete()
-
         else:
-            parents = (
-                Circle.objects.filter(pk=circle[0].parent.id)
-                | circle[0].parent.get_parent_circles()
-            )
-
-            if parents:
-                root_parent = parents[0]
-                childrens = parents[0] | get_all_children(root_parent, include_self=True)
-                [child.delete() for child in childrens]
+            family = circle.get_family()
+            for child in family:
+                child.delete()
 
         return Response({"message": "Hierarchy Deleted"}, status=200)
 

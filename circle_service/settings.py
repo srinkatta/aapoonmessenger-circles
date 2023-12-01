@@ -44,8 +44,9 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_api_key",
     "drf_spectacular",
-    "silk",
     "storages",
+    "silk",
+    "mptt",
     # Custom App
     "circle",
 ]
@@ -157,6 +158,9 @@ USE_I18N = True
 USE_TZ = True
 
 
+# Default primary key field type
+# https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # REST framework settings
@@ -197,6 +201,7 @@ S3_AWS_SECRET_ACCESS_KEY = os.environ["S3_MEDIA_AWS_SECRET_ACCESS_KEY"]
 
 AWS_S3_ACL = os.environ["AWS_S3_ACL"]
 AWS_S3_BUCKET_NAME = os.environ["AWS_S3_BUCKET_NAME"]
+AWS_S3_BUCKET_REGION_NAME = os.environ["AWS_S3_BUCKET_REGION_NAME"]
 CHAT_VIDEO_BUCKET = os.environ["CHAT_VIDEO_BUCKET"]
 
 AWS_CDN_DOMAIN = os.environ["AWS_CDN_DOMAIN"]
@@ -207,13 +212,21 @@ HOST_DOMAIN = os.environ["HOST_DOMAIN"]
 DEFAULT_FROM_EMAIL = "support@aapoon.net"
 SUPPORT_EMAIL = "support@aapoon.net"
 
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+# EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_BACKEND = "postmarker.django.EmailBackend"
 EMAIL_HOST = os.environ["EMAIL_HOST"]
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.environ["EMAIL_HOST_USER"]
 EMAIL_HOST_PASSWORD = os.environ["EMAIL_HOST_PASSWORD"]
 
+# postmark
+POSTMARK_SERVER_TOKEN = os.environ["POSTMARK_SERVER_TOKEN"]
+POSTMARK = {
+    "TOKEN": POSTMARK_SERVER_TOKEN,
+    "TEST_MODE": False,
+    "VERBOSITY": 0,
+}
 
 AWS_ACCESS_KEY_ID = os.environ["STATIC_AWS_ACCESS_KEY_ID"]
 AWS_SECRET_ACCESS_KEY = os.environ["STATIC_AWS_SECRET_ACCESS_KEY"]
@@ -231,3 +244,5 @@ AWS_S3_OBJECT_PARAMETERS = {
 AWS_LOCATION = "static"
 STATIC_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/"
 STATICFILES_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+
+KMS_KEY_ARN = os.environ["KMS_KEY_ARN"]
