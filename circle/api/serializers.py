@@ -196,42 +196,42 @@ class BaseCircleSerializer(BaseSerializer):
 
     def get_role(self, circle):
         user_id = self.context["request"].user_id
-        circle_role = self.circle_role or self.get_circle_role(circle, user_id)
+        circle_role = self.get_circle_role(circle, user_id)
         if circle_role:
             return circle_role.role.role
         return None
 
     def get_is_owner(self, circle):
         user_id = self.context["request"].user_id
-        circle_role = self.circle_role or self.get_circle_role(circle, user_id)
+        circle_role = self.get_circle_role(circle, user_id)
         if circle_role and circle_role.role.role == CircleRole.CHIEF_ADMIN:
             return True
         return False
 
     def get_is_admin(self, circle):
         user_id = self.context["request"].user_id
-        circle_role = self.circle_role or self.get_circle_role(circle, user_id)
+        circle_role = self.get_circle_role(circle, user_id)
         if circle_role and circle_role.role.role == CircleRole.ADMIN:
             return True
         return False
 
     def get_is_default_admin(self, circle):
         user_id = self.context["request"].user_id
-        circle_role = self.circle_role or self.get_circle_role(circle, user_id)
+        circle_role = self.get_circle_role(circle, user_id)
         if circle_role and circle_role.role.role == CircleRole.DEFAULT_ADMIN:
             return True
         return False
 
     def get_is_moderator(self, circle):
         user_id = self.context["request"].user_id
-        circle_role = self.circle_role or self.get_circle_role(circle, user_id)
+        circle_role = self.get_circle_role(circle, user_id)
         if circle_role and circle_role.role.role == CircleRole.MODERATOR:
             return True
         return False
 
     def get_is_user(self, circle):
         user_id = self.context["request"].user_id
-        circle_role = self.circle_role or self.get_circle_role(circle, user_id)
+        circle_role = self.get_circle_role(circle, user_id)
         if not circle_role:
             return True
         return False
