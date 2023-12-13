@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict
 
 import boto3
@@ -42,7 +42,7 @@ class EventBridgeClient(EventInterface):
                 Entries=[
                     {
                         "EventBusName": self.event_bus_name,
-                        "Time": str(datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")),
+                        "Time": str(datetime.now(tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")),
                         "Source": self.source,
                         "DetailType": self.detail_type,
                         "Detail": json.dumps(data),
