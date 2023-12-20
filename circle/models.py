@@ -211,7 +211,7 @@ class CircleSubscriberRole(BaseTimeStampedModel):
     )
     role = models.ForeignKey(
         CircleRole,
-        related_name="subscribers",
+        related_name="subscriber_role",
         on_delete=models.CASCADE,
     )
     user_id = models.CharField(
