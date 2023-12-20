@@ -408,12 +408,14 @@ class CircleViewSet(BaseCircleViewSet):
 
         elif "site" in request.GET:
             chief_admin = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
+            default_admin = CircleRole.objects.get(role=CircleRole.DEFAULT_ADMIN)
             final_circles = CircleSubscriberRole.objects.filter(user_id=request.user_id)
 
             circles = [
                 circle.circle.id
                 for circle in final_circles
                 if not (circle.circle.parent is not None and circle.role == chief_admin)
+                if not circle.role == default_admin
             ]
 
             circles = Circle.objects.filter(id__in=circles)
@@ -1016,7 +1018,7 @@ class CircleViewSet(BaseCircleViewSet):
                     user_id=request.user_id,
                     role=chief_admin,
                     circle__parent=None,
-                    circle__total_children_count=0,
+                    circle__sub_circle_count=0,
                 )
                 .values_list("circle_id", flat=True)
             )

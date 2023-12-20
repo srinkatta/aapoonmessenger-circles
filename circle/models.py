@@ -121,6 +121,23 @@ class Circle(BaseTimeStampedModel, MPTTModel):
     def get_parent_circles(self):
         return self.get_ancestors(include_self=True)
 
+    def get_parent_levels(self, circle, level: int):
+        """
+        Finds the parent ID of a circle at a specific level within its family.
+
+        Args:
+            circle: The current circle.
+            level: The target level of the parent.
+
+        Returns:
+            The ID of the parent at the specified level, or None if not found.
+        """
+        circles = circle.get_family()
+        for circle in circles:
+            if circle.level == level:
+                return circle.parent.id if circle.parent else None
+        return None
+
 
 class CircleRole(BaseTimeStampedModel):
     """
@@ -194,7 +211,7 @@ class CircleSubscriberRole(BaseTimeStampedModel):
     )
     role = models.ForeignKey(
         CircleRole,
-        related_name="subscribers",
+        related_name="subscriber_role",
         on_delete=models.CASCADE,
     )
     user_id = models.CharField(
