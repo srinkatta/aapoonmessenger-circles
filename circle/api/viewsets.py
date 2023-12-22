@@ -1010,6 +1010,32 @@ class CircleViewSet(BaseCircleViewSet):
             )
             circle_ids.extend(subscribed_circle_ids)
 
+            # Fetch circles within the same tree and level where the current user is a chief admin
+            subscribed_circles = CircleSubscriberRole.objects.filter(
+                user_id=request.user_id,
+                role=chief_admin,
+                circle__parent__isnull=False,
+                circle__total_children_count__gte=1,
+            ).values_list("circle_id", flat=True)
+
+            circles = Circle.objects.filter(id__in=subscribed_circles)
+            top_level_circle = set()
+
+            for circle in circles:
+                root_circle = circle.get_root()
+                if root_circle.owner_id != str(request.user_id):
+                    same_tree_circles = circles.filter(tree_id=circle.tree_id)
+                    same_tree_level = same_tree_circles.filter(level=circle.level)
+
+                    if len(same_tree_level) >= 2:
+                        level_circles = [c.id for c in same_tree_level]
+                        top_level_circle.update(level_circles)
+                    elif len(same_tree_level) <= 1:
+                        level_circles = same_tree_circles.order_by("level", "id").first()
+                        top_level_circle.add(level_circles.id)
+
+            circle_ids.extend(top_level_circle)
+
         elif int(role) == CircleRole.CHIEF_ADMIN:
             # Fetch single circles of cheif admin
             subscribed_circle_ids = (
