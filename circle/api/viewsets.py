@@ -539,6 +539,9 @@ class CircleViewSet(BaseCircleViewSet):
         Returns:
             Response: A response containing the serialized data of the created circle.
         """
+        import sys
+        python_version = sys.version   # Todo remove after python version verify
+        logger.info(f"Python Version from logger: {python_version}")
         serializer = self.get_serializer(data=request.data, context={"request": request})
         if request.data.get("parent"):
             parent_circle = serializer.initial_data["parent"]
