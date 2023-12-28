@@ -1,8 +1,5 @@
 import re
-from typing import List
-
-import re
-from typing import List
+from typing import List, Set
 
 import phonenumbers
 from django.db.models import Q
@@ -53,6 +50,7 @@ from circle.api.utils import (
     get_gensis_circle_id,
     update_parent_hierarchy,
     get_hierarchy_status,
+    get_top_level_circles,
 )
 from circle.helpers.ejjaberd import (
     create_xmpp_room,
@@ -996,6 +994,7 @@ class CircleViewSet(BaseCircleViewSet):
         Returns:
             Response: A paginated response containing the serialized data of the associated circles.
         """
+        user_id = request.user_id
         role = request.GET.get("role", "")
         circle_ids = []
         chief_admin = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
@@ -1004,7 +1003,7 @@ class CircleViewSet(BaseCircleViewSet):
             subscribed_circle_ids = (
                 CircleSubscriberRole.objects.select_related("subscribers")
                 .filter(
-                    user_id=request.user_id,
+                    user_id=user_id,
                     role=chief_admin,
                     circle__parent=None,
                     circle__total_children_count__gte=1,
@@ -1013,38 +1012,19 @@ class CircleViewSet(BaseCircleViewSet):
             )
             circle_ids.extend(subscribed_circle_ids)
 
-            # Fetch circles within the same tree and level where the current user is a chief admin
-            subscribed_circles = CircleSubscriberRole.objects.filter(
-                user_id=request.user_id,
-                role=chief_admin,
-                circle__parent__isnull=False,
-                circle__total_children_count__gte=1,
-            ).values_list("circle_id", flat=True)
+            # Fetch top level circles within the chief admins hierarchy
+            top_level_circle_ids: Set[int] = get_top_level_circles(
+                user_id=user_id, chief_admin=chief_admin
+            )
 
-            circles = Circle.objects.filter(id__in=subscribed_circles)
-            top_level_circle = set()
-
-            for circle in circles:
-                root_circle = circle.get_root()
-                if root_circle.owner_id != str(request.user_id):
-                    same_tree_circles = circles.filter(tree_id=circle.tree_id)
-                    same_tree_level = same_tree_circles.filter(level=circle.level)
-
-                    if len(same_tree_level) >= 2:
-                        level_circles = [c.id for c in same_tree_level]
-                        top_level_circle.update(level_circles)
-                    elif len(same_tree_level) <= 1:
-                        level_circles = same_tree_circles.order_by("level", "id").first()
-                        top_level_circle.add(level_circles.id)
-
-            circle_ids.extend(top_level_circle)
+            circle_ids.extend(top_level_circle_ids)
 
         elif int(role) == CircleRole.CHIEF_ADMIN:
             # Fetch single circles of cheif admin
             subscribed_circle_ids = (
                 CircleSubscriberRole.objects.select_related("subscribers")
                 .filter(
-                    user_id=request.user_id,
+                    user_id=user_id,
                     role=chief_admin,
                     circle__parent=None,
                     circle__sub_circle_count=0,
@@ -1062,7 +1042,7 @@ class CircleViewSet(BaseCircleViewSet):
             # Fetch circles based on role
             subscribed_circle_ids = (
                 CircleSubscriberRole.objects.select_related("subscribers")
-                .filter(user_id=request.user_id, role__role=role)
+                .filter(user_id=user_id, role__role=role)
                 .values_list("circle_id", flat=True)
             )
             circle_ids.extend(subscribed_circle_ids)
