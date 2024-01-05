@@ -570,26 +570,30 @@ def get_top_level_circles(user_id: int, chief_admin: CircleRole) -> Set[int]:
             user_id=user_id, role=chief_admin, circle=root_circle
         )
 
-        # Check ownership or admin rights before considering as a top level circle
-        if (
-                root_circle.owner_id != str(user_id)
-                or not root_circle_admin
-                or (
-                root_circle.owner_id == str(user_id)
-                and isinstance(root_circle_role, list)
-                and any(role in chief_admin for role in root_circle_role))
-        ):
-            same_tree_circles = circles.filter(tree_id=circle.tree_id)
-            same_tree_level = same_tree_circles.filter(level=circle.level)
+        # Check if the root circle is not hierarchical 
+        if not root_circle.hierarchy:
+            # Check ownership or admin rights before considering as a top level circle
+            if (
+                    # User is not the owner of the root circle
+                    root_circle.owner_id != str(user_id)
+                    # User is not an chief admin of the root circle
+                    or not root_circle_admin
+                    # user is the owner but doesn't have the chief admin role for the root circle
+                    or (
+                    root_circle.owner_id == str(user_id)
+                    and root_circle_role != chief_admin)
+            ):
+                same_tree_circles = circles.filter(tree_id=circle.tree_id)
+                same_tree_level = same_tree_circles.filter(level=circle.level)
 
-            # If multiple circles are at the same level, add all to top level circles
-            if len(same_tree_level) >= 2:
-                level_circles = [c.id for c in same_tree_level]
-                top_level_circles.update(level_circles)
+                # If multiple circles are at the same level, add all to top level circles
+                if len(same_tree_level) >= 2:
+                    level_circles = [c.id for c in same_tree_level]
+                    top_level_circles.update(level_circles)
 
-            # If there's only one circle at this level, consider it as a top level circle
-            elif len(same_tree_level) <= 1:
-                level_circles = same_tree_circles.order_by("level", "id").first()
-                top_level_circles.add(level_circles.id)
-
-    return top_level_circles
+                # If there's only one circle at this level, consider it as a top level circle
+                elif len(same_tree_level) <= 1:
+                    level_circles = same_tree_circles.order_by("level", "id").first()
+                    top_level_circles.add(level_circles.id)
+        return top_level_circles
+    
