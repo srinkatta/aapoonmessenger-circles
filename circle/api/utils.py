@@ -564,13 +564,21 @@ def get_top_level_circles(user_id: int, chief_admin: CircleRole) -> Set[int]:
     top_level_circles = set()
 
     for circle in circles:
-        root_circle = circle.get_root()
+        root_circle: Circle = circle.get_root()
+        root_circle_role: CircleRole = root_circle.subscribers.first().role
         root_circle_admin = CircleSubscriberRole.objects.filter(
             user_id=user_id, role=chief_admin, circle=root_circle
         )
 
         # Check ownership or admin rights before considering as a top level circle
-        if (root_circle.owner_id != str(user_id)) or (not root_circle_admin):
+        if (
+                root_circle.owner_id != str(user_id)
+                or not root_circle_admin
+                or (
+                root_circle.owner_id == str(user_id)
+                and isinstance(root_circle_role, list)
+                and any(role in chief_admin for role in root_circle_role))
+        ):
             same_tree_circles = circles.filter(tree_id=circle.tree_id)
             same_tree_level = same_tree_circles.filter(level=circle.level)
 
