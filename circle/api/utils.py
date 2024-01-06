@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from email import charset
-from typing import Set
+from typing import Set, List
 
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
@@ -542,7 +542,7 @@ class CircleInvitePagination(pagination.PageNumberPagination):
             )
 
 
-def get_top_level_circles(user_id: int, chief_admin: CircleRole) -> Set[int]:
+def get_top_level_circles(user_id: int, chief_admin: CircleRole, subscribed_circle_ids) -> Set[int]:
     """
     Retrieves top level circles based on specific criteria.
 
@@ -570,15 +570,11 @@ def get_top_level_circles(user_id: int, chief_admin: CircleRole) -> Set[int]:
             user_id=user_id, role=chief_admin, circle=root_circle
         )
 
-        # Check if the root circle is not hierarchical 
-        if not root_circle.hierarchy:
-            # Check ownership or admin rights before considering as a top level circle
+        # Check ownership or admin rights before considering as a top level circle
+        if not root_circle.hierarchy and root_circle.id not in subscribed_circle_ids:
             if (
-                    # User is not the owner of the root circle
                     root_circle.owner_id != str(user_id)
-                    # User is not an chief admin of the root circle
                     or not root_circle_admin
-                    # user is the owner but doesn't have the chief admin role for the root circle
                     or (
                     root_circle.owner_id == str(user_id)
                     and root_circle_role != chief_admin)
@@ -596,4 +592,34 @@ def get_top_level_circles(user_id: int, chief_admin: CircleRole) -> Set[int]:
                     level_circles = same_tree_circles.order_by("level", "id").first()
                     top_level_circles.add(level_circles.id)
         return top_level_circles
-    
+
+
+def get_admin_circles(user_id: int, chief_admin: CircleRole) -> List[int]:
+    """
+    Retrieves admin created sub-circle, considering hierarchy and specific criteria.
+
+    Args:
+        user_id: The ID of the user.
+        chief_admin: The chief admin role.
+
+    Returns:
+        A list of circle IDs where the user is an admin.
+    """
+
+    admin_role = CircleRole.objects.get(role=CircleRole.ADMIN)
+    subscribed_circles = CircleSubscriberRole.objects.filter(
+        user_id=user_id,
+        role=chief_admin,
+        circle__parent__isnull=False,
+        circle__total_children_count=0,
+    ).values_list("circle_id", flat=True)
+
+    admin_circles = []
+    for circle in Circle.objects.filter(id__in=subscribed_circles):
+        root_circle: Circle = circle.get_root()
+        # Check if the user has the admin role in the root circle
+        if CircleSubscriberRole.objects.filter(
+            user_id=user_id, role=admin_role, circle=root_circle
+        ).exists():
+            admin_circles.append(circle.id)
+    return admin_circles

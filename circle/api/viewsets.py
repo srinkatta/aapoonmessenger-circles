@@ -51,6 +51,7 @@ from circle.api.utils import (
     update_parent_hierarchy,
     get_hierarchy_status,
     get_top_level_circles,
+    get_admin_circles,
 )
 from circle.helpers.ejjaberd import (
     create_xmpp_room,
@@ -1014,10 +1015,13 @@ class CircleViewSet(BaseCircleViewSet):
 
             # Fetch top level circles within the chief admins hierarchy
             top_level_circle_ids: Set[int] = get_top_level_circles(
-                user_id=user_id, chief_admin=chief_admin
+                user_id=user_id, chief_admin=chief_admin, subscribed_circle_ids=subscribed_circle_ids
             )
-
             circle_ids.extend(top_level_circle_ids)
+
+            # Retrieve sub-circles owned by the root circle's admin
+            admin_circle: List[int] = get_admin_circles(user_id=user_id, chief_admin=chief_admin)
+            circle_ids.extend(admin_circle)
 
         elif int(role) == CircleRole.CHIEF_ADMIN:
             # Fetch single circles of cheif admin
