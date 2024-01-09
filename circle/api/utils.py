@@ -565,7 +565,8 @@ def get_top_level_circles(user_id: int, chief_admin: CircleRole, subscribed_circ
 
     for circle in circles:
         root_circle: Circle = circle.get_root()
-        root_circle_role: CircleRole = root_circle.subscribers.first().role
+        root_circle_role: CircleSubscriberRole = CircleSubscriberRole.objects.filter(
+            user_id=user_id, circle=root_circle)
         root_circle_admin = CircleSubscriberRole.objects.filter(
             user_id=user_id, role=chief_admin, circle=root_circle
         )
@@ -591,7 +592,7 @@ def get_top_level_circles(user_id: int, chief_admin: CircleRole, subscribed_circ
                 elif len(same_tree_level) <= 1:
                     level_circles = same_tree_circles.order_by("level", "id").first()
                     top_level_circles.add(level_circles.id)
-        return top_level_circles
+    return top_level_circles
 
 
 def get_admin_circles(user_id: int, chief_admin: CircleRole) -> List[int]:
