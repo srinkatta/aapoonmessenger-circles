@@ -623,7 +623,7 @@ def get_admin_circles(user_id: int, chief_admin: CircleRole) -> List[int]:
         # Check if the user has the admin role in the root circle
         if not CircleSubscriberRole.objects.filter(
                 user_id=user_id, role=chief_admin, circle=root_circle
-        ).exists():
+        ).exists() and circle.level == 1:
             admin_circles.append(circle.id)
 
     return admin_circles
