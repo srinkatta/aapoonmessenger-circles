@@ -606,21 +606,24 @@ def get_admin_circles(user_id: int, chief_admin: CircleRole) -> List[int]:
     Returns:
         A list of circle IDs where the user is an admin.
     """
-
-    admin_role = CircleRole.objects.get(role=CircleRole.ADMIN)
-    subscribed_circles = CircleSubscriberRole.objects.filter(
-        user_id=user_id,
-        role=chief_admin,
-        circle__parent__isnull=False,
-        circle__total_children_count=0,
-    ).values_list("circle_id", flat=True)
+    role_ids = []
+    for role in [CircleRole.ADMIN, CircleRole.CHIEF_ADMIN]:
+        role_instance = CircleRole.objects.get(role=role)
+        subscribed_circles = CircleSubscriberRole.objects.filter(
+            user_id=user_id,
+            role=role_instance,
+            circle__parent__isnull=False,
+            circle__total_children_count=0,
+        ).values_list("circle_id", flat=True)
+        role_ids.extend(subscribed_circles)
 
     admin_circles = []
-    for circle in Circle.objects.filter(id__in=subscribed_circles):
+    for circle in Circle.objects.filter(id__in=role_ids):
         root_circle: Circle = circle.get_root()
         # Check if the user has the admin role in the root circle
-        if CircleSubscriberRole.objects.filter(
-            user_id=user_id, role=admin_role, circle=root_circle
+        if not CircleSubscriberRole.objects.filter(
+                user_id=user_id, role=chief_admin, circle=root_circle
         ).exists():
             admin_circles.append(circle.id)
+
     return admin_circles
