@@ -572,13 +572,18 @@ def get_top_level_circles(user_id: int, chief_admin: CircleRole, subscribed_circ
         )
 
         # Check ownership or admin rights before considering as a top level circle
-        if not root_circle.hierarchy and root_circle.id not in subscribed_circle_ids:
+        if (
+            not root_circle.hierarchy
+            and root_circle.id not in subscribed_circle_ids
+            and circle.level == 1
+        ):
             if (
-                    root_circle.owner_id != str(user_id)
-                    or not root_circle_admin
-                    or (
+                root_circle.owner_id != str(user_id)
+                or not root_circle_admin
+                or (
                     root_circle.owner_id == str(user_id)
-                    and root_circle_role != chief_admin)
+                    and root_circle_role != chief_admin
+                )
             ):
                 same_tree_circles = circles.filter(tree_id=circle.tree_id)
                 same_tree_level = same_tree_circles.filter(level=circle.level)
