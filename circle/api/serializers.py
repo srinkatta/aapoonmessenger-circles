@@ -460,6 +460,10 @@ class CircleListSerializer(BaseCircleSerializer):
     topic = TopicSerializer(required=False, many=True)
     total_count = serializers.SerializerMethodField()
     total_children_count = serializers.SerializerMethodField()
+    total_circles_count = serializers.SerializerMethodField()
+
+    def get_total_circles_count(self, circle):
+        return circle.get_family().count()
 
     class Meta:
         model = Circle
@@ -503,6 +507,7 @@ class CircleListSerializer(BaseCircleSerializer):
             "parent_level_5",
             "parent_level_6",
             "parent_level_7",
+            "total_circles_count",
         )
         extra_kwargs = {
             "id": {"read_only": True},

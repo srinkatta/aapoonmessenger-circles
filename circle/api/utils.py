@@ -187,7 +187,10 @@ def get_gensis_circle_id(circle: Circle):
         - If the given Circle is the root (has no parent), its own ID is returned.
         - If the given Circle has parents, the ID of the root parent (genesis circle) is returned.
     """
-    return circle.get_root().id
+    try:
+        return circle.get_root().id
+    except circle.MultipleObjectsReturned:
+        return circle.get_parent_levels(circle, level=1)
 
 
 def get_hierarchy_status(circle: Circle, user_id):
@@ -564,9 +567,13 @@ def get_top_level_circles(user_id: int, chief_admin: CircleRole, subscribed_circ
     top_level_circles = set()
 
     for circle in circles:
-        root_circle: Circle = circle.get_root()
+        try:
+            root_circle: Circle = circle.get_root()
+        except circle.MultipleObjectsReturned:
+            root_circle = circle.gensis_circle_id
         root_circle_role: CircleSubscriberRole = CircleSubscriberRole.objects.filter(
-            user_id=user_id, circle=root_circle)
+            user_id=user_id, circle=root_circle
+        )
         root_circle_admin = CircleSubscriberRole.objects.filter(
             user_id=user_id, role=chief_admin, circle=root_circle
         )
@@ -580,10 +587,7 @@ def get_top_level_circles(user_id: int, chief_admin: CircleRole, subscribed_circ
             if (
                 root_circle.owner_id != str(user_id)
                 or not root_circle_admin
-                or (
-                    root_circle.owner_id == str(user_id)
-                    and root_circle_role != chief_admin
-                )
+                or (root_circle.owner_id == str(user_id) and root_circle_role != chief_admin)
             ):
                 same_tree_circles = circles.filter(tree_id=circle.tree_id)
                 same_tree_level = same_tree_circles.filter(level=circle.level)
@@ -624,11 +628,17 @@ def get_admin_circles(user_id: int, chief_admin: CircleRole) -> List[int]:
 
     admin_circles = []
     for circle in Circle.objects.filter(id__in=role_ids):
-        root_circle: Circle = circle.get_root()
+        try:
+            root_circle: Circle = circle.get_root()
+        except circle.MultipleObjectsReturned:
+            root_circle = circle.gensis_circle_id
         # Check if the user has the admin role in the root circle
-        if not CircleSubscriberRole.objects.filter(
+        if (
+            not CircleSubscriberRole.objects.filter(
                 user_id=user_id, role=chief_admin, circle=root_circle
-        ).exists() and circle.level == 1:
+            ).exists()
+            and circle.level == 1
+        ):
             admin_circles.append(circle.id)
 
     return admin_circles
