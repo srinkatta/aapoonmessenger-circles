@@ -93,6 +93,13 @@ class Circle(BaseTimeStampedModel, MPTTModel):
     sub_circle_count = models.IntegerField(default=0)
     gensis_circle_id = models.IntegerField(default=0)
     app_id = models.BooleanField(default=False)
+    level_1 = models.IntegerField(null=True)
+    level_2 = models.IntegerField(null=True)
+    level_3 = models.IntegerField(null=True)
+    level_4 = models.IntegerField(null=True)
+    level_5 = models.IntegerField(null=True)
+    level_6 = models.IntegerField(null=True)
+    level_7 = models.IntegerField(null=True)
 
     owner_id = models.CharField(max_length=255, null=True, blank=True, db_index=True)
 

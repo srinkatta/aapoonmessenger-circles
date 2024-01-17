@@ -298,6 +298,24 @@ def get_hierarchy_status_for_non_root(circle, root_parent, user_id):
     return False
 
 
+def get_parent_levels(circle: Circle, level: int):
+    """
+    Finds the parent ID of a circle at a specific level within its family.
+
+    Args:
+        circle: The current circle.
+        level: The target level of the parent.
+
+    Returns:
+        The ID of the parent at the specified level, or None if not found.
+    """
+    circles = circle.get_family()
+    for circle in circles:
+        if circle.level == level:
+            return circle.parent.id if circle.parent else None
+    return None
+
+
 def update_parent_hierarchy(parent, hierarchy: bool = False):
     """
     Update the hierarchy status and other related attributes for the parent Circle.
@@ -317,6 +335,13 @@ def update_parent_hierarchy(parent, hierarchy: bool = False):
         parent.hierarchy = hierarchy if hierarchy else get_hierarchy_status(parent, parent.owner_id)
         parent.sub_circle_count = get_sub_circle_count(parent)
         parent.total_children_count = get_total_children_count(parent)
+        parent.level_1 = get_parent_levels(parent, level=1)
+        parent.level_2 = get_parent_levels(parent, level=2)
+        parent.level_3 = get_parent_levels(parent, level=3)
+        parent.level_4 = get_parent_levels(parent, level=4)
+        parent.level_5 = get_parent_levels(parent, level=5)
+        parent.level_6 = get_parent_levels(parent, level=6)
+        parent.level_7 = get_parent_levels(parent, level=7)
         parent.save()
 
 
@@ -341,6 +366,13 @@ def circle_properties_update(instance, hierarchy: bool = False):
     instance.subcircle_count = get_sub_circle_count(instance)
     instance.total_children_count = get_total_children_count(instance)
     instance.circle_users_count = get_circle_users_count(instance)
+    instance.level_1 = get_parent_levels(instance, level=1)
+    instance.level_2 = get_parent_levels(instance, level=2)
+    instance.level_3 = get_parent_levels(instance, level=3)
+    instance.level_4 = get_parent_levels(instance, level=4)
+    instance.level_5 = get_parent_levels(instance, level=5)
+    instance.level_6 = get_parent_levels(instance, level=6)
+    instance.level_7 = get_parent_levels(instance, level=7)
     instance.save()
     update_parent_hierarchy(instance.parent, hierarchy=hierarchy)
 

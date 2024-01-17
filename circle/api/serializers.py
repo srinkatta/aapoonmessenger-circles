@@ -107,13 +107,13 @@ class BaseCircleSerializer(BaseSerializer):
     role = serializers.SerializerMethodField()
     sites = serializers.SerializerMethodField()
     gensis_circle_id = serializers.SerializerMethodField()
-    parent_level_1 = serializers.SerializerMethodField()
-    parent_level_2 = serializers.SerializerMethodField()
-    parent_level_3 = serializers.SerializerMethodField()
-    parent_level_4 = serializers.SerializerMethodField()
-    parent_level_5 = serializers.SerializerMethodField()
-    parent_level_6 = serializers.SerializerMethodField()
-    parent_level_7 = serializers.SerializerMethodField()
+    level_1 = serializers.SerializerMethodField()
+    level_2 = serializers.SerializerMethodField()
+    level_3 = serializers.SerializerMethodField()
+    level_4 = serializers.SerializerMethodField()
+    level_5 = serializers.SerializerMethodField()
+    level_6 = serializers.SerializerMethodField()
+    level_7 = serializers.SerializerMethodField()
 
     class Meta:
         model = Circle
@@ -176,13 +176,13 @@ class BaseCircleSerializer(BaseSerializer):
             "is_moderator",
             "is_user",
             "sites",
-            "parent_level_1",
-            "parent_level_2",
-            "parent_level_3",
-            "parent_level_4",
-            "parent_level_5",
-            "parent_level_6",
-            "parent_level_7",
+            "level_1",
+            "level_2",
+            "level_3",
+            "level_4",
+            "level_5",
+            "level_6",
+            "level_7",
         )
         extra_kwargs = {
             "id": {"read_only": True},
@@ -196,26 +196,26 @@ class BaseCircleSerializer(BaseSerializer):
         # Call the parent class's __init__ method
         super(BaseCircleSerializer, self).__init__(*args, **kwargs)
 
-    def get_parent_level_1(self, circle: Circle):
-        return circle.get_parent_levels(circle, level=1)
+    def get_level_1(self, circle: Circle):
+        return circle.level_1
 
-    def get_parent_level_2(self, circle: Circle):
-        return circle.get_parent_levels(circle, level=2)
+    def get_level_2(self, circle: Circle):
+        return circle.level_2
 
-    def get_parent_level_3(self, circle: Circle):
-        return circle.get_parent_levels(circle, level=3)
+    def get_level_3(self, circle: Circle):
+        return circle.level_3
 
-    def get_parent_level_4(self, circle: Circle):
-        return circle.get_parent_levels(circle, level=4)
+    def get_level_4(self, circle: Circle):
+        return circle.level_4
 
-    def get_parent_level_5(self, circle: Circle):
-        return circle.get_parent_levels(circle, level=5)
+    def get_level_5(self, circle: Circle):
+        return circle.level_5
 
-    def get_parent_level_6(self, circle: Circle):
-        return circle.get_parent_levels(circle, level=6)
+    def get_level_6(self, circle: Circle):
+        return circle.level_6
 
-    def get_parent_level_7(self, circle: Circle):
-        return circle.get_parent_levels(circle, level=7)
+    def get_level_7(self, circle: Circle):
+        return circle.level_7
 
     def get_circle_permission(self, circle):
         self.permission = circle.permissions.select_related("circle").filter().first()
@@ -500,13 +500,13 @@ class CircleListSerializer(BaseCircleSerializer):
             "created_by",
             "created_at",
             "updated_at",
-            "parent_level_1",
-            "parent_level_2",
-            "parent_level_3",
-            "parent_level_4",
-            "parent_level_5",
-            "parent_level_6",
-            "parent_level_7",
+            "level_1",
+            "level_2",
+            "level_3",
+            "level_4",
+            "level_5",
+            "level_6",
+            "level_7",
             "total_circles_count",
         )
         extra_kwargs = {
