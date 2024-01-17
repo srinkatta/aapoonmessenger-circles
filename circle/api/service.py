@@ -1,7 +1,7 @@
 from django.db.models import F, Func, Q, Value
 from django.db.models.functions import Lower
 from loguru import logger
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import ValidationError
 
 from circle import models as circle_models
 from circle.api.utils import (
@@ -154,7 +154,7 @@ def circle_add_user(circle, user, role: circle_models.CircleRole | int):
     """
     if role.role == circle_models.CircleRole.MEMBER:
         xmpp_helpers.member_xmpp_room_subscribe(user_jid=user["jid"], room_id=circle.room_id)
-        #xmpp_helpers.member_subcribe_topic(tokens=[user.get("fcm_token")], topic=circle.room_id)
+        # xmpp_helpers.member_subcribe_topic(tokens=[user.get("fcm_token")], topic=circle.room_id)
         # for client verification members role save in web server
         circle_subscriber = circle_models.CircleSubscriberRole.objects.filter(
             user_id=user["id"], circle=circle
@@ -174,7 +174,7 @@ def circle_add_user(circle, user, role: circle_models.CircleRole | int):
 
         # User subscribe to XMPP room
         xmpp_helpers.member_xmpp_room_subscribe(user_jid=user["jid"], room_id=circle.room_id)
-        #xmpp_helpers.member_subcribe_topic(tokens=[user.get("fcm_token")], topic=circle.room_id)
+        # xmpp_helpers.member_subcribe_topic(tokens=[user.get("fcm_token")], topic=circle.room_id)
     else:
         circle_models.CircleSubscriberRole.objects.filter(user_id=user["id"], circle=circle).update(
             role=role
@@ -216,6 +216,8 @@ def validate_circle_add_user(request, user, role, circle):
             logger.error(
                 "Chief Admin cannot be added/modified by a member/admin/moderator in a circle"
             )
-            raise PermissionDenied(
-                detail="Chief Admin cannot be added/modified by a member/admin/moderator in a circle"
+            raise ValidationError(
+                {
+                    "detail": "Chief Admin cannot be added/modified by a member/admin/moderator in a circle"
+                }
             )

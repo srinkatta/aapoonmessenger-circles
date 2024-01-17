@@ -539,7 +539,8 @@ class CircleViewSet(BaseCircleViewSet):
             Response: A response containing the serialized data of the created circle.
         """
         import sys
-        python_version = sys.version   # Todo remove after python version verify
+
+        python_version = sys.version  # Todo remove after python version verify
         logger.info(f"Python Version from logger: {python_version}")
         serializer = self.get_serializer(data=request.data, context={"request": request})
         if request.data.get("parent"):
@@ -1015,7 +1016,9 @@ class CircleViewSet(BaseCircleViewSet):
 
             # Fetch top level circles within the chief admins hierarchy
             top_level_circle_ids: Set[int] = get_top_level_circles(
-                user_id=user_id, chief_admin=chief_admin, subscribed_circle_ids=subscribed_circle_ids
+                user_id=user_id,
+                chief_admin=chief_admin,
+                subscribed_circle_ids=subscribed_circle_ids,
             )
             circle_ids.extend(top_level_circle_ids)
 
@@ -1642,8 +1645,11 @@ class HierarchyTransferAPIView(APIView):
             for child in children:
                 transfer_hierarchy(child, user)
         else:
-            root_parent: Circle = circle.get_root()
-            children = root_parent.get_family()
+            try:
+                root_circle: Circle = circle.get_root()
+            except circle.MultipleObjectsReturned:
+                root_circle = circle.gensis_circle_id
+            children = root_circle.get_family()
             for child in children:
                 transfer_hierarchy(child, user)
 
