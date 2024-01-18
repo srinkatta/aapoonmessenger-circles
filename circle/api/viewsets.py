@@ -53,6 +53,7 @@ from circle.api.utils import (
     get_top_level_circles,
     get_admin_circles,
 )
+from circle.events.providers.eventbrigde import EventBridgeClient
 from circle.helpers.ejjaberd import (
     create_xmpp_room,
     destroy_room,
@@ -1610,15 +1611,27 @@ class HierarchyTransferAPIView(APIView):
         Transfer the circle hierarchy to a new user.
 
         This method handles the POST request for transferring the circle hierarchy.
-        It takes the new user's information from the request data and performs the hierarchy transfer.
+        It takes the new user's information from the request data and performs the event creation in aws event-bridge
+         for hierarchy transfer.
 
         Returns:
             Response: A response indicating the success or failure of the hierarchy transfer.
         """
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
-        circle_id = serializer.validated_data["circle_id"]
-        to_user = serializer.validated_data["to_user"]
+        try:
+            EventBridgeClient().put_event(serializer.data)
+        except Exception as exc:
+            logger.error(f"Error occurred while creating event in event-bridge: {exc}")
+            return Response(
+                {
+                    "detail": "Error occurred while transferring hierarchy",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # TODO: Move the following logic to new microservice for transfer of hierarchy
+        """
         user_service = User()
         user = user_service.details(user_id=to_user)
         if not user:
@@ -1652,8 +1665,10 @@ class HierarchyTransferAPIView(APIView):
             children = root_circle.get_family()
             for child in children:
                 transfer_hierarchy(child, user)
-
-        return Response({"message": "Hierarchy Transferred"}, status=200)
+        """
+        return Response(
+            {"message": "Circle Hierarchy transfer request initiated successfully."}, status=200
+        )
 
 
 class HierarchyDeleteAPIView(APIView):
