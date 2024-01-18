@@ -20,8 +20,9 @@ class AppAvailabilityMiddleware:
         return response
 
     def process_request(self, request):
-        ist = pytz.timezone("Asia/Kolkata")
-        current_time_ist = ist.localize(datetime.now())
+        utc_now = datetime.now(tz=pytz.timezone("UTC"))
+        ist_timezone = pytz.timezone("Asia/Kolkata")
+        current_time_ist = utc_now.astimezone(ist_timezone)
 
         # Check if it's within the allowed time range and day
         if self.is_app_available(current_time_ist):
@@ -39,7 +40,7 @@ class AppAvailabilityMiddleware:
 
     def is_app_available(self, current_time_ist):
         # Check if it's within the allowed time range (9AM to 9PM IST)
-        is_within_time_range = time(9, 0) <= current_time_ist.time() <= time(21, 0)
+        is_within_time_range = time(9, 0) <= current_time_ist <= time(21, 0)
 
         # Return True if it's a weekday and within the time range
         # or if it's a weekend (as the app is available on weekends)
