@@ -54,7 +54,6 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "silk.middleware.SilkyMiddleware",
     "corsheaders.middleware.CorsMiddleware",
-    "circle.middleware.availability.AppAvailabilityMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
