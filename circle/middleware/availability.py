@@ -31,7 +31,7 @@ class AppAvailabilityMiddleware:
             return HttpResponse(
                 json.dumps(
                     {
-                        "detail": "APSCHE Messenger is offline between 9 PM and 9 AM IST, Monday to Friday, and on weekends."
+                        "detail": "aapoon Messenger is offline between 9 PM and 9 AM IST, Monday to Friday, and on weekends."
                     }
                 ),
                 status=403,
