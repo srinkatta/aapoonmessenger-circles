@@ -4,6 +4,7 @@ from typing import Set, List
 
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
+from django.db.models import QuerySet
 from loguru import logger
 from rest_framework import pagination
 from rest_framework.response import Response
@@ -545,16 +546,100 @@ class CircleInvitePagination(pagination.PageNumberPagination):
             )
 
 
-def get_top_level_circles(user_id: int, chief_admin: CircleRole, subscribed_circle_ids) -> Set[int]:
+def get_root_circle_transfer_top_circle(
+    root_circle: Circle, circles: QuerySet[Circle], circle: Circle, chief_admin, user_id: int
+):
     """
-    Retrieves top level circles based on specific criteria.
+    Retrieves top-level circles based on root circle/hierarchy transfer logic.
 
     Args:
-    - request: The HTTP request object.
-    - chief_admin: The chief admin role.
+        circle: The current circle object being processed.
+        circles: The queryset of all circles.
+        root_circle: The root circle object.
+        chief_admin: The chief admin role object.
+        user_id: The ID of the user.
 
     Returns:
-    - Set of top-level circle IDs.
+        Set[int]: A set of top-level circle IDs that meet the transfer criteria.
+    """
+    top_level_circles = set()
+    root_circle_role: CircleSubscriberRole = CircleSubscriberRole.objects.filter(
+        user_id=user_id, circle=root_circle
+    )
+    root_circle_admin = CircleSubscriberRole.objects.filter(
+        user_id=user_id, role=chief_admin, circle=root_circle
+    )
+    if circle.level == 1 and (
+        root_circle.owner_id != str(user_id)
+        or not root_circle_admin
+        or (root_circle.owner_id == str(user_id) and root_circle_role != chief_admin)
+    ):
+        same_tree_circles = circles.filter(tree_id=circle.tree_id)
+        same_tree_level = same_tree_circles.filter(level=circle.level)
+
+        # If multiple circles are at the same level, add all to top level circles
+        if len(same_tree_level) >= 2:
+            level_circles = [c.id for c in same_tree_level]
+            top_level_circles.update(level_circles)
+
+        # If there's only one circle at this level, consider it as a top level circle
+        elif len(same_tree_level) <= 1:
+            level_circles = same_tree_circles.order_by("level", "id").first()
+            if level_circles:
+                top_level_circles.add(level_circles.id)
+    return top_level_circles
+
+
+def get_level_based_transfer_top_circle(
+    root_circle: Circle, circle: Circle, user_id: int, chief_admin: CircleRole
+) -> Set[int]:
+    """
+    Retrieves top-level owned circles based on level based transfer.
+
+    Args:
+        root_circle (Circle): The root circle of the hierarchy being considered.
+        circle (Circle): The circle to evaluate for top-level status.
+        user_id (int): The ID of the user to check for roles and permissions.
+        chief_admin (CircleRole): The chief admin role object.
+
+    Returns:
+        Set[int]: A set of IDs for circles deemed top-level within the given criteria.
+    """
+    top_level_circles = set()
+    parent = circle.parent
+    root_circle_subscriber = CircleSubscriberRole.objects.filter(
+        user_id=user_id, circle=root_circle
+    ).first()
+    parent_circle_subscriber = CircleSubscriberRole.objects.filter(
+        user_id=user_id, circle=parent
+    ).first()
+    member = CircleRole.objects.get(role=CircleRole.MEMBER)
+    if (
+        root_circle_subscriber.role != chief_admin
+        and parent_circle_subscriber != chief_admin
+        and parent_circle_subscriber.role == member
+        and root_circle_subscriber.role == member
+    ):
+
+        top_level_circles.add(circle.id)
+
+    return top_level_circles
+
+
+def get_top_level_circles(user_id: int, chief_admin: CircleRole, subscribed_circle_ids) -> Set[int]:
+    """
+    Identifies top-level circles for a user based on specific criteria, including:
+    - Chief admin roles in circles with children
+    - Root circle/hierarchy transfers
+    - Circle level-based transfers
+
+    Args:
+        user_id (int): The ID of the user for whom to determine top-level circles.
+        chief_admin (CircleRole): The chief admin role object.
+        subscribed_circle_ids (Set[int]): A set of circle IDs to which the user is subscribed.
+
+    Returns:
+        Set[int]: A set of IDs for circles considered top-level according to the defined criteria.
     """
     subscribed_circles = CircleSubscriberRole.objects.filter(
         user_id=user_id,
@@ -571,36 +656,21 @@ def get_top_level_circles(user_id: int, chief_admin: CircleRole, subscribed_circ
             root_circle: Circle = circle.get_root()
         except circle.MultipleObjectsReturned:
             root_circle = circle.gensis_circle_id
-        root_circle_role: CircleSubscriberRole = CircleSubscriberRole.objects.filter(
-            user_id=user_id, circle=root_circle
-        )
-        root_circle_admin = CircleSubscriberRole.objects.filter(
-            user_id=user_id, role=chief_admin, circle=root_circle
-        )
 
         # Check ownership or admin rights before considering as a top level circle
-        if (
-            not root_circle.hierarchy
-            and root_circle.id not in subscribed_circle_ids
-            and circle.level == 1
-        ):
-            if (
-                root_circle.owner_id != str(user_id)
-                or not root_circle_admin
-                or (root_circle.owner_id == str(user_id) and root_circle_role != chief_admin)
-            ):
-                same_tree_circles = circles.filter(tree_id=circle.tree_id)
-                same_tree_level = same_tree_circles.filter(level=circle.level)
+        if not root_circle.hierarchy and root_circle.id not in subscribed_circle_ids:
+            # fetch top-level circles based on root circle/hierarchy transfer
+            top_level_circle = get_root_circle_transfer_top_circle(
+                root_circle, circles, circle, chief_admin, user_id
+            )
+            top_level_circles.update(top_level_circle)
 
-                # If multiple circles are at the same level, add all to top level circles
-                if len(same_tree_level) >= 2:
-                    level_circles = [c.id for c in same_tree_level]
-                    top_level_circles.update(level_circles)
+            # fetch top-level circles based on circle level-based transfer
+            top_level_circle = get_level_based_transfer_top_circle(
+                root_circle, circle, user_id, chief_admin
+            )
+            top_level_circles.update(top_level_circle)
 
-                # If there's only one circle at this level, consider it as a top level circle
-                elif len(same_tree_level) <= 1:
-                    level_circles = same_tree_circles.order_by("level", "id").first()
-                    top_level_circles.add(level_circles.id)
     return top_level_circles
 
 
