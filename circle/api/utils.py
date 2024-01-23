@@ -547,7 +547,7 @@ class CircleInvitePagination(pagination.PageNumberPagination):
 
 
 def get_root_circle_transfer_top_circle(
-    root_circle: Circle, circles: QuerySet[Circle], circle: Circle, chief_admin, user_id: int
+    root_circle: Circle, circles: QuerySet[Circle], circle: Circle, chief_admin: CircleRole, user_id: int
 ):
     """
     Retrieves top-level circles based on root circle/hierarchy transfer logic.
