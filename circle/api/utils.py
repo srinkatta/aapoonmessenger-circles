@@ -626,7 +626,7 @@ def get_level_based_transfer_top_circle(
     return top_level_circles
 
 
-def get_top_level_circles(user_id: int, chief_admin: CircleRole, subscribed_circle_ids) -> Set[int]:
+def get_top_level_circles(user_id: int, chief_admin: CircleRole, subscribed_circle_ids: Optional[List[int]]) -> Set[int]:
     """
     Identifies top-level circles for a user based on specific criteria, including:
     - Chief admin roles in circles with children
