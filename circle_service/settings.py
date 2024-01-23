@@ -105,11 +105,14 @@ DATABASES = {
         "PASSWORD": os.environ["DB_PASSWORD"],
         "HOST": os.environ["DB_HOST"],
         "PORT": os.environ["DB_PORT"],
+        "OPTIONS": {
+            "options": f'-c search_path={os.environ.get("DB_SCHEMA_NAME", "public")}',
+        },
     },
     "xmpp_database": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": "ejabberd",
-        "USER": "postgres",
+        "NAME": os.environ["XMPP_DB_NAME"],
+        "USER": os.environ["XMPP_DB_USERNAME"],
         "PASSWORD": os.environ["XMPP_DB_PASSWORD"],
         "HOST": os.environ["XMPP_DB_HOST"],
         "PORT": "5432",
@@ -121,6 +124,9 @@ DATABASES = {
         "PASSWORD": os.environ["DB_PASSWORD"],
         "HOST": os.environ["DB_READ_HOST"],
         "PORT": os.environ["DB_PORT"],
+        "OPTIONS": {
+            "options": f'-c search_path={os.environ.get("DB_SCHEMA_NAME", "public")}',
+        },
     },
 }
 

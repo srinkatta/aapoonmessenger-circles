@@ -1,14 +1,14 @@
 from collections import OrderedDict
 from email import charset
+from typing import Set, List
 
 from django.core.mail import send_mail
-from django.db.models import Q
 from django.template.loader import render_to_string
 from loguru import logger
 from rest_framework import pagination
 from rest_framework.response import Response
 
-from circle.models import Circle, CircleSubscriberRole
+from circle.models import Circle, CircleSubscriberRole, CircleRole
 from circle.models import CircleInvite
 from django.conf import settings
 
@@ -187,7 +187,10 @@ def get_gensis_circle_id(circle: Circle):
         - If the given Circle is the root (has no parent), its own ID is returned.
         - If the given Circle has parents, the ID of the root parent (genesis circle) is returned.
     """
-    return circle.get_root().id
+    try:
+        return circle.get_root().id
+    except circle.MultipleObjectsReturned:
+        return circle.get_parent_levels(circle, level=1)
 
 
 def get_hierarchy_status(circle: Circle, user_id):
@@ -295,6 +298,24 @@ def get_hierarchy_status_for_non_root(circle, root_parent, user_id):
     return False
 
 
+def get_parent_levels(circle: Circle, level: int):
+    """
+    Finds the parent ID of a circle at a specific level within its family.
+
+    Args:
+        circle: The current circle.
+        level: The target level of the parent.
+
+    Returns:
+        The ID of the parent at the specified level, or None if not found.
+    """
+    circles = circle.get_family()
+    for circle in circles:
+        if circle.level == level:
+            return circle.parent.id if circle.parent else None
+    return None
+
+
 def update_parent_hierarchy(parent, hierarchy: bool = False):
     """
     Update the hierarchy status and other related attributes for the parent Circle.
@@ -314,6 +335,13 @@ def update_parent_hierarchy(parent, hierarchy: bool = False):
         parent.hierarchy = hierarchy if hierarchy else get_hierarchy_status(parent, parent.owner_id)
         parent.sub_circle_count = get_sub_circle_count(parent)
         parent.total_children_count = get_total_children_count(parent)
+        parent.level_1 = get_parent_levels(parent, level=1)
+        parent.level_2 = get_parent_levels(parent, level=2)
+        parent.level_3 = get_parent_levels(parent, level=3)
+        parent.level_4 = get_parent_levels(parent, level=4)
+        parent.level_5 = get_parent_levels(parent, level=5)
+        parent.level_6 = get_parent_levels(parent, level=6)
+        parent.level_7 = get_parent_levels(parent, level=7)
         parent.save()
 
 
@@ -338,6 +366,13 @@ def circle_properties_update(instance, hierarchy: bool = False):
     instance.subcircle_count = get_sub_circle_count(instance)
     instance.total_children_count = get_total_children_count(instance)
     instance.circle_users_count = get_circle_users_count(instance)
+    instance.level_1 = get_parent_levels(instance, level=1)
+    instance.level_2 = get_parent_levels(instance, level=2)
+    instance.level_3 = get_parent_levels(instance, level=3)
+    instance.level_4 = get_parent_levels(instance, level=4)
+    instance.level_5 = get_parent_levels(instance, level=5)
+    instance.level_6 = get_parent_levels(instance, level=6)
+    instance.level_7 = get_parent_levels(instance, level=7)
     instance.save()
     update_parent_hierarchy(instance.parent, hierarchy=hierarchy)
 
@@ -540,3 +575,102 @@ class CircleInvitePagination(pagination.PageNumberPagination):
                     ]
                 )
             )
+
+
+def get_top_level_circles(user_id: int, chief_admin: CircleRole, subscribed_circle_ids) -> Set[int]:
+    """
+    Retrieves top level circles based on specific criteria.
+
+    Args:
+    - request: The HTTP request object.
+    - chief_admin: The chief admin role.
+
+    Returns:
+    - Set of top-level circle IDs.
+    """
+    subscribed_circles = CircleSubscriberRole.objects.filter(
+        user_id=user_id,
+        role=chief_admin,
+        circle__parent__isnull=False,
+        circle__total_children_count__gte=1,
+    ).values_list("circle_id", flat=True)
+
+    circles = Circle.objects.filter(id__in=subscribed_circles)
+    top_level_circles = set()
+
+    for circle in circles:
+        try:
+            root_circle: Circle = circle.get_root()
+        except circle.MultipleObjectsReturned:
+            root_circle = circle.gensis_circle_id
+        root_circle_role: CircleSubscriberRole = CircleSubscriberRole.objects.filter(
+            user_id=user_id, circle=root_circle
+        )
+        root_circle_admin = CircleSubscriberRole.objects.filter(
+            user_id=user_id, role=chief_admin, circle=root_circle
+        )
+
+        # Check ownership or admin rights before considering as a top level circle
+        if (
+            not root_circle.hierarchy
+            and root_circle.id not in subscribed_circle_ids
+            and circle.level == 1
+        ):
+            if (
+                root_circle.owner_id != str(user_id)
+                or not root_circle_admin
+                or (root_circle.owner_id == str(user_id) and root_circle_role != chief_admin)
+            ):
+                same_tree_circles = circles.filter(tree_id=circle.tree_id)
+                same_tree_level = same_tree_circles.filter(level=circle.level)
+
+                # If multiple circles are at the same level, add all to top level circles
+                if len(same_tree_level) >= 2:
+                    level_circles = [c.id for c in same_tree_level]
+                    top_level_circles.update(level_circles)
+
+                # If there's only one circle at this level, consider it as a top level circle
+                elif len(same_tree_level) <= 1:
+                    level_circles = same_tree_circles.order_by("level", "id").first()
+                    top_level_circles.add(level_circles.id)
+    return top_level_circles
+
+
+def get_admin_circles(user_id: int, chief_admin: CircleRole) -> List[int]:
+    """
+    Retrieves admin created sub-circle, considering hierarchy and specific criteria.
+
+    Args:
+        user_id: The ID of the user.
+        chief_admin: The chief admin role.
+
+    Returns:
+        A list of circle IDs where the user is an admin.
+    """
+    role_ids = []
+    for role in [CircleRole.ADMIN, CircleRole.CHIEF_ADMIN]:
+        role_instance = CircleRole.objects.get(role=role)
+        subscribed_circles = CircleSubscriberRole.objects.filter(
+            user_id=user_id,
+            role=role_instance,
+            circle__parent__isnull=False,
+            circle__total_children_count=0,
+        ).values_list("circle_id", flat=True)
+        role_ids.extend(subscribed_circles)
+
+    admin_circles = []
+    for circle in Circle.objects.filter(id__in=role_ids):
+        try:
+            root_circle: Circle = circle.get_root()
+        except circle.MultipleObjectsReturned:
+            root_circle = circle.gensis_circle_id
+        # Check if the user has the admin role in the root circle
+        if (
+            not CircleSubscriberRole.objects.filter(
+                user_id=user_id, role=chief_admin, circle=root_circle
+            ).exists()
+            and circle.level == 1
+        ):
+            admin_circles.append(circle.id)
+
+    return admin_circles

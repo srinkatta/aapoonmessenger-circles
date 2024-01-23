@@ -1,8 +1,5 @@
 import re
-from typing import List
-
-import re
-from typing import List
+from typing import List, Set
 
 import phonenumbers
 from django.db.models import Q
@@ -53,6 +50,8 @@ from circle.api.utils import (
     get_gensis_circle_id,
     update_parent_hierarchy,
     get_hierarchy_status,
+    get_top_level_circles,
+    get_admin_circles,
 )
 from circle.helpers.ejjaberd import (
     create_xmpp_room,
@@ -408,12 +407,14 @@ class CircleViewSet(BaseCircleViewSet):
 
         elif "site" in request.GET:
             chief_admin = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
+            default_admin = CircleRole.objects.get(role=CircleRole.DEFAULT_ADMIN)
             final_circles = CircleSubscriberRole.objects.filter(user_id=request.user_id)
 
             circles = [
                 circle.circle.id
                 for circle in final_circles
                 if not (circle.circle.parent is not None and circle.role == chief_admin)
+                if not circle.role == default_admin
             ]
 
             circles = Circle.objects.filter(id__in=circles)
@@ -537,6 +538,10 @@ class CircleViewSet(BaseCircleViewSet):
         Returns:
             Response: A response containing the serialized data of the created circle.
         """
+        import sys
+
+        python_version = sys.version  # Todo remove after python version verify
+        logger.info(f"Python Version from logger: {python_version}")
         serializer = self.get_serializer(data=request.data, context={"request": request})
         if request.data.get("parent"):
             parent_circle = serializer.initial_data["parent"]
@@ -991,6 +996,7 @@ class CircleViewSet(BaseCircleViewSet):
         Returns:
             Response: A paginated response containing the serialized data of the associated circles.
         """
+        user_id = request.user_id
         role = request.GET.get("role", "")
         circle_ids = []
         chief_admin = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
@@ -999,7 +1005,7 @@ class CircleViewSet(BaseCircleViewSet):
             subscribed_circle_ids = (
                 CircleSubscriberRole.objects.select_related("subscribers")
                 .filter(
-                    user_id=request.user_id,
+                    user_id=user_id,
                     role=chief_admin,
                     circle__parent=None,
                     circle__total_children_count__gte=1,
@@ -1008,15 +1014,27 @@ class CircleViewSet(BaseCircleViewSet):
             )
             circle_ids.extend(subscribed_circle_ids)
 
+            # Fetch top level circles within the chief admins hierarchy
+            top_level_circle_ids: Set[int] = get_top_level_circles(
+                user_id=user_id,
+                chief_admin=chief_admin,
+                subscribed_circle_ids=subscribed_circle_ids,
+            )
+            circle_ids.extend(top_level_circle_ids)
+
+            # Retrieve sub-circles owned by the root circle's admin
+            admin_circle: List[int] = get_admin_circles(user_id=user_id, chief_admin=chief_admin)
+            circle_ids.extend(admin_circle)
+
         elif int(role) == CircleRole.CHIEF_ADMIN:
             # Fetch single circles of cheif admin
             subscribed_circle_ids = (
                 CircleSubscriberRole.objects.select_related("subscribers")
                 .filter(
-                    user_id=request.user_id,
+                    user_id=user_id,
                     role=chief_admin,
                     circle__parent=None,
-                    circle__total_children_count=0,
+                    circle__sub_circle_count=0,
                 )
                 .values_list("circle_id", flat=True)
             )
@@ -1031,7 +1049,7 @@ class CircleViewSet(BaseCircleViewSet):
             # Fetch circles based on role
             subscribed_circle_ids = (
                 CircleSubscriberRole.objects.select_related("subscribers")
-                .filter(user_id=request.user_id, role__role=role)
+                .filter(user_id=user_id, role__role=role)
                 .values_list("circle_id", flat=True)
             )
             circle_ids.extend(subscribed_circle_ids)
@@ -1627,8 +1645,11 @@ class HierarchyTransferAPIView(APIView):
             for child in children:
                 transfer_hierarchy(child, user)
         else:
-            root_parent: Circle = circle.get_root()
-            children = root_parent.get_family()
+            try:
+                root_circle: Circle = circle.get_root()
+            except circle.MultipleObjectsReturned:
+                root_circle = circle.gensis_circle_id
+            children = root_circle.get_family()
             for child in children:
                 transfer_hierarchy(child, user)
 

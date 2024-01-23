@@ -1,37 +1,73 @@
+# aapoon Circle Microservice
 
-aapoonmessenger-circles
-=============================
+## Overview
 
-You need to install following things before project setup:
+The aapoon Circle Microservice is a Django-based application developed in Python 3.11.
 
-Installation
-============
+## Prerequisites
 
-Use the package manager pip to install aapoonMessenger-circle Microservice Backend.
+Before you start, make sure you have the following prerequisites installed:
 
+- Python 3.11 or 3.12 (install directly or use [pyenv](https://github.com/pyenv/pyenv))
+- [pip](https://pip.pypa.io/en/stable/) (Python package installer)
+- [Pre-commit](https://pre-commit.com/) (optional for developers)
+
+## Getting Started
+
+Follow these steps to set up and run the project:
+
+1. **Clone the Repository:**
+
+    ```bash
+    git clone https://github.com/aapoonInc/aapoonmessenger-circles.git
+    cd aapoonmessenger-circles
+    ```
+
+2. **Install Dependencies:**
+
+    ```bash
     pip install -r requirements.txt
+    ```
 
-Usage
-=====
+3. **Copy Environment Variables:**
 
-Run this to make sure your database in sync with latest database changes.
+    ```bash
+    cp .env.example .env
+    ```
 
-    python manage.py migrate
+4. **Update Environment Variables:**
 
-Run this to run the server on Port 8000:
+    Edit the `.env` file and update the values according to your configuration.
 
+5. **Run the Development Server:**
+
+    ```bash
     python manage.py runserver
+    ```
 
-Coding Standards:
-=================
+    The application will be accessible at [http://localhost:8000/](http://localhost:8000/). View the Swagger docs at [http://127.0.0.1:8000/api/circles/schema/swagger-ui/](http://127.0.0.1:8000/api/circels/schema/swagger-ui/)
 
-After successfully running the project, install pre-commit to prevent committing bugs or issues early on and improve codebase quality.
+## Developer Setup and Coding Standards
 
-Run this to install pre-commit:
+If you're a developer contributing to this project, follow these guidelines to ensure a consistent and high-quality codebase.
 
+1. **Install Pre-commit:**
+
+    ```bash
     pre-commit install
+    ```
 
+2. **Run Pre-commit on Every Commit:**
 
-Make sure you're following the same structure for new apps which is already being used for the existing ones. Always create an "api" folder and add the api's related things there(viewsets, serializer, routers).
+    With pre-commit installed, it will automatically run checks on your code every time you make a commit.
 
-Make sure you use small functions instead of one messy function or class.
+3. **Coding Standards:**
+
+   Ensure you follow the same structure for new apps, creating an "api" folder and organizing API-related components (viewsets, serializers, routers) within it.
+
+   Always prefer small functions over one messy function or class for improved code readability and maintainability.
+
+## Authors/Developers
+
+- Ali Khan ([GitHub](https://github.com/alikhan126), [aapoon GitHub](https://github.com/aliaapoon))
+- Praveen Gouda ([GitHub](https://github.com/praveengouda007))
