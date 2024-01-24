@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from email import charset
-from typing import Set, List
+from typing import Set, List, Optional
 
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
