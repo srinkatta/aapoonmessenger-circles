@@ -16,6 +16,7 @@ from circle.models import (
     CustomField,
     SubscriptionPlan,
     Topic,
+    CircleLevelNameConf,
 )
 from circle.services.user import User
 from circle.api import utils as circle_utils
@@ -456,11 +457,21 @@ class BaseCircleSerializer(BaseSerializer):
         return circle_utils.get_gensis_circle_id(circle)
 
 
+class CircleLevelNameConfSerializer(FlexFieldsModelSerializer):
+    class Meta:
+        model = CircleLevelNameConf
+        fields = "__all__"
+        extra_kwargs = {
+            "id": {"read_only": True},
+        }
+
+
 class CircleListSerializer(BaseCircleSerializer):
     topic = TopicSerializer(required=False, many=True)
     total_count = serializers.SerializerMethodField()
     total_children_count = serializers.SerializerMethodField()
     total_circles_count = serializers.SerializerMethodField()
+    level_conf = CircleLevelNameConfSerializer(read_only=True)
 
     def get_total_circles_count(self, circle):
         return circle.get_family().count()
@@ -507,6 +518,7 @@ class CircleListSerializer(BaseCircleSerializer):
             "level_5",
             "level_6",
             "level_7",
+            "level_conf",
             "total_circles_count",
         )
         extra_kwargs = {

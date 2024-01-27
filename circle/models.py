@@ -440,3 +440,30 @@ class CircleInvite(models.Model):
 
     class Meta:
         ordering = ["-created"]
+
+
+class CircleLevelNameConf(BaseTimeStampedModel):
+    level_1 = models.CharField(max_length=10, default="Level 1")
+    level_2 = models.CharField(max_length=10, default="Level 2")
+    level_3 = models.CharField(max_length=10, default="Level 3")
+    level_4 = models.CharField(max_length=10, default="Level 4")
+    level_5 = models.CharField(max_length=10, default="Level 5")
+    level_6 = models.CharField(max_length=10, default="Level 6")
+    level_7 = models.CharField(max_length=10, default="Level 7")
+    circle = models.OneToOneField(
+        Circle,
+        related_name="level_conf",
+        on_delete=models.CASCADE,
+        db_index=True,
+    )
+
+    def __str__(self):
+        return f"Circle: {self.circle} Level-Name Configuration"
+
+    def save(self, *args, **kwargs):
+        # Enforce non-empty values for fields that are being updated
+        for field in self._meta.get_fields():
+            if not getattr(self, field.name) and getattr(self, field.name, None) is not None:
+                raise ValueError(f"{field.name} cannot be empty")
+
+        super().save(*args, **kwargs)

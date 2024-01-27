@@ -38,6 +38,7 @@ from circle.api.serializers import (
     CircleInviteResponseSerializer,
     CircleInviteAcceptSerializer,
     CircleInputSerializer,
+    CircleLevelNameConfSerializer,
 )
 from circle.api.utils import (
     get_all_children,
@@ -71,6 +72,7 @@ from circle.models import (
     CustomField,
     SubscriptionPlan,
     Topic,
+    CircleLevelNameConf,
 )
 from circle.services.user import User
 
@@ -557,7 +559,6 @@ class CircleViewSet(BaseCircleViewSet):
         serializer.is_valid(raise_exception=True)
         parent = serializer.validated_data.get("parent")
         topic = serializer.validated_data.get("topic")
-
         if parent:
             # Child circle limit
             limit = self.hierarchy_limit(parent.id)
@@ -571,6 +572,10 @@ class CircleViewSet(BaseCircleViewSet):
 
             # Create XMPP Room
             create_xmpp_room(circle)
+
+            # Get or create root circle level-name configuration instance
+            root_circle = circle.get_root()
+            level_conf, created = CircleLevelNameConf.objects.get_or_create(circle=root_circle)
 
             self.circle_add_topics(circle, topic)
 
@@ -2000,3 +2005,102 @@ class GetCircleUniqueNameView(APIView):
             return Response({"detail": "Name already exists"}, status=400)
         else:
             return Response({"message": "Name doesn't exist"}, status=200)
+
+
+class CircleLevelNameConfViewSet(BaseCircleViewSet):
+    """
+    API endpoint for managing Circle Level Name Configuration.
+
+    This viewset supports the following actions:
+    - Retrieve: Get details of the Circle Level Name Configuration for a specific circle.
+    - Update: Update the Circle Level Name Configuration for a specific circle.
+
+    Permissions:
+    - Requires authentication.
+
+    HTTP Methods Allowed:
+    - GET: Retrieve Circle Level Name Configuration details.
+    - PUT: Update Circle Level Name Configuration.
+
+    Example Usage:
+    - GET /api/circles/hierarchy/level_name/123/ - Retrieve details for Circle Level Name Configuration.
+    - PUT /api/circles/hierarchy/level_name/123/ - Update Circle Level Name Configuration.
+
+    Note: Replace "123" with the actual circle_id in the API endpoint.
+    """
+
+    serializer_class = CircleLevelNameConfSerializer
+    permission_classes = (Authenticate,)
+    http_method_names = ("get", "put")
+
+    def get_queryset(self):
+        """
+        Get the queryset for Circle Level Name Configuration.
+
+        Returns:
+        - Queryset filtered by the circle_id provided in the URL.
+        """
+        return CircleLevelNameConf.objects.filter(circle_id=self.kwargs.get("pk"))
+
+    def retrieve(self, request, *args, **kwargs):
+        """
+        Retrieve details of the Circle Level Name Configuration for a specific circle.
+
+        Args:
+        - request: The HTTP request object.
+        - *args: Additional positional arguments.
+        - **kwargs: Additional keyword arguments.
+
+        Returns:
+        - Response containing Circle Level Name Configuration details.
+        """
+        queryset = self.get_queryset().first()
+        if not queryset:
+            return Response(
+                {"detail": "Circle Level Name Configuration does not exist"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        serializer = self.get_serializer(queryset)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def update(self, request, *args, **kwargs):
+        """
+        Update the Circle Level Name Configuration for a specific circle.
+
+        Args:
+        - request: The HTTP request object containing update data.
+        - *args: Additional positional arguments.
+        - **kwargs: Additional keyword arguments.
+
+        Error Responses:
+        - 400 Bad Request: If the specified Circle Level Name Configuration does not exist.
+        - 400 Bad Request: If the user does not have permission to perform the action.
+
+        Returns:
+        - Response containing the updated Circle Level Name Configuration details.
+        """
+        queryset = self.get_queryset().first()
+        circle_id = request.data["circle"]
+        if not queryset:
+            return Response(
+                {"detail": "Circle Level Name Configuration does not exist"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        chief_admin = CircleRole.objects.filter(role=CircleRole.CHIEF_ADMIN)
+        admin = CircleRole.objects.filter(role=CircleRole.ADMIN)
+        circle = CircleSubscriberRole.objects.filter(
+            circle=circle_id, role__in=chief_admin | admin, user_id=request.user_id
+        )
+
+        if not circle:
+            return Response(
+                {"detail": "You don't have permission to perform this action"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = self.get_serializer(queryset, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
