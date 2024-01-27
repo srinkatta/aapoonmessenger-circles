@@ -31,6 +31,7 @@ from circle.api.viewsets import (
     CircleInviteAcceptViewSet,
     SubscriptionPlanViewSet,
     TopicViewSet,
+    GetAssociatedCircles,
 )
 
 router = routers.SimpleRouter()
@@ -46,9 +47,7 @@ router.register(
     CirclePermissionViewSet,
     basename="circle-permissions",
 ),
-router.register(
-    r"subscription-plan", SubscriptionPlanViewSet, basename="subscription-plan"
-),
+router.register(r"subscription-plan", SubscriptionPlanViewSet, basename="subscription-plan"),
 router.register(r"customer", CustomerViewSet, basename="customer"),
 router.register(r"app-branding", AppBrandingViewSet, basename="app-branding"),
 router.register(
@@ -60,21 +59,11 @@ router.register(r"topic", TopicViewSet, basename="topic"),
 router.register(r"messages", XMPPMessageViewSet, basename="xmpp_messages")
 router.register(r"get_messages", XMPPMessageFilterViewSet, basename="get_messages")
 
-router.register(
-    r"s3groupimageparams", GroupImageUploadViewSet, basename="s3groupimageparams"
-)
-router.register(
-    r"s3chatimageparams", ChatImageUploadViewSet, basename="s3chatimageparams"
-)
-router.register(
-    r"s3chatvideoparams", ChatVideoUploadViewSet, basename="s3chatvideoparams"
-)
-router.register(
-    r"s3chatdocsparams", ChatDocumentsUploadViewSet, basename="s3chatdocsparams"
-)
-router.register(
-    r"s3chataudioparams", ChatAudioUploadViewSet, basename="s3chataudioparams"
-)
+router.register(r"s3groupimageparams", GroupImageUploadViewSet, basename="s3groupimageparams")
+router.register(r"s3chatimageparams", ChatImageUploadViewSet, basename="s3chatimageparams")
+router.register(r"s3chatvideoparams", ChatVideoUploadViewSet, basename="s3chatvideoparams")
+router.register(r"s3chatdocsparams", ChatDocumentsUploadViewSet, basename="s3chatdocsparams")
+router.register(r"s3chataudioparams", ChatAudioUploadViewSet, basename="s3chataudioparams")
 router.register(r"circle_invite", CircleInviteViewSet, basename="circle-invite")
 
 urlpatterns = [
@@ -91,9 +80,7 @@ urlpatterns = [
         name="push_notify_redirect",
     ),
     # hierarchy
-    path(
-        r"hierarchy_delete/", HierarchyDeleteAPIView.as_view(), name="hierarchy_delete"
-    ),
+    path(r"hierarchy_delete/", HierarchyDeleteAPIView.as_view(), name="hierarchy_delete"),
     path(
         r"hierarchy_transfer/",
         HierarchyTransferAPIView.as_view(),
@@ -105,7 +92,6 @@ urlpatterns = [
         CircleInviteAcceptViewSet.as_view(),
         name="circle-invite-accept",
     ),
-    path(
-        r"get_circle_name/", GetCircleUniqueNameView.as_view(), name="group-unique-name"
-    ),
+    path(r"get_circle_name/", GetCircleUniqueNameView.as_view(), name="group-unique-name"),
+    path(r"associated/", GetAssociatedCircles.as_view(), name="user-associated-circles"),
 ]
