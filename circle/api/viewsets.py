@@ -576,7 +576,7 @@ class CircleViewSet(BaseCircleViewSet):
 
             # Get or create root circle level-name configuration instance
             root_circle = circle.get_root()
-            level_config, created = CircleLevelNameConfig.objects.get_or_create(circle=root_circle
+            level_config, created = CircleLevelNameConfig.objects.get_or_create(circle=root_circle)
 
             self.circle_add_topics(circle, topic)
 
