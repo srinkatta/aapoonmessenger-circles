@@ -32,6 +32,7 @@ from circle.api.viewsets import (
     SubscriptionPlanViewSet,
     TopicViewSet,
     CircleLevelNameConfViewSet,
+    GetAssociatedCircles,
 )
 
 router = routers.SimpleRouter()
@@ -94,4 +95,5 @@ urlpatterns = [
         name="circle-invite-accept",
     ),
     path(r"get_circle_name/", GetCircleUniqueNameView.as_view(), name="group-unique-name"),
+    path(r"associated/", GetAssociatedCircles.as_view(), name="user-associated-circles"),
 ]

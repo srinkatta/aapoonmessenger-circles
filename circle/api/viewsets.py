@@ -39,6 +39,7 @@ from circle.api.serializers import (
     CircleInviteAcceptSerializer,
     CircleInputSerializer,
     CircleLevelNameConfSerializer,
+    CircleReportSerializer,
 )
 from circle.api.utils import (
     get_all_children,
@@ -2104,3 +2105,42 @@ class CircleLevelNameConfViewSet(BaseCircleViewSet):
         serializer.save()
 
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class GetAssociatedCircles(APIView):
+    permission_classes = [
+        Authenticate,
+    ]
+    allowed_methods = ("GET",)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="user_id",
+                description="Filter by user_id",
+                required=True,
+                type=str,
+            ),
+        ]
+    )
+    def get(self, request):
+        user_id = request.GET.get("user_id", "")
+        circles_ids = (
+            CircleSubscriberRole.objects.select_related("circle")
+            .filter(user_id=user_id)
+            .values_list("circle__id", flat=True)
+        )
+
+        circles = (
+            Circle.objects.select_related("parent")
+            .prefetch_related("topic")
+            .filter(id__in=circles_ids)
+        )
+
+        serializer = CircleReportSerializer(
+            circles,
+            many=True,
+            context={"request": request},
+        )
+
+        return Response(serializer.data)
