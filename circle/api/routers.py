@@ -31,7 +31,7 @@ from circle.api.viewsets import (
     CircleInviteAcceptViewSet,
     SubscriptionPlanViewSet,
     TopicViewSet,
-    CircleLevelNameConfViewSet,
+    CircleLevelNameConfigViewSet,
 )
 
 router = routers.SimpleRouter()
@@ -65,7 +65,9 @@ router.register(r"s3chatvideoparams", ChatVideoUploadViewSet, basename="s3chatvi
 router.register(r"s3chatdocsparams", ChatDocumentsUploadViewSet, basename="s3chatdocsparams")
 router.register(r"s3chataudioparams", ChatAudioUploadViewSet, basename="s3chataudioparams")
 router.register(r"circle_invite", CircleInviteViewSet, basename="circle-invite")
-router.register(r"hierarchy/level_name", CircleLevelNameConfViewSet, basename="circle-level-name")
+router.register(
+    r"hierarchy/level-config", CircleLevelNameConfigViewSet, basename="circle-level-name"
+)
 
 urlpatterns = [
     path("admin/", admin.site.urls),

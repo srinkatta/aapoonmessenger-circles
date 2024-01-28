@@ -442,7 +442,7 @@ class CircleInvite(models.Model):
         ordering = ["-created"]
 
 
-class CircleLevelNameConf(BaseTimeStampedModel):
+class CircleLevelNameConfig(BaseTimeStampedModel):
     level_1 = models.CharField(max_length=10, default="Level 1")
     level_2 = models.CharField(max_length=10, default="Level 2")
     level_3 = models.CharField(max_length=10, default="Level 3")
@@ -452,7 +452,7 @@ class CircleLevelNameConf(BaseTimeStampedModel):
     level_7 = models.CharField(max_length=10, default="Level 7")
     circle = models.OneToOneField(
         Circle,
-        related_name="level_conf",
+        related_name="level_config",
         on_delete=models.CASCADE,
         db_index=True,
     )
