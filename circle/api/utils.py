@@ -579,7 +579,11 @@ class CircleInvitePagination(pagination.PageNumberPagination):
 
 
 def get_root_circle_transfer_top_circle(
-    root_circle: Circle, circles: QuerySet[Circle], circle: Circle, chief_admin: CircleRole, user_id: int
+    root_circle: Circle,
+    circles: QuerySet[Circle],
+    circle: Circle,
+    chief_admin: CircleRole,
+    user_id: int,
 ):
     """
     Retrieves top-level circles based on root circle/hierarchy transfer logic.
@@ -646,7 +650,7 @@ def get_level_based_transfer_top_circle(
         user_id=user_id, circle=parent
     ).first()
     member = CircleRole.objects.get(role=CircleRole.MEMBER)
-    if (
+    if root_circle_subscriber and (
         root_circle_subscriber.role != chief_admin
         and parent_circle_subscriber != chief_admin
         and parent_circle_subscriber.role == member
@@ -658,7 +662,9 @@ def get_level_based_transfer_top_circle(
     return top_level_circles
 
 
-def get_top_level_circles(user_id: int, chief_admin: CircleRole, subscribed_circle_ids: Optional[List[int]]) -> Set[int]:
+def get_top_level_circles(
+    user_id: int, chief_admin: CircleRole, subscribed_circle_ids: Optional[List[int]]
+) -> Set[int]:
     """
     Identifies top-level circles for a user based on specific criteria, including:
     - Chief admin roles in circles with children
