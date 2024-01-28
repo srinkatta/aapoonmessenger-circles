@@ -914,3 +914,15 @@ class CircleInviteAcceptSerializer(serializers.Serializer):
     sender = serializers.CharField(required=True)
     recipient = serializers.CharField(required=True)
     circle = serializers.CharField(required=True)
+
+
+class CircleReportSerializer(BaseSerializer):
+    """Special serilizer to send response to report service"""
+
+    class Meta:
+        model = Circle
+        fields = (
+            "id",
+            "name",
+            "parent",
+        )
