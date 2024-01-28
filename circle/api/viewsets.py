@@ -576,7 +576,7 @@ class CircleViewSet(BaseCircleViewSet):
 
             # Get or create root circle level-name configuration instance
             root_circle = circle.get_root()
-            level_config, created = CircleLevelNameConfig.objects.get_or_create(circle=root_circle)
+            level_config, created = CircleLevelNameConfig.objects.get_or_create(circle=root_circle
 
             self.circle_add_topics(circle, topic)
 
@@ -2008,7 +2008,6 @@ class GetCircleUniqueNameView(APIView):
             return Response({"message": "Name doesn't exist"}, status=200)
 
 
-
 class CircleLevelNameConfigViewSet(BaseCircleViewSet):
     """
     API endpoint for managing Circle Level Name Configuration.
@@ -2030,7 +2029,6 @@ class CircleLevelNameConfigViewSet(BaseCircleViewSet):
 
     Note: Replace "123" with the actual circle_id in the API endpoint.
     """
-
     serializer_class = CircleLevelNameConfigSerializer
     permission_classes = (Authenticate,)
     http_method_names = ("get", "put")
@@ -2107,7 +2105,7 @@ class CircleLevelNameConfigViewSet(BaseCircleViewSet):
 
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-      
+
 class GetAssociatedCircles(APIView):
     permission_classes = [
         Authenticate,

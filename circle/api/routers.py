@@ -70,6 +70,7 @@ router.register(
     r"hierarchy/level-config", CircleLevelNameConfigViewSet, basename="circle-level-name"
 )
 
+
 urlpatterns = [
     path("admin/", admin.site.urls),
     path(r"", include(router.urls)),

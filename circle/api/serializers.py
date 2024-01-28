@@ -473,6 +473,7 @@ class CircleListSerializer(BaseCircleSerializer):
     total_circles_count = serializers.SerializerMethodField()
     level_config = CircleLevelNameConfigSerializer(read_only=True)
 
+
     def get_total_circles_count(self, circle):
         return circle.get_family().count()
 
