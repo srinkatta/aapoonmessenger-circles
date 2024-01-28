@@ -38,7 +38,7 @@ from circle.api.serializers import (
     CircleInviteResponseSerializer,
     CircleInviteAcceptSerializer,
     CircleInputSerializer,
-    CircleLevelNameConfSerializer,
+    CircleLevelNameConfigSerializer,
     CircleReportSerializer,
 )
 from circle.api.utils import (
@@ -73,7 +73,7 @@ from circle.models import (
     CustomField,
     SubscriptionPlan,
     Topic,
-    CircleLevelNameConf,
+    CircleLevelNameConfig,
 )
 from circle.services.user import User
 
@@ -576,7 +576,7 @@ class CircleViewSet(BaseCircleViewSet):
 
             # Get or create root circle level-name configuration instance
             root_circle = circle.get_root()
-            level_conf, created = CircleLevelNameConf.objects.get_or_create(circle=root_circle)
+            level_config, created = CircleLevelNameConfig.objects.get_or_create(circle=root_circle
 
             self.circle_add_topics(circle, topic)
 
@@ -2008,7 +2008,7 @@ class GetCircleUniqueNameView(APIView):
             return Response({"message": "Name doesn't exist"}, status=200)
 
 
-class CircleLevelNameConfViewSet(BaseCircleViewSet):
+class CircleLevelNameConfigViewSet(BaseCircleViewSet):
     """
     API endpoint for managing Circle Level Name Configuration.
 
@@ -2029,8 +2029,7 @@ class CircleLevelNameConfViewSet(BaseCircleViewSet):
 
     Note: Replace "123" with the actual circle_id in the API endpoint.
     """
-
-    serializer_class = CircleLevelNameConfSerializer
+    serializer_class = CircleLevelNameConfigSerializer
     permission_classes = (Authenticate,)
     http_method_names = ("get", "put")
 
@@ -2041,7 +2040,7 @@ class CircleLevelNameConfViewSet(BaseCircleViewSet):
         Returns:
         - Queryset filtered by the circle_id provided in the URL.
         """
-        return CircleLevelNameConf.objects.filter(circle_id=self.kwargs.get("pk"))
+        return CircleLevelNameConfig.objects.filter(circle_id=self.kwargs.get("pk"))
 
     def retrieve(self, request, *args, **kwargs):
         """
