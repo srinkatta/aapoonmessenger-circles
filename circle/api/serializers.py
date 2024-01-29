@@ -1,3 +1,5 @@
+import re
+
 from urllib.error import HTTPError
 from urllib.parse import urlparse
 from loguru import logger
@@ -465,6 +467,15 @@ class CircleLevelNameConfigSerializer(FlexFieldsModelSerializer):
             "id": {"read_only": True},
         }
 
+    def validate(self, data):
+        levels = ["level_1", "level_2", "level_3", "level_4", "level_5", "level_6", "level_7"]
+        for level in levels:
+            value = data.get(level)
+            pattern = re.compile(r"^[a-zA-Z0-9 ]+$")
+            if value and not pattern.match(value):
+                raise serializers.ValidationError({"detail": "Special Characters are not allowed"})
+        return data
+
 
 class CircleListSerializer(BaseCircleSerializer):
     topic = TopicSerializer(required=False, many=True)
@@ -472,7 +483,6 @@ class CircleListSerializer(BaseCircleSerializer):
     total_children_count = serializers.SerializerMethodField()
     total_circles_count = serializers.SerializerMethodField()
     level_config = CircleLevelNameConfigSerializer(read_only=True)
-
 
     def get_total_circles_count(self, circle):
         return circle.get_family().count()
