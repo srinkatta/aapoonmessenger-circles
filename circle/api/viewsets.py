@@ -40,6 +40,7 @@ from circle.api.serializers import (
     CircleInputSerializer,
     CircleLevelNameConfigSerializer,
     CircleReportSerializer,
+    CircleDetailsSerializer,
 )
 from circle.api.utils import (
     get_all_children,
@@ -2142,6 +2143,29 @@ class GetAssociatedCircles(APIView):
             Circle.objects.select_related("parent")
             .prefetch_related("topic")
             .filter(id__in=circles_ids)
+        )
+
+        serializer = CircleReportSerializer(
+            circles,
+            many=True,
+            context={"request": request},
+        )
+
+        return Response(serializer.data)
+
+
+class GetCirclesInfoByIDS(APIView):
+    permission_classes = [
+        Authenticate,
+    ]
+    allowed_methods = ("POST",)
+
+    def post(self, request):
+        serializer = CircleDetailsSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+
+        circles = Circle.objects.select_related("parent").filter(
+            id__in=serializer.data["circle_ids"]
         )
 
         serializer = CircleReportSerializer(
