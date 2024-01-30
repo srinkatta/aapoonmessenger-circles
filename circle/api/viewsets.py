@@ -54,6 +54,7 @@ from circle.api.utils import (
     get_hierarchy_status,
     get_top_level_circles,
     get_admin_circles,
+    get_chief_admin_leaf_circles,
 )
 from circle.helpers.ejjaberd import (
     create_xmpp_room,
@@ -1046,6 +1047,12 @@ class CircleViewSet(BaseCircleViewSet):
             )
             circle_ids.extend(subscribed_circle_ids)
 
+            # Retrieve chief admin circles with no sub-circles, excluding cases where the
+            # user holds chief admin role in the root circle and parent circle.
+            chief_admin = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
+            circles = get_chief_admin_leaf_circles(request.user_id, chief_admin)
+            circle_ids.extend(circles)
+
         elif int(role) in [
             CircleRole.ADMIN,
             CircleRole.DEFAULT_ADMIN,
@@ -2029,6 +2036,7 @@ class CircleLevelNameConfigViewSet(BaseCircleViewSet):
 
     Note: Replace "123" with the actual circle_id in the API endpoint.
     """
+
     serializer_class = CircleLevelNameConfigSerializer
     permission_classes = (Authenticate,)
     http_method_names = ("get", "put")
