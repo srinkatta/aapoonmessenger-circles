@@ -750,3 +750,41 @@ def get_admin_circles(user_id: int, chief_admin: CircleRole) -> List[int]:
             admin_circles.append(circle.id)
 
     return admin_circles
+
+
+def get_chief_admin_leaf_circles(user_id: int, chief_admin: CircleRole) -> Set[int]:
+    """
+    Retrieves IDs of chief admin circles with no sub-circles, excluding cases where the
+    user holds chief admin role in the root circle and parent circle
+
+    Args:
+        user_id (int): The ID of the user.
+        chief_admin (CircleRole): The CircleRole object representing the chief admin role.
+
+    Returns:
+        Set[int]: A set of circle IDs that meet the transfer criteria.
+    """
+    # retrieves chief admin circles for specific user where parent and no sub circles present
+    subscribed_circles = CircleSubscriberRole.objects.filter(
+        user_id=user_id,
+        role=chief_admin,
+        circle__parent__isnull=False,
+        circle__total_children_count__gte=0,
+    ).values_list("circle_id", flat=True)
+
+    circles = Circle.objects.filter(id__in=subscribed_circles)
+    leaf_subscribed_circles = set()
+
+    for circle in circles:
+        try:
+            root_circle: Circle = circle.get_root()
+        except circle.MultipleObjectsReturned:
+            root_circle = circle.gensis_circle_id
+
+        if not root_circle.hierarchy:
+            # Ensure that the user is not subscribed as a chief admin in the roles of both the root and parent circles.
+            leaf_circles = get_level_based_transfer_top_circle(
+                root_circle, circle, user_id, chief_admin
+            )
+            leaf_subscribed_circles.update(leaf_circles)
+    return leaf_subscribed_circles
