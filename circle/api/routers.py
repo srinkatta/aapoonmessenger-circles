@@ -33,6 +33,7 @@ from circle.api.viewsets import (
     TopicViewSet,
     CircleLevelNameConfigViewSet,
     GetAssociatedCircles,
+    GetCirclesInfoByIDS,
 )
 
 router = routers.SimpleRouter()
@@ -67,7 +68,9 @@ router.register(r"s3chatdocsparams", ChatDocumentsUploadViewSet, basename="s3cha
 router.register(r"s3chataudioparams", ChatAudioUploadViewSet, basename="s3chataudioparams")
 router.register(r"circle_invite", CircleInviteViewSet, basename="circle-invite")
 router.register(
-    r"hierarchy/level-config", CircleLevelNameConfigViewSet, basename="circle-level-name"
+    r"hierarchy/level-config",
+    CircleLevelNameConfigViewSet,
+    basename="circle-level-name",
 )
 
 
@@ -99,4 +102,5 @@ urlpatterns = [
     ),
     path(r"get_circle_name/", GetCircleUniqueNameView.as_view(), name="group-unique-name"),
     path(r"associated/", GetAssociatedCircles.as_view(), name="user-associated-circles"),
+    path(r"details/", GetCirclesInfoByIDS.as_view(), name="circle-details-by-ids"),
 ]

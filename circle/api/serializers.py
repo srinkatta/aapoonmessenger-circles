@@ -949,3 +949,7 @@ class CircleReportSerializer(BaseSerializer):
             "name",
             "parent",
         )
+
+
+class CircleDetailsSerializer(serializers.Serializer):
+    circle_ids = serializers.ListField(required=True, allow_null=False)
