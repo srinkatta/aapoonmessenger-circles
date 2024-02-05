@@ -400,6 +400,7 @@ class CirclePermission(BaseTimeStampedModel):
     filter_members = models.IntegerField(default=10)
     post_level = models.IntegerField(default=0)
     circle_moderation = models.IntegerField(default=0)
+    level_configuration = models.IntegerField(default=20)
 
     def __str__(self):
         return f"Circle: {self.circle} Permissions"

@@ -605,7 +605,8 @@ def get_root_circle_transfer_top_circle(
     root_circle_admin = CircleSubscriberRole.objects.filter(
         user_id=user_id, role=chief_admin, circle=root_circle
     )
-    if circle.level == 1 and (
+
+    if (
         root_circle.owner_id != str(user_id)
         or not root_circle_admin
         or (root_circle.owner_id == str(user_id) and root_circle_role != chief_admin)

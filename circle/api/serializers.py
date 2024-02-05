@@ -117,6 +117,7 @@ class BaseCircleSerializer(BaseSerializer):
     level_5 = serializers.SerializerMethodField()
     level_6 = serializers.SerializerMethodField()
     level_7 = serializers.SerializerMethodField()
+    level_configuration = serializers.SerializerMethodField()
 
     class Meta:
         model = Circle
@@ -169,6 +170,7 @@ class BaseCircleSerializer(BaseSerializer):
             "pin_message_id",
             "pin_message_text",
             "user_join_permissions",
+            "level_configuration",
             "post_level",
             "shuffle_circles",
             "topic",
@@ -406,6 +408,11 @@ class BaseCircleSerializer(BaseSerializer):
         permission = self.permission or self.get_circle_permission(circle)
         if permission:
             return permission.post_messages
+
+    def get_level_configuration(self, circle):
+        permission = self.permission or self.get_circle_permission(circle)
+        if permission:
+            return permission.level_configuration
 
     def get_invite_users_via_link(self, circle):
         permission = self.permission or self.get_circle_permission(circle)
