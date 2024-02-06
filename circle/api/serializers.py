@@ -475,7 +475,15 @@ class CircleLevelNameConfigSerializer(FlexFieldsModelSerializer):
         }
 
     def validate(self, data):
-        levels = ["level_1", "level_2", "level_3", "level_4", "level_5", "level_6", "level_7"]
+        levels = [
+            "level_1",
+            "level_2",
+            "level_3",
+            "level_4",
+            "level_5",
+            "level_6",
+            "level_7",
+        ]
         for level in levels:
             value = data.get(level)
             pattern = re.compile(r"^[a-zA-Z0-9 ]+$")
@@ -949,12 +957,19 @@ class CircleInviteAcceptSerializer(serializers.Serializer):
 class CircleReportSerializer(BaseSerializer):
     """Special serilizer to send response to report service"""
 
+    ancestors = serializers.SerializerMethodField()
+
+    def get_ancestors(self, instance):
+        parents = instance.get_parent_circles()
+        return [circle.id for circle in parents]
+
     class Meta:
         model = Circle
         fields = (
             "id",
             "name",
             "parent",
+            "ancestors",
         )
 
 
