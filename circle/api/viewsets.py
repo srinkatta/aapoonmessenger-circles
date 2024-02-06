@@ -907,7 +907,7 @@ class CircleViewSet(BaseCircleViewSet):
         else:
             circle_users = CircleSubscriberRole.objects.filter(circle=circle)
 
-        circle_users = circle_users.order_by("-id")
+        circle_users = circle_users.order_by("role__role")
         page = self.paginate_queryset(circle_users)
         serializer = CircleSubscribedUsersSerializer(page, many=True, context={"request": request})
 
