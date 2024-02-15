@@ -10,6 +10,7 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
+from rest_framework_api_key.permissions import HasAPIKey
 from rest_framework.views import APIView
 
 from circle.api import service as circle_service
@@ -41,6 +42,8 @@ from circle.api.serializers import (
     CircleLevelNameConfigSerializer,
     CircleReportSerializer,
     CircleDetailsSerializer,
+    UserCategorySerializer,
+    AssignUserRoomTopicSerializer,
 )
 from circle.api.utils import (
     get_all_children,
@@ -62,6 +65,7 @@ from circle.helpers.ejjaberd import (
     destroy_room,
     member_xmpp_room_subscribe,
     member_xmpp_room_unsubscribe,
+    member_subscribe_topic,
 )
 from circle.middleware.permissions import Authenticate
 from circle.models import (
@@ -2175,3 +2179,62 @@ class GetCirclesInfoByIDS(APIView):
         )
 
         return Response(serializer.data)
+
+
+class AssignUserRoomTopicView(APIView):
+    """
+    API view for assigning a user to a room and topic in a Circle.
+    Requires API key authentication.
+    """
+
+    permission_classes = [HasAPIKey]
+
+    def post(self, request):
+        """
+        Assigns a user to a room and topic in a Circle.
+
+        Parameters:
+        - request (Request): The HTTP request object containing user data.
+
+        Returns:
+        - Response: HTTP response containing the result of the operation.
+        """
+        serializer = AssignUserRoomTopicSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+
+        # Prepare category data
+        category_data = serializer.validated_data["category"]
+        category = {
+            "university": category_data["university"],
+            "program": ", ".join(category_data["program"]),
+            "stream": category_data["stream"],
+            "department": ", ".join(category_data["department"]),
+            "specialization": ", ".join(category_data["specialization"]),
+            "college": category_data["college"],
+        }
+
+        # Query the Circle
+        circle = Circle.objects.filter(**category)
+
+        if circle.exists():
+            circle = circle.first()
+            circle_room = circle.room_id
+
+            # Subscribe user to ejabberd room
+            member_xmpp_room_subscribe(
+                user_jid=serializer.validated_data["user_jid"], room_id=circle_room
+            )
+
+            # Subscribe user to fcm topic
+            member_subscribe_topic(
+                tokens=[serializer.validated_data["fcm_token"]], topic=circle_room
+            )
+
+            return Response(
+                {"circle_room": circle_room, "message": "User assigned to Circle room and topic"},
+                status=status.HTTP_200_OK,
+            )
+
+        return Response(
+            {"detail": "Circle not found with given details"}, status=status.HTTP_400_BAD_REQUEST
+        )

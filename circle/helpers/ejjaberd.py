@@ -109,7 +109,7 @@ def member_xmpp_room_unsubscribe(user_jid, room_id):
         print("Error unsubscribing user at in room at XMPP server %s" % e)
 
 
-def member_subcribe_topic(tokens, topic):
+def member_subscribe_topic(tokens, topic):
     """
     Subscribe the given registration tokens (devices) to a specific topic in Firebase Cloud Messaging (FCM).
 
