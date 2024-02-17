@@ -113,6 +113,17 @@ class Circle(BaseTimeStampedModel, MPTTModel):
     )
     topic = models.ManyToManyField(Topic, blank=True)
 
+    # Category
+    university = models.CharField(max_length=255, null=True, blank=True, db_index=True)
+    college = models.CharField(max_length=255, null=True, blank=True, db_index=True)
+    program = models.CharField(max_length=255, null=True, blank=True, db_index=True)
+    stream = models.CharField(max_length=255, null=True, blank=True, db_index=True)
+    department = models.CharField(max_length=255, null=True, blank=True, db_index=True)
+    specialization = models.CharField(max_length=255, null=True, blank=True, db_index=True)
+    category = models.CharField(
+        max_length=255, default="education", null=True, blank=True, db_index=True
+    )
+
     class MPTTMeta:
         order_insertion_by = ["name"]
 

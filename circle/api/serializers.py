@@ -975,3 +975,28 @@ class CircleReportSerializer(BaseSerializer):
 
 class CircleDetailsSerializer(serializers.Serializer):
     circle_ids = serializers.ListField(required=True, allow_null=False)
+
+
+class UserCategorySerializer(serializers.Serializer):
+    university = serializers.CharField(max_length=255, required=True, allow_null=False)
+    stream = serializers.CharField(
+        max_length=255, required=False, allow_blank=True, allow_null=True
+    )
+    department = serializers.ListField(required=False, allow_null=True)
+    specialization = serializers.ListField(required=False, allow_null=True)
+    program = serializers.ListField(required=False, allow_null=True)
+    college = serializers.CharField(
+        max_length=255, required=False, allow_blank=True, allow_null=True
+    )
+
+
+class AssignUserRoomTopicSerializer(serializers.Serializer):
+    user_type_choices = (
+        ("Student", "Student"),
+        ("Faculty", "Faculty"),
+    )
+    user_id = serializers.IntegerField(required=True)
+    user_type = serializers.ChoiceField(choices=user_type_choices, allow_null=True, required=False)
+    user_jid = serializers.CharField(max_length=255, required=True, allow_null=False)
+    fcm_token = serializers.CharField(max_length=255, required=True, allow_null=False)
+    category = UserCategorySerializer(required=True)
