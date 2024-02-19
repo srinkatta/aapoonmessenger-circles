@@ -2151,9 +2151,12 @@ class GetAssociatedCircles(APIView):
                 .values_list("circle__id", flat=True)
             )
         elif user_ids != "":
+            # Convert 'user_ids' from a comma-separated string to a list of integers
+            user_ids_list = [int(user_id) for user_id in user_ids.split(',') if user_id.isdigit()]
+
             circles_ids = (
                 CircleSubscriberRole.objects.select_related("circle")
-                .filter(user_id__in=user_ids)
+                .filter(user_id__in=user_ids_list)
                 .values_list("circle__id", flat=True)
             )
 
