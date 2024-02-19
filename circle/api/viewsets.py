@@ -2124,20 +2124,41 @@ class GetAssociatedCircles(APIView):
     @extend_schema(
         parameters=[
             OpenApiParameter(
+                name="user_ids",
+                description="Filter by list of user_ids",
+                required=False,
+                type=str,
+                many=True
+            ),
+            OpenApiParameter(
                 name="user_id",
                 description="Filter by user_id",
-                required=True,
+                required=False,
                 type=str,
             ),
         ]
     )
     def get(self, request):
         user_id = request.GET.get("user_id", "")
-        circles_ids = (
-            CircleSubscriberRole.objects.select_related("circle")
-            .filter(user_id=user_id)
-            .values_list("circle__id", flat=True)
-        )
+        user_ids = request.GET.get("user_ids", "")
+
+        circles_ids = []
+
+        if user_id != "":
+            circles_ids = (
+                CircleSubscriberRole.objects.select_related("circle")
+                .filter(user_id=user_id)
+                .values_list("circle__id", flat=True)
+            )
+        elif user_ids != "":
+            # Convert 'user_ids' from a comma-separated string to a list of integers
+            user_ids_list = [int(user_id) for user_id in user_ids.split(',') if user_id.isdigit()]
+
+            circles_ids = (
+                CircleSubscriberRole.objects.select_related("circle")
+                .filter(user_id__in=user_ids_list)
+                .values_list("circle__id", flat=True)
+            )
 
         circles = (
             Circle.objects.select_related("parent")
@@ -2152,7 +2173,6 @@ class GetAssociatedCircles(APIView):
         )
 
         return Response(serializer.data)
-
 
 class GetCirclesInfoByIDS(APIView):
     permission_classes = [
