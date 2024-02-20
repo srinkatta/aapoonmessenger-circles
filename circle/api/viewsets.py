@@ -2265,10 +2265,12 @@ class AssignUserRoomTopicView(APIView):
         # Subscribe user to ejabberd room
         member_xmpp_room_subscribe(user_jid=user_jid, room_id=circle.room)
         logger.info(f"Subscribing User at ejabberd room for Circle: {circle}")
+        print(f"Subscribing User at ejabberd room for Circle: {circle}")
 
         # Subscribe user to fcm topic
         member_subscribe_topic(tokens=[fcm_token], topic=circle.room)
         logger.info(f"Subscribing User at fcm topic for Circle: {circle}")
+        print(f"Subscribing User at fcm topic for Circle: {circle}")
 
     def subscribe_user_to_circle(
         self,
