@@ -2209,9 +2209,18 @@ class AssignUserRoomTopicView(APIView):
         fcm_token = serializer.validated_data["fcm_token"]
 
         category_data = serializer.validated_data["category"]
-        for program in category_data["program"]:
-            for department in category_data["department"]:
-                for specialization in category_data["specialization"]:
+        if not category_data["specialization"]:
+            category_data["specialization"] = [None]
+
+        if not category_data["program"]:
+            category_data["program"] = [None]
+
+        if not category_data["department"]:
+            category_data["department"] = [None]
+
+        for specialization in category_data["specialization"]:
+            for program in category_data["program"]:
+                for department in category_data["department"]:
                     # Construct category dictionary for the current combination of values
                     category: Dict[str, Any] = {
                         "university": category_data["university"],
@@ -2263,12 +2272,12 @@ class AssignUserRoomTopicView(APIView):
         - None
         """
         # Subscribe user to ejabberd room
-        member_xmpp_room_subscribe(user_jid=user_jid, room_id=circle.room)
+        member_xmpp_room_subscribe(user_jid=user_jid, room_id=str(circle.room_id))
         logger.info(f"Subscribing User at ejabberd room for Circle: {circle}")
         print(f"Subscribing User at ejabberd room for Circle: {circle}")
 
         # Subscribe user to fcm topic
-        member_subscribe_topic(tokens=[fcm_token], topic=circle.room)
+        member_subscribe_topic(tokens=[fcm_token], topic=str(circle.room_id))
         logger.info(f"Subscribing User at fcm topic for Circle: {circle}")
         print(f"Subscribing User at fcm topic for Circle: {circle}")
 
@@ -2298,17 +2307,10 @@ class AssignUserRoomTopicView(APIView):
         if user_type == "Student" and (circle.level == 6 or circle.name == circle.specialization):
             role = CircleRole.objects.get(role=CircleRole.MEMBER)
             CircleSubscriberRole.objects.get_or_create(user_id=user_id, role=role, circle=circle)
-            self.subscribe_user_to_room_and_topic(self, user_jid, fcm_token, circle)
+            self.subscribe_user_to_room_and_topic(user_jid, fcm_token, circle)
 
-        elif user_type == "Faculty" and circle.level in [3, 4, 5, 6]:
+        elif user_type == "Faculty" and circle.level in [4, 5, 6]:
             admin = CircleRole.objects.get(role=CircleRole.ADMIN)
-
-            circle_college = Circle.objects.filter(name=category_data["college"])
-            if circle_college:
-                CircleSubscriberRole.objects.get_or_create(
-                    user_id=user_id, role=admin, circle=circle_college
-                )
-                self.subscribe_user_to_room_and_topic(self, user_jid, fcm_token, circle_college)
 
             # Subscribe faculty to various circles
             subscribe_categories = {
@@ -2320,7 +2322,12 @@ class AssignUserRoomTopicView(APIView):
             for category_key, category_names in subscribe_categories.items():
                 for name in category_names:
                     # Query the circle
-                    circle_instance = Circle.objects.filter(name=name).first()
+                    circle_instance = Circle.objects.filter(
+                        name=name,
+                        university=category_data["university"],
+                        stream=category_data["stream"],
+                        college=category_data["college"],
+                    ).first()
                     if circle_instance:
                         # Subscribe user to the circle
                         CircleSubscriberRole.objects.get_or_create(

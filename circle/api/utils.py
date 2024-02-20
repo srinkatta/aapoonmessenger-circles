@@ -694,7 +694,7 @@ def get_top_level_circles(
         try:
             root_circle: Circle = circle.get_root()
         except circle.MultipleObjectsReturned:
-            root_circle = circle.gensis_circle_id
+            root_circle = Circle.objects.filter(id=circle.gensis_circle_id).first()
 
         # Check ownership or admin rights before considering as a top level circle
         if not root_circle.hierarchy and root_circle.id not in subscribed_circle_ids:
@@ -780,7 +780,7 @@ def get_chief_admin_leaf_circles(user_id: int, chief_admin: CircleRole) -> Set[i
         try:
             root_circle: Circle = circle.get_root()
         except circle.MultipleObjectsReturned:
-            root_circle = circle.gensis_circle_id
+            root_circle = Circle.objects.filter(id=circle.gensis_circle_id).first()
 
         if not root_circle.hierarchy:
             # Ensure that the user is not subscribed as a chief admin in the roles of both the root and parent circles.
