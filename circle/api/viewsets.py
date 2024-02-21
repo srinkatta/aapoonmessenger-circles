@@ -417,7 +417,9 @@ class CircleViewSet(BaseCircleViewSet):
         elif "site" in request.GET:
             chief_admin = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
             default_admin = CircleRole.objects.get(role=CircleRole.DEFAULT_ADMIN)
+            print("**Triggered Web based circles**")
             final_circles = CircleSubscriberRole.objects.filter(user_id=request.user_id)
+            print("**Retrieved final circles from database.**")
 
             circles = [
                 circle.circle.id
@@ -425,22 +427,27 @@ class CircleViewSet(BaseCircleViewSet):
                 if not (circle.circle.parent is not None and circle.role == chief_admin)
                 if not circle.role == default_admin
             ]
+            print("**Filtered circles based on validation criteria.**")
 
             circles = Circle.objects.filter(id__in=circles)
+            print("**Retrieved circles from database.**")
 
         else:
+            print("**Triggered all circles list**")
             final_circles = (
                 CircleSubscriberRole.objects.select_related("circle")
                 .select_related("role")
                 .filter(user_id=request.user_id)
                 .values_list("circle__id", flat=True)
             )
+            print("**Retrieved final circles from database.**")
 
             circles = (
                 Circle.objects.select_related("parent")
                 .prefetch_related("topic")
                 .filter(id__in=final_circles)
             )
+            print("**Filtered circles based on validation criteria.**")
 
         queryset = circles.order_by("-id")
         page = self.paginate_queryset(queryset)
@@ -2230,6 +2237,7 @@ class AssignUserRoomTopicView(APIView):
                         "specialization": specialization,
                         "college": category_data["college"],
                     }
+                    print(category)
                     # Query the circle
                     circle = self.get_associated_circle(category)
                     if circle:
@@ -2237,12 +2245,16 @@ class AssignUserRoomTopicView(APIView):
                         self.subscribe_user_to_circle(
                             user_id, user_jid, user_type, fcm_token, circle, category_data
                         )
-        return Response(
-            {
-                "message": "User assigned to associated circles and subscribed to room and FCM topic."
-            },
-            status=status.HTTP_200_OK,
-        )
+                        return Response(
+                            {
+                                "message": "User assigned to associated circles and subscribed to room and FCM topic."
+                            },
+                            status=status.HTTP_200_OK,
+                        )
+                    return Response(
+                        {"details: Circle records not with with the categories provided"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
 
     def get_associated_circle(self, category: Dict[str, Any]) -> Circle | None:
         """
