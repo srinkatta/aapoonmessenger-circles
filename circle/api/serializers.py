@@ -990,7 +990,7 @@ class UserCategorySerializer(serializers.Serializer):
     )
 
 
-class AssignUserRoomTopicSerializer(serializers.Serializer):
+class AssignUserRoomTopicSerializer(UserCategorySerializer):
     user_type_choices = (
         ("Student", "Student"),
         ("Faculty", "Faculty"),
@@ -999,4 +999,3 @@ class AssignUserRoomTopicSerializer(serializers.Serializer):
     user_type = serializers.ChoiceField(choices=user_type_choices, allow_null=True, required=False)
     user_jid = serializers.CharField(max_length=255, required=True, allow_null=False)
     fcm_token = serializers.CharField(max_length=255, required=True, allow_null=False)
-    category = UserCategorySerializer(required=True)
