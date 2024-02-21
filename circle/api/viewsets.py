@@ -2210,32 +2210,32 @@ class AssignUserRoomTopicView(APIView):
         serializer = AssignUserRoomTopicSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
 
-        user_id = serializer.validated_data["user_id"]
-        user_jid = serializer.validated_data["user_jid"]
-        user_type = serializer.validated_data["user_type"]
-        fcm_token = serializer.validated_data["fcm_token"]
+        data = serializer.validated_data
+        user_id = data["user_id"]
+        user_jid = data["user_jid"]
+        user_type = data["user_type"]
+        fcm_token = data["fcm_token"]
 
-        category_data = serializer.validated_data["category"]
-        if not category_data["specialization"]:
-            category_data["specialization"] = [None]
+        if not data["specialization"]:
+            data["specialization"] = [None]
 
-        if not category_data["program"]:
-            category_data["program"] = [None]
+        if not data["program"]:
+            data["program"] = [None]
 
-        if not category_data["department"]:
-            category_data["department"] = [None]
+        if not data["department"]:
+            data["department"] = [None]
 
-        for specialization in category_data["specialization"]:
-            for program in category_data["program"]:
-                for department in category_data["department"]:
+        for specialization in data["specialization"]:
+            for program in data["program"]:
+                for department in data["department"]:
                     # Construct category dictionary for the current combination of values
                     category: Dict[str, Any] = {
-                        "university": category_data["university"],
+                        "university": data["university"],
                         "program": program,
-                        "stream": category_data["stream"],
+                        "stream": data["stream"],
                         "department": department,
                         "specialization": specialization,
-                        "college": category_data["college"],
+                        "college": data["college"],
                     }
                     print(category)
                     # Query the circle
@@ -2252,7 +2252,7 @@ class AssignUserRoomTopicView(APIView):
                             status=status.HTTP_200_OK,
                         )
                     return Response(
-                        {"details: Circle records not with with the categories provided"},
+                        {"details: Circle records not found with the categories provided"},
                         status=status.HTTP_400_BAD_REQUEST,
                     )
 
