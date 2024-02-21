@@ -415,21 +415,21 @@ class CircleViewSet(BaseCircleViewSet):
             circles = self.circle_name_search(request)
 
         elif "site" in request.GET:
+            print("**Triggered Web based circles**")
             chief_admin = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
             default_admin = CircleRole.objects.get(role=CircleRole.DEFAULT_ADMIN)
-            print("**Triggered Web based circles**")
-            final_circles = CircleSubscriberRole.objects.filter(user_id=request.user_id)
-            print("**Retrieved final circles from database.**")
 
-            circles = [
-                circle.circle.id
-                for circle in final_circles
-                if not (circle.circle.parent is not None and circle.role == chief_admin)
-                if not circle.role == default_admin
-            ]
-            print("**Filtered circles based on validation criteria.**")
+            # Single query optimizes circle data & role fetching
+            final_circles = (
+                CircleSubscriberRole.objects.select_related("subscribers")
+                .filter(user_id=request.user_id)
+                .exclude(role=chief_admin, circle__parent__isnull=False)
+                .exclude(role=default_admin)
+                .values_list("circle__id", flat=True)
+            )
+            print("**Retrieved final circles from database (optimized).**")
 
-            circles = Circle.objects.filter(id__in=circles)
+            circles = Circle.objects.select_related("parent").filter(id__in=final_circles)
             print("**Retrieved circles from database.**")
 
         else:
