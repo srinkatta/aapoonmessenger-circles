@@ -2207,6 +2207,7 @@ class AssignUserRoomTopicView(APIView):
         Returns:
         - Response: HTTP response containing the result of the operation.
         """
+        print("**Triggered AssignUserRoomTopicView API**")
         serializer = AssignUserRoomTopicSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
 
@@ -2224,7 +2225,7 @@ class AssignUserRoomTopicView(APIView):
 
         if not data["department"]:
             data["department"] = [None]
-
+        print(f"payload : {data}")
         for specialization in data["specialization"]:
             for program in data["program"]:
                 for department in data["department"]:
@@ -2237,13 +2238,13 @@ class AssignUserRoomTopicView(APIView):
                         "specialization": specialization,
                         "college": data["college"],
                     }
-                    print(category)
+                    print(f"category payload: {category}")
                     # Query the circle
                     circle = self.get_associated_circle(category)
                     if circle:
                         # Subscribe Users(Student/Faculty) to associate circles
                         self.subscribe_user_to_circle(
-                            user_id, user_jid, user_type, fcm_token, circle, category_data
+                            user_id, user_jid, user_type, fcm_token, circle, data
                         )
                         return Response(
                             {
@@ -2267,6 +2268,7 @@ class AssignUserRoomTopicView(APIView):
         - Circle | None: The associated circle if found, or None if not found.
         """
         circles = Circle.objects.filter(**category)
+        print(f"Associated circles: {circles}")
         return circles.first() if circles.exists() else None
 
     def subscribe_user_to_room_and_topic(
@@ -2283,6 +2285,7 @@ class AssignUserRoomTopicView(APIView):
         Returns:
         - None
         """
+        print("**Triggered subscribe_user_to_room_and_topic method**")
         # Subscribe user to ejabberd room
         member_xmpp_room_subscribe(user_jid=user_jid, room_id=str(circle.room_id))
         logger.info(f"Subscribing User at ejabberd room for Circle: {circle}")
@@ -2316,12 +2319,18 @@ class AssignUserRoomTopicView(APIView):
         Returns:
         - None
         """
+        print("**Triggered subscribe_user_to_circle method**")
         if user_type == "Student" and (circle.level == 6 or circle.name == circle.specialization):
+
             role = CircleRole.objects.get(role=CircleRole.MEMBER)
-            CircleSubscriberRole.objects.get_or_create(user_id=user_id, role=role, circle=circle)
+            circle_subscriber = CircleSubscriberRole.objects.get_or_create(
+                user_id=user_id, role=role, circle=circle
+            )
+            print(f"Circle subscriber role object: {circle_subscriber}")
             self.subscribe_user_to_room_and_topic(user_jid, fcm_token, circle)
 
         elif user_type == "Faculty" and circle.level in [4, 5, 6]:
+            print("**Entered Faculty case")
             admin = CircleRole.objects.get(role=CircleRole.ADMIN)
 
             # Subscribe faculty to various circles
@@ -2340,11 +2349,13 @@ class AssignUserRoomTopicView(APIView):
                         stream=category_data["stream"],
                         college=category_data["college"],
                     ).first()
+                    print(f"Circle instance for faculty: {circle_instance}")
                     if circle_instance:
                         # Subscribe user to the circle
-                        CircleSubscriberRole.objects.get_or_create(
+                        circle_subscriber = CircleSubscriberRole.objects.get_or_create(
                             user_id=user_id, role=admin, circle=circle_instance
                         )
+                        print(f"Circle subscriber role object: {circle_subscriber}")
                         # Subscribe user to the ejabberd room and fcm topic
                         self.subscribe_user_to_room_and_topic(user_jid, fcm_token, circle_instance)
 
