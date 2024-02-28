@@ -844,6 +844,17 @@ class CircleHierarchySerializer(CircleListSerializer):
         return circle_utils.get_gensis_circle_id(circle)
 
 
+class CircleHierarchySerializerV2(CircleListSerializer):
+    class Meta:
+        model = Circle
+        fields = (
+            "id",
+            "name",
+            "image",
+            "room_id",
+        )
+
+
 class CircleHierarchySearchSerializer(CircleListSerializer):
     sub_circle_count = serializers.SerializerMethodField()
     level = serializers.SerializerMethodField()

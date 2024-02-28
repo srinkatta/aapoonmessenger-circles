@@ -18,6 +18,7 @@ from circle.api.mixins import BulkCreateCircleInviteMixin
 from circle.api.serializers import (
     AppBrandingSerializer,
     CircleHierarchySerializer,
+    CircleHierarchySerializerV2,
     CircleRoleSerializer,
     CircleSerializer,
     CircleSubscriberRoleSerializer,
@@ -784,7 +785,7 @@ class CircleViewSet(BaseCircleViewSet):
 
         circles = self.filter_circles(request, circle)
         page = self.paginate_queryset(circles)
-        serializer = CircleHierarchySerializer(page, many=True)
+        serializer = CircleHierarchySerializerV2(page, many=True)
         return self.get_paginated_response(serializer.data)
 
     def filter_circles(self, request, circle):
@@ -1079,7 +1080,7 @@ class CircleViewSet(BaseCircleViewSet):
             )
             circle_ids.extend(subscribed_circle_ids)
 
-        circles = Circle.objects.filter(id__in=circle_ids).order_by("-id")
+        circles = Circle.objects.select_related("parent").filter(id__in=circle_ids).order_by("-id")
         page = self.paginate_queryset(circles)
         serializer = CircleListSerializer(page, many=True, context={"request": request})
         return self.get_paginated_response(serializer.data)
