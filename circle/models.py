@@ -123,6 +123,7 @@ class Circle(BaseTimeStampedModel, MPTTModel):
     category = models.CharField(
         max_length=255, default="education", null=True, blank=True, db_index=True
     )
+    designation = models.CharField(max_length=255, null=True, blank=True, db_index=True)
 
     class MPTTMeta:
         order_insertion_by = ["name"]

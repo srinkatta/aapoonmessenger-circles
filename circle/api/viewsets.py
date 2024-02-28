@@ -12,6 +12,7 @@ from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework_api_key.permissions import HasAPIKey
 from rest_framework.views import APIView
+from rest_framework.exceptions import ValidationError
 
 from circle.api import service as circle_service
 from circle.api.mixins import BulkCreateCircleInviteMixin
@@ -2361,3 +2362,181 @@ class AssignUserRoomTopicView(APIView):
                         self.subscribe_user_to_room_and_topic(user_jid, fcm_token, circle_instance)
 
                         logger.info(f"Subscribing User at associated Circle: {circle_instance}")
+
+
+class AssignUserRoomTopicViewV2(APIView):
+    """
+    API view for assigning a user to a room and topic in a Circle.
+    Requires API key authentication.
+    """
+
+    permission_classes = [HasAPIKey]
+    allowed_methods = ("POST",)
+
+    def post(self, request):
+        """
+        Assigns a user to a room and topic in a Circle.
+
+        Parameters:
+        - request (Request): The HTTP request object containing user data.
+
+        Returns:
+        - Response: HTTP response containing the result of the operation.
+        """
+        serializer = AssignUserRoomTopicSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+
+        data = serializer.validated_data
+        user_id = data["user_id"]
+        user_jid = data["user_jid"]
+        user_type = data["user_type"]
+        fcm_token = data["fcm_token"]
+        designation = data.get("designation", "")
+
+        if not data["specialization"]:
+            data["specialization"] = [None]
+
+        if not data["program"]:
+            data["program"] = [None]
+
+        if not data["department"]:
+            data["department"] = [None]
+
+        for specialization in data["specialization"]:
+            for program in data["program"]:
+                for department in data["department"]:
+                    # Construct category dictionary for the current combination of values
+                    category: Dict[str, Any] = {
+                        "university": data["university"],
+                        "program": program,
+                        "stream": data["stream"],
+                        "department": department,
+                        "specialization": specialization,
+                        "college": data["college"],
+                    }
+                    print(f"category payload: {category}")
+                    # Query the circle
+                    circle = self.get_associated_circle(category)
+                    if circle:
+                        # Subscribe Users(Student/Faculty) to associate circles
+                        self.subscribe_user_to_circle(
+                            user_id, user_jid, user_type, fcm_token, circle, data, designation
+                        )
+                        return Response(
+                            {
+                                "message": "User assigned to associated circles and subscribed to room and FCM topic."
+                            },
+                            status=status.HTTP_200_OK,
+                        )
+                    return Response(
+                        {"details: Circle records not found with the categories provided"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+    def get_associated_circle(self, category: Dict[str, Any]) -> Circle | None:
+        """
+        Retrieves the associated circle based on the provided category data.
+
+        Parameters:
+        - category (Dict[str, Any]): A dictionary containing category data such as university, program, stream, department, specialization, and college.
+
+        Returns:
+        - Circle | None: The associated circle if found, or None if not found.
+        """
+        circles = Circle.objects.filter(**category)
+        if circles:
+            return circles.first()
+        raise ValidationError({"detail": "Circle not found with the given details"})
+
+    def subscribe_user_to_room_and_topic(
+        self, user_jid: str, fcm_token: str, circle: Circle
+    ) -> None:
+        """
+        Subscribes a user to the specified ejabberd room and FCM topic associated with the given circle.
+
+        Parameters:
+        - user_jid (str): The JID (Jabber Identifier) of the user.
+        - fcm_token (str): The Firebase Cloud Messaging token of the user.
+        - circle (Circle): The circle to which the user will be subscribed.
+
+        Returns:
+        - None
+        """
+        print("**Triggered subscribe_user_to_room_and_topic method**")
+        # Subscribe user to ejabberd room
+        member_xmpp_room_subscribe(user_jid=user_jid, room_id=str(circle.room_id))
+        logger.info(f"Subscribing User at ejabberd room for Circle: {circle}")
+        print(f"Subscribing User at ejabberd room for Circle: {circle}")
+
+        # Subscribe user to fcm topic
+        member_subscribe_topic(tokens=[fcm_token], topic=str(circle.room_id))
+        logger.info(f"Subscribing User at fcm topic for Circle: {circle}")
+        print(f"Subscribing User at fcm topic for Circle: {circle}")
+
+    def subscribe_user_to_circle(
+        self,
+        user_id: int,
+        user_jid: str,
+        user_type: str,
+        fcm_token: str,
+        circle: Circle,
+        category_data: Dict[str, Any],
+        designation: str,
+    ) -> None:
+        """
+        Subscribes a user to the specified circle based on their type and circle level.
+
+        Parameters:
+        - user_id (int): The ID of the user to subscribe.
+        - user_jid (str): The JID (Jabber Identifier) of the user.
+        - user_type (str): The type of user, either "Student" or "Faculty".
+        - fcm_token (str): The Firebase Cloud Messaging token of the user.
+        - circle (Circle): The circle to which the user will be subscribed.
+        - category_data (Dict[str, Any]): A dictionary containing category data such as college, specialization, program, and department.
+
+        Returns:
+        - None
+        """
+        print("**Triggered subscribe_user_to_circle method**")
+        if user_type == "Student" and (circle.level == 6 or circle.name == circle.specialization):
+
+            role = CircleRole.objects.get(role=CircleRole.MEMBER)
+            circle_subscriber = CircleSubscriberRole.objects.get_or_create(
+                user_id=user_id, role=role, circle=circle
+            )
+            print(f"Circle subscriber role object: {circle_subscriber}")
+            self.subscribe_user_to_room_and_topic(user_jid, fcm_token, circle)
+
+        elif user_type == "Faculty":
+            print("**Entered Faculty case")
+            member = CircleRole.objects.get(role=CircleRole.MEMBER)
+
+            # Fetch circle based on specified details
+            circle_instance = Circle.objects.filter(
+                name=category_data["college"],
+                university=category_data["university"],
+                stream=category_data["stream"],
+                college=category_data["college"],
+            ).first()
+            if not circle_instance:
+                raise ValidationError(
+                    {"detail": "Circle not found with provided details"},
+                )
+            # Fetch designation circle
+            faculty_circle = Circle.objects.filter(name=designation, level=1).first()
+            if not faculty_circle:
+                raise ValidationError(
+                    {"detail": "Designation circle not found with provided details"},
+                )
+
+            print(f"Circle instance: {circle_instance} and faculty")
+            for instance in [circle_instance, faculty_circle]:
+                # Subscribe user to the circle
+                circle_subscriber, created = CircleSubscriberRole.objects.get_or_create(
+                    user_id=user_id, role=member, circle=instance
+                )
+                print(f"Circle subscriber role object: {circle_subscriber}")
+                if created:
+                    # Subscribe user to the ejabberd room and fcm topic
+                    self.subscribe_user_to_room_and_topic(user_jid, fcm_token, instance)
+                    logger.info(f"Subscribing User at associated Circle: {instance}")
