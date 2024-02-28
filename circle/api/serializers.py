@@ -546,6 +546,12 @@ class CircleListSerializer(BaseCircleSerializer):
             "level_7",
             "level_config",
             "total_circles_count",
+            "university",
+            "stream",
+            "college",
+            "department",
+            "program",
+            "specialization",
         )
         extra_kwargs = {
             "id": {"read_only": True},
