@@ -680,14 +680,18 @@ def get_top_level_circles(
     Returns:
         Set[int]: A set of IDs for circles considered top-level according to the defined criteria.
     """
-    subscribed_circles = CircleSubscriberRole.objects.filter(
-        user_id=user_id,
-        role=chief_admin,
-        circle__parent__isnull=False,
-        circle__total_children_count__gte=1,
-    ).values_list("circle_id", flat=True)
+    subscribed_circles = (
+        CircleSubscriberRole.objects.select_related("subscribers")
+        .filter(
+            user_id=user_id,
+            role=chief_admin,
+            circle__parent__isnull=False,
+            circle__total_children_count__gte=1,
+        )
+        .values_list("circle_id", flat=True)
+    )
 
-    circles = Circle.objects.filter(id__in=subscribed_circles)
+    circles = Circle.objects.select_related("parent").filter(id__in=subscribed_circles)
     top_level_circles = set()
 
     for circle in circles:
@@ -727,16 +731,20 @@ def get_admin_circles(user_id: int, chief_admin: CircleRole) -> List[int]:
     role_ids = []
     for role in [CircleRole.ADMIN, CircleRole.CHIEF_ADMIN]:
         role_instance = CircleRole.objects.get(role=role)
-        subscribed_circles = CircleSubscriberRole.objects.filter(
-            user_id=user_id,
-            role=role_instance,
-            circle__parent__isnull=False,
-            circle__total_children_count=0,
-        ).values_list("circle_id", flat=True)
+        subscribed_circles = (
+            CircleSubscriberRole.objects.select_related("subscribers")
+            .filter(
+                user_id=user_id,
+                role=role_instance,
+                circle__parent__isnull=False,
+                circle__total_children_count=0,
+            )
+            .values_list("circle_id", flat=True)
+        )
         role_ids.extend(subscribed_circles)
 
     admin_circles = []
-    for circle in Circle.objects.filter(id__in=role_ids):
+    for circle in Circle.objects.select_related("parent").filter(id__in=role_ids):
         try:
             root_circle: Circle = circle.get_root()
         except circle.MultipleObjectsReturned:

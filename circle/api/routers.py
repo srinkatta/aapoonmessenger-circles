@@ -35,6 +35,7 @@ from circle.api.viewsets import (
     GetAssociatedCircles,
     GetCirclesInfoByIDS,
     AssignUserRoomTopicView,
+    AssignUserRoomTopicViewV2,
 )
 
 router = routers.SimpleRouter()
@@ -105,6 +106,8 @@ urlpatterns = [
     path(r"associated/", GetAssociatedCircles.as_view(), name="user-associated-circles"),
     path(r"details/", GetCirclesInfoByIDS.as_view(), name="circle-details-by-ids"),
     path(
-        r"assign_user_room_topic/", AssignUserRoomTopicView.as_view(), name="assign_user_room_topic"
+        r"assign_user_room_topic/",
+        AssignUserRoomTopicViewV2.as_view(),
+        name="assign_user_room_topic",
     ),
 ]
