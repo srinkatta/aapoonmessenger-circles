@@ -188,6 +188,7 @@ class BaseCircleSerializer(BaseSerializer):
             "level_5",
             "level_6",
             "level_7",
+            "designation",
         )
         extra_kwargs = {
             "id": {"read_only": True},
@@ -552,6 +553,7 @@ class CircleListSerializer(BaseCircleSerializer):
             "department",
             "program",
             "specialization",
+            "designation",
         )
         extra_kwargs = {
             "id": {"read_only": True},
@@ -870,6 +872,7 @@ class CircleHierarchySerializerV2(CircleListSerializer):
             "name",
             "image",
             "room_id",
+            "designation",
         )
 
 
