@@ -721,6 +721,18 @@ class CircleSubscribedUsersSerializer(FlexFieldsModelSerializer):
     user_phone = serializers.SerializerMethodField()
     user_profile_pic = serializers.SerializerMethodField()
     user_profile = serializers.SerializerMethodField()
+    designation = serializers.SerializerMethodField()
+    university = serializers.SerializerMethodField()
+    college = serializers.SerializerMethodField()
+
+    def get_designation(self, obj):
+        return obj.circle.designation or None
+
+    def get_university(self, obj):
+        return obj.circle.university or None
+
+    def get_college(self, obj):
+        return obj.circle.college or None
 
     def get_subscribed_admins(self, obj):
         if obj.role.role in [0, 10, 20, 30, 40]:
