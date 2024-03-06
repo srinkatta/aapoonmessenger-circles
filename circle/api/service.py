@@ -52,11 +52,12 @@ def filter_circles_by_level(request, circle):
         The function includes the root circle and all of its children in the search.
         If the specified level does not exist in the hierarchy, an empty list is returned.
     """
-    level = int(request.GET.get("level", 0))
+    level = request.GET.get("level")
     circles = get_all_children(circle, include_self=True)
     if level == "admins":
         final_circles = circles.filter(~Q(designation="") & Q(designation__isnull=False))
     else:
+        level = int(request.GET.get("level", 0))
         circles_with_level = get_circle_with_level(circles)
         final_circles = circles_with_level.get(level, [])
         final_circles = Circle.objects.filter(id__in=[c.id for c in final_circles])
@@ -80,13 +81,13 @@ def filter_circles_by_name_and_level(request, circle):
         If the specified level does not exist in the hierarchy, an empty list is returned.
     """
     name = request.GET.get("name", "").strip().lower()
-    level = int(request.GET.get("level", 0))
+    level = request.GET.get("level")
     circles = get_all_children(circle, include_self=True)
     if level == "admins":
         final_circles = circles.filter(~Q(designation="") & Q(designation__isnull=False))
     else:
+        level = int(request.GET.get("level", 0))
         circles_with_level = get_circle_with_level(circles)
-
         final_circles = circles_with_level.get(level, [])
         final_circles = Circle.objects.filter(id__in=[c.id for c in final_circles])
 
@@ -113,11 +114,12 @@ def filter_circles_by_parent(request, circle):
         If the specified level does not exist in the hierarchy or the 'parent' parameter is not a valid integer, an empty list is returned.
     """
     parent = request.GET.get("parent")
-    level = int(request.GET.get("level", 0))
+    level = request.GET.get("level")
     circles = get_all_children(circle, include_self=True)
     if level == "admins":
         final_circles = circles.filter(~Q(designation="") & Q(designation__isnull=False))
     else:
+        level = int(request.GET.get("level", 0))
         circles_with_level = get_circle_with_level(circles)
         final_circles = circles_with_level.get(level, [])
         final_circles = Circle.objects.filter(id__in=[c.id for c in final_circles])
