@@ -896,6 +896,18 @@ class CircleViewSet(BaseCircleViewSet):
                 required=False,
                 type=str,
             ),
+            OpenApiParameter(
+                name="university",
+                description="Filter by university",
+                required=False,
+                type=str,
+            ),
+            OpenApiParameter(
+                name="college",
+                description="Filter by college",
+                required=False,
+                type=str,
+            ),
         ]
     )
     @action(

@@ -56,6 +56,10 @@ def filter_circles_by_level(request, circle):
     circles = get_all_children(circle, include_self=True)
     if level == "admins":
         final_circles = circles.filter(~Q(designation="") & Q(designation__isnull=False))
+    elif level == 1:
+        final_circles = circles.filter(Q(designation="") & Q(designation__isnull=True)).filter(
+            ~Q(university="") & Q(university__isnull=False)
+        )
     else:
         level = int(request.GET.get("level", 0))
         circles_with_level = get_circle_with_level(circles)
@@ -85,6 +89,10 @@ def filter_circles_by_name_and_level(request, circle):
     circles = get_all_children(circle, include_self=True)
     if level == "admins":
         final_circles = circles.filter(~Q(designation="") & Q(designation__isnull=False))
+    elif level == 1:
+        final_circles = circles.filter(Q(designation="") & Q(designation__isnull=True)).filter(
+            ~Q(university="") & Q(university__isnull=False)
+        )
     else:
         level = int(request.GET.get("level", 0))
         circles_with_level = get_circle_with_level(circles)
@@ -118,6 +126,10 @@ def filter_circles_by_parent(request, circle):
     circles = get_all_children(circle, include_self=True)
     if level == "admins":
         final_circles = circles.filter(~Q(designation="") & Q(designation__isnull=False))
+    elif level == 1:
+        final_circles = circles.filter(Q(designation="") & Q(designation__isnull=True)).filter(
+            ~Q(university="") & Q(university__isnull=False)
+        )
     else:
         level = int(request.GET.get("level", 0))
         circles_with_level = get_circle_with_level(circles)
