@@ -54,9 +54,12 @@ def filter_circles_by_level(request, circle):
     """
     level = int(request.GET.get("level", 0))
     circles = get_all_children(circle, include_self=True)
-    circles_with_level = get_circle_with_level(circles)
-    final_circles = circles_with_level.get(level, [])
-    final_circles = Circle.objects.filter(id__in=[c.id for c in final_circles])
+    if level == "admins":
+        final_circles = circles.filter(~Q(designation="") & Q(designation__isnull=False))
+    else:
+        circles_with_level = get_circle_with_level(circles)
+        final_circles = circles_with_level.get(level, [])
+        final_circles = Circle.objects.filter(id__in=[c.id for c in final_circles])
     return final_circles.order_by("-id")
 
 
@@ -79,10 +82,13 @@ def filter_circles_by_name_and_level(request, circle):
     name = request.GET.get("name", "").strip().lower()
     level = int(request.GET.get("level", 0))
     circles = get_all_children(circle, include_self=True)
-    circles_with_level = get_circle_with_level(circles)
+    if level == "admins":
+        final_circles = circles.filter(~Q(designation="") & Q(designation__isnull=False))
+    else:
+        circles_with_level = get_circle_with_level(circles)
 
-    final_circles = circles_with_level.get(level, [])
-    final_circles = Circle.objects.filter(id__in=[c.id for c in final_circles])
+        final_circles = circles_with_level.get(level, [])
+        final_circles = Circle.objects.filter(id__in=[c.id for c in final_circles])
 
     qs = final_circles.annotate(
         name_lower=Lower("name"),
@@ -109,9 +115,12 @@ def filter_circles_by_parent(request, circle):
     parent = request.GET.get("parent")
     level = int(request.GET.get("level", 0))
     circles = get_all_children(circle, include_self=True)
-    circles_with_level = get_circle_with_level(circles)
-    final_circles = circles_with_level.get(level, [])
-    final_circles = Circle.objects.filter(id__in=[c.id for c in final_circles])
+    if level == "admins":
+        final_circles = circles.filter(~Q(designation="") & Q(designation__isnull=False))
+    else:
+        circles_with_level = get_circle_with_level(circles)
+        final_circles = circles_with_level.get(level, [])
+        final_circles = Circle.objects.filter(id__in=[c.id for c in final_circles])
     return final_circles.filter(parent=int(parent)).order_by("-id")
 
 
