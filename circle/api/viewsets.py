@@ -741,7 +741,7 @@ class CircleViewSet(BaseCircleViewSet):
                 name="level",
                 description="Filter by level of circle",
                 required=False,
-                type=int,
+                type=str,
             ),
             OpenApiParameter(
                 name="name",
