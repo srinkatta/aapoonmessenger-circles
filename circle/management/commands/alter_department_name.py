@@ -38,9 +38,6 @@ class Command(BaseCommand):
         - None
         """
         try:
-            import pdb
-
-            pdb.set_trace()
             pg_circles = Circle.objects.filter(program="Post Graduate")
 
             for circle in pg_circles:
