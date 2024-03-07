@@ -753,7 +753,7 @@ class CircleViewSet(BaseCircleViewSet):
                 name="level",
                 description="Filter by level of circle",
                 required=False,
-                type=int,
+                type=str,
             ),
             OpenApiParameter(
                 name="name",
@@ -766,6 +766,18 @@ class CircleViewSet(BaseCircleViewSet):
                 description="Filter by parent id of circle",
                 required=False,
                 type=int,
+            ),
+            OpenApiParameter(
+                name="university",
+                description="Filter by university",
+                required=False,
+                type=str,
+            ),
+            OpenApiParameter(
+                name="college",
+                description="Filter by college",
+                required=False,
+                type=str,
             ),
         ]
     )
@@ -896,6 +908,18 @@ class CircleViewSet(BaseCircleViewSet):
                 required=False,
                 type=str,
             ),
+            OpenApiParameter(
+                name="university",
+                description="Filter by university",
+                required=False,
+                type=str,
+            ),
+            OpenApiParameter(
+                name="college",
+                description="Filter by college",
+                required=False,
+                type=str,
+            ),
         ]
     )
     @action(
@@ -921,9 +945,12 @@ class CircleViewSet(BaseCircleViewSet):
         except Circle.DoesNotExist:
             return Response({"detail": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST)
 
-        role = request.GET.get("role", "")
-        name = request.GET.get("name", "")
-        phone = request.GET.get("phone", "")
+        role = request.GET.get("role", None)
+        name = request.GET.get("name", None)
+        phone = request.GET.get("phone", None)
+        university = request.GET.get("university", None)
+        college = request.GET.get("college", None)
+
         if role == "admins":
             role = [10, 20]
             circle_users = CircleSubscriberRole.objects.filter(circle=circle, role__role__in=role)
@@ -937,38 +964,31 @@ class CircleViewSet(BaseCircleViewSet):
         serializer = CircleSubscribedUsersSerializer(page, many=True, context={"request": request})
 
         if name:
-            """
-            If filter by name is present, trigger this
-            """
-            user_ids = []
-            for user_details in serializer.data:
-                if (
-                    user_details.get("user_name")
-                    and name.lower() in user_details.get("user_name").lower()
-                ):
-                    user_ids.append(user_details["id"])
-
-            circle_users = CircleSubscriberRole.objects.filter(id__in=user_ids)
+            circle_users = self.filter_circle_subscribed_users(serializer.data, "user_name", name)
             page = self.paginate_queryset(circle_users)
             serializer = CircleSubscribedUsersSerializer(
                 page, many=True, context={"request": request}
             )
-            return self.get_paginated_response(serializer.data)
         if phone:
-            """
-            Filter circle subscribed users by phone.
-            """
-            user_ids = []
-            for user_details in serializer.data:
-                if user_details.get("user_phone") and phone in user_details.get("user_phone"):
-                    user_ids.append(user_details["id"])
-
-            circle_users = CircleSubscriberRole.objects.filter(id__in=user_ids)
+            circle_users = self.filter_circle_subscribed_users(serializer.data, "user_phone", phone)
             page = self.paginate_queryset(circle_users)
             serializer = CircleSubscribedUsersSerializer(
                 page, many=True, context={"request": request}
             )
-            return self.get_paginated_response(serializer.data)
+        if university:
+            circle_users = self.filter_circle_subscribed_users(
+                serializer.data, "university", university
+            )
+            page = self.paginate_queryset(circle_users)
+            serializer = CircleSubscribedUsersSerializer(
+                page, many=True, context={"request": request}
+            )
+        if college:
+            circle_users = self.filter_circle_subscribed_users(serializer.data, "college", college)
+            page = self.paginate_queryset(circle_users)
+            serializer = CircleSubscribedUsersSerializer(
+                page, many=True, context={"request": request}
+            )
 
         return self.get_paginated_response(serializer.data)
 
@@ -1097,6 +1117,16 @@ class CircleViewSet(BaseCircleViewSet):
         page = self.paginate_queryset(circles)
         serializer = CircleListSerializer(page, many=True, context={"request": request})
         return self.get_paginated_response(serializer.data)
+
+    def filter_circle_subscribed_users(self, serializer_data, attribute, value):
+        user_ids = []
+
+        for user_details in serializer_data:
+            if user_details.get(attribute) and value.lower() in user_details.get(attribute).lower():
+                user_ids.append(user_details["id"])
+
+        circle_users = CircleSubscriberRole.objects.filter(id__in=user_ids)
+        return circle_users
 
 
 class CircleRoleViewSet(BaseCircleViewSet):
@@ -2335,7 +2365,6 @@ class AssignUserRoomTopicView(APIView):
         """
         print("**Triggered subscribe_user_to_circle method**")
         if user_type == "Student" and (circle.level == 6 or circle.name == circle.specialization):
-
             role = CircleRole.objects.get(role=CircleRole.MEMBER)
             circle_subscriber = CircleSubscriberRole.objects.get_or_create(
                 user_id=user_id, role=role, circle=circle

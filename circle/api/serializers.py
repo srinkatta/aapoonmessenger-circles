@@ -187,6 +187,7 @@ class BaseCircleSerializer(BaseSerializer):
             "level_5",
             "level_6",
             "level_7",
+            "designation",
         )
         extra_kwargs = {
             "id": {"read_only": True},
@@ -545,6 +546,13 @@ class CircleListSerializer(BaseCircleSerializer):
             "level_7",
             "level_config",
             "total_circles_count",
+            "university",
+            "stream",
+            "college",
+            "department",
+            "program",
+            "specialization",
+            "designation",
         )
         extra_kwargs = {
             "id": {"read_only": True},
@@ -714,47 +722,60 @@ class CircleSubscribedUsersSerializer(FlexFieldsModelSerializer):
     user_phone = serializers.SerializerMethodField()
     user_profile_pic = serializers.SerializerMethodField()
     user_profile = serializers.SerializerMethodField()
+    designation = serializers.SerializerMethodField()
+    university = serializers.SerializerMethodField()
+    college = serializers.SerializerMethodField()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.user_details = {}  # Initialize as an empty dictionary
+
+    def to_representation(self, instance):
+        if isinstance(instance, list):
+            return [self.get_representation(obj) for obj in instance]
+        return self.get_representation(instance)
+
+    def get_representation(self, obj):
+        self.user_details[obj.id] = self.get_subscribed_admins(obj)
+        return super().to_representation(obj)
 
     def get_subscribed_admins(self, obj):
         if obj.role.role in [0, 10, 20, 30, 40]:
             try:
-                user_details = User().details(user_id=obj.user_id)
-                return user_details
+                return User().details(user_id=obj.user_id)
             except HTTPError:
-                raise serializers.ValidationError({"detail": "User does not exists"})
+                raise serializers.ValidationError({"detail": "User does not exist"})
 
     def get_user_id(self, obj):
-        user_details = self.get_subscribed_admins(obj)
-        if user_details:
-            return user_details["id"]
+        return self.user_details.get(obj.id, {}).get("id")
 
     def get_user_name(self, obj):
-        user_details = self.get_subscribed_admins(obj)
-        if user_details:
-            return user_details["name"]
+        return self.user_details.get(obj.id, {}).get("name")
 
     def get_user_jid(self, obj):
-        user_details = self.get_subscribed_admins(obj)
-        if user_details:
-            return user_details["jid"]
+        return self.user_details.get(obj.id, {}).get("jid")
 
     def get_user_phone(self, obj):
-        user_details = self.get_subscribed_admins(obj)
-        if user_details:
-            return f"{user_details['country_code']}{user_details['phone_number']}"
+        user_details = self.user_details.get(obj.id, {})
+        return f"{user_details.get('country_code', '')}{user_details.get('phone_number', '')}"
 
     def get_user_profile_pic(self, obj):
-        user_details = self.get_subscribed_admins(obj)
-        if user_details:
-            return user_details["profile_pic"]
+        return self.user_details.get(obj.id, {}).get("profile_pic")
 
     def get_user_profile(self, obj):
-        user_details = self.get_subscribed_admins(obj)
-        if user_details:
-            if user_details["user_type"] != "Fully Verified":
-                return "Basic Verified"
-            else:
-                return user_details["user_type"]
+        user_details = self.user_details.get(obj.id, {})
+        if user_details and user_details["user_type"] != "Fully Verified":
+            return "Basic Verified"
+        return user_details.get("user_type")
+
+    def get_designation(self, obj):
+        return self.user_details.get(obj.id, {}).get("designation")
+
+    def get_university(self, obj):
+        return self.user_details.get(obj.id, {}).get("university")
+
+    def get_college(self, obj):
+        return self.user_details.get(obj.id, {}).get("college")
 
     def get_role(self, instance):
         return instance.role.role
@@ -851,6 +872,7 @@ class CircleHierarchySerializerV2(CircleListSerializer):
             "name",
             "image",
             "room_id",
+            "designation",
         )
 
 
