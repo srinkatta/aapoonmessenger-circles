@@ -1,16 +1,17 @@
 import re
-
 from urllib.error import HTTPError
 from urllib.parse import urlparse
-from loguru import logger
 
+from loguru import logger
 from rest_flex_fields import FlexFieldsModelSerializer
 from rest_framework import serializers
 
+from circle.api import utils as circle_utils
 from circle.models import (
     AppBranding,
     Circle,
     CircleInvite,
+    CircleLevelNameConfig,
     CirclePermission,
     CircleRole,
     CircleSubscriberRole,
@@ -18,10 +19,8 @@ from circle.models import (
     CustomField,
     SubscriptionPlan,
     Topic,
-    CircleLevelNameConfig,
 )
 from circle.services.user import User
-from circle.api import utils as circle_utils
 
 
 class TopicSerializer(FlexFieldsModelSerializer):
@@ -1021,12 +1020,16 @@ class UserCategorySerializer(serializers.Serializer):
     college = serializers.CharField(
         max_length=255, required=False, allow_blank=True, allow_null=True
     )
+    designation = serializers.CharField(
+        max_length=255, required=False, allow_blank=True, allow_null=True
+    )
 
 
 class AssignUserRoomTopicSerializer(UserCategorySerializer):
     user_type_choices = (
         ("Student", "Student"),
         ("Faculty", "Faculty"),
+        ("APSCHE Head Office", "APSCHE Head Office"),
     )
     user_id = serializers.IntegerField(required=True)
     user_type = serializers.ChoiceField(choices=user_type_choices, allow_null=True, required=False)
