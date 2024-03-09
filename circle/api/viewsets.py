@@ -810,7 +810,7 @@ class CircleViewSet(BaseCircleViewSet):
 
         circles = self.filter_circles(request, circle)
         page = self.paginate_queryset(circles)
-        serializer = CircleListSerializer(page, many=True)
+        serializer = CircleListSerializer(page, many=True, context={"request": request})
         return self.get_paginated_response(serializer.data)
 
     def filter_circles(self, request, circle):
