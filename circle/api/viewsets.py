@@ -2419,13 +2419,12 @@ class AssignUserRoomTopicViewV2(APIView):
                 for department in data["department"]:
                     # Construct category dictionary for the current combination of values
                     category: Dict[str, Any] = {
-                        "university": data["university"],
-                        "program": program,
-                        "stream": data["stream"],
-                        "department": department,
-                        "specialization": specialization,
-                        "college": data["college"],
-                        "designation": designation,
+                        "university": data["university"] if data["university"] else "",
+                        "program": program if program else "",
+                        "stream": data["stream"] if data["stream"] else "",
+                        "department": department if department else "",
+                        "specialization": specialization if specialization else "",
+                        "college": data["college"] if data["college"] else "",
                     }
                     print(f"category payload: {category}")
                     # Query the circle
@@ -2439,6 +2438,7 @@ class AssignUserRoomTopicViewV2(APIView):
                             fcm_token,
                             circle,
                             data,
+                            designation,
                         )
                         return Response(
                             {
@@ -2531,7 +2531,12 @@ class AssignUserRoomTopicViewV2(APIView):
         logger.info(f"Subscribing User at Circle room and topic: {circle_instance}")
 
     def subscribe_designation_based_circle_level(
-        self, user_id: int, user_jid: str, fcm_token: str, category_data: Dict[str, Any]
+        self,
+        user_id: int,
+        user_jid: str,
+        fcm_token: str,
+        category_data: Dict[str, Any],
+        designation: str,
     ) -> None:
         """
         Fetches the circle based on the designation and category data.
@@ -2562,7 +2567,7 @@ class AssignUserRoomTopicViewV2(APIView):
         chief_admin = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
         member = CircleRole.objects.get(role=CircleRole.MEMBER)
 
-        if category_data["designation"] in university_level_designations:
+        if designation in university_level_designations:
             # Fetch circle based on university details
             circle_instance = Circle.objects.filter(
                 name=category_data.get("university"),
@@ -2572,7 +2577,7 @@ class AssignUserRoomTopicViewV2(APIView):
                 raise ValidationError(
                     {"detail": "Circle not found with provided details"},
                 )
-            if category_data["designation"] not in ["Dean C D C", "BOS Chairman(University)"]:
+            if designation not in ["Dean C D C", "BOS Chairman(University)"]:
                 # Subscribe user to the circle and ejabberd room and topic
                 self.subscribe_user_to_circle_and_xmpp_room(
                     user_id, user_jid, fcm_token, chief_admin, circle_instance
@@ -2584,7 +2589,7 @@ class AssignUserRoomTopicViewV2(APIView):
                     user_id, user_jid, fcm_token, member, circle_instance
                 )
 
-        elif category_data["designation"] in college_level_designations:
+        elif designation in college_level_designations:
             # Fetch circle based on college details
             circle_instance = Circle.objects.filter(
                 name=category_data.get("college"),
@@ -2593,7 +2598,7 @@ class AssignUserRoomTopicViewV2(APIView):
                 college=category_data.get("college"),
             ).first()
 
-            if category_data["designation"] not in ["Principal"]:
+            if designation not in ["Principal"]:
                 # Subscribe user to the circle and ejabberd room and topic
                 self.subscribe_user_to_circle_and_xmpp_room(
                     user_id, user_jid, fcm_token, member, circle_instance
@@ -2612,6 +2617,7 @@ class AssignUserRoomTopicViewV2(APIView):
         fcm_token: str,
         circle: Circle,
         category_data: Dict[str, Any],
+        designation: str,
     ) -> None:
         """
         Subscribes a user to the specified circle based on their type and circle level.
@@ -2655,11 +2661,9 @@ class AssignUserRoomTopicViewV2(APIView):
             print("**Entered Faculty case")
 
             # Subscribe to designation circle
-            self.subscribe_designation_circle(
-                user_id, user_jid, fcm_token, category_data["designation"]
-            )
+            self.subscribe_designation_circle(user_id, user_jid, fcm_token, designation)
 
             # Subscribe to circle based on designation
             self.subscribe_designation_based_circle_level(
-                user_id, user_jid, fcm_token, category_data
+                user_id, user_jid, fcm_token, category_data, designation
             )
