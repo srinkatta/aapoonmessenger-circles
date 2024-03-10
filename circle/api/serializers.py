@@ -1012,4 +1012,6 @@ class AssignUserRoomTopicSerializer(UserCategorySerializer):
     user_id = serializers.IntegerField(required=True)
     user_type = serializers.ChoiceField(choices=user_type_choices, allow_null=True, required=False)
     user_jid = serializers.CharField(max_length=255, required=True, allow_null=False)
-    fcm_token = serializers.CharField(max_length=255, required=True, allow_null=False)
+    fcm_token = serializers.CharField(
+        max_length=255, required=False, allow_null=True, allow_blank=True
+    )
