@@ -2424,6 +2424,7 @@ class AssignUserRoomTopicViewV2(APIView):
         Returns:
         - Response: HTTP response containing the result of the operation.
         """
+        print("Triggered AssignUserRoomTopicViewV2 API")
         serializer = AssignUserRoomTopicSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
 
@@ -2516,9 +2517,10 @@ class AssignUserRoomTopicViewV2(APIView):
         print(f"Subscribing User at ejabberd room for Circle: {circle}")
 
         # Subscribe user to fcm topic
-        member_subscribe_topic(tokens=[fcm_token], topic=str(circle.room_id))
-        logger.info(f"Subscribing User at fcm topic for Circle: {circle}")
-        print(f"Subscribing User at fcm topic for Circle: {circle}")
+        if fcm_token:
+            member_subscribe_topic(tokens=[fcm_token], topic=str(circle.room_id))
+            logger.info(f"Subscribing User at fcm topic for Circle: {circle}")
+            print(f"Subscribing User at fcm topic for Circle: {circle}")
 
     def subscribe_user_to_circle_and_xmpp_room(
         self, user_id, user_jid, fcm_token, role, circle_instance
