@@ -2448,12 +2448,12 @@ class AssignUserRoomTopicViewV2(APIView):
                 for department in data["department"]:
                     # Construct category dictionary for the current combination of values
                     category: Dict[str, Any] = {
-                        "university": data["university"] if data["university"] else "",
-                        "program": program if program else "",
-                        "stream": data["stream"] if data["stream"] else "",
-                        "department": department if department else "",
-                        "specialization": specialization if specialization else "",
-                        "college": data["college"] if data["college"] else "",
+                        "university": data["university"] if data["university"] else None,
+                        "program": program if program else None,
+                        "stream": data["stream"] if data["stream"] else None,
+                        "department": department if department else None,
+                        "specialization": specialization if specialization else None,
+                        "college": data["college"] if data["college"] else None,
                     }
                     print(f"category payload: {category}")
                     # Query the circle
@@ -2626,6 +2626,10 @@ class AssignUserRoomTopicViewV2(APIView):
                 stream=category_data.get("stream"),
                 college=category_data.get("college"),
             ).first()
+            if not circle_instance:
+                raise ValidationError(
+                    {"detail": "Circle not found with provided details"},
+                )
 
             if designation not in ["Principal"]:
                 # Subscribe user to the circle and ejabberd room and topic
