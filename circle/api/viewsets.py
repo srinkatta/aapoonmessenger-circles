@@ -2456,9 +2456,20 @@ class AssignUserRoomTopicViewV2(APIView):
                         "specialization": specialization if specialization else None,
                         "college": data["college"] if data["college"] else None,
                     }
+                    # For category fields that are None in the data,
+                    # these values will default to an empty string in the category_v2 dictionary
+                    category_v2: Dict[str, Any] = {
+                        "university": data["university"] if data["university"] else "",
+                        "program": program if program else "",
+                        "stream": data["stream"] if data["stream"] else "",
+                        "department": department if department else "",
+                        "specialization": specialization if specialization else "",
+                        "college": data["college"] if data["college"] else "",
+                    }
                     print(f"category payload: {category}")
+                    print(f"category_v2 payload: {category_v2}")
                     # Query the circle
-                    circle = self.get_associated_circle(category)
+                    circle = self.get_associated_circle(category, category_v2)
                     if circle:
                         # Subscribe Users(Student/Faculty) to associate circles
                         self.subscribe_user_to_circle(
@@ -2481,7 +2492,9 @@ class AssignUserRoomTopicViewV2(APIView):
                         status=status.HTTP_400_BAD_REQUEST,
                     )
 
-    def get_associated_circle(self, category: Dict[str, Any]) -> Circle | None:
+    def get_associated_circle(
+        self, category: Dict[str, Any], category_v2: Dict[str, Any]
+    ) -> Circle | None:
         """
         Retrieves the associated circle based on the provided category data.
 
@@ -2491,9 +2504,10 @@ class AssignUserRoomTopicViewV2(APIView):
         Returns:
         - Circle | None: The associated circle if found, or None if not found.
         """
-        circles = Circle.objects.filter(**category)
+        circles = Circle.objects.filter(**category) | Circle.objects.filter(**category_v2)
         if circles:
             return circles.first()
+
         raise ValidationError({"detail": "Circle not found with the given details"})
 
     def subscribe_user_to_room_and_topic(
