@@ -1010,7 +1010,9 @@ class CircleDetailsSerializer(serializers.Serializer):
 
 
 class UserCategorySerializer(serializers.Serializer):
-    university = serializers.CharField(max_length=255, required=True, allow_null=False)
+    university = serializers.CharField(
+        max_length=255, required=False, allow_null=True, allow_blank=True
+    )
     stream = serializers.CharField(
         max_length=255, required=False, allow_blank=True, allow_null=True
     )
