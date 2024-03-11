@@ -432,6 +432,7 @@ class CircleViewSet(BaseCircleViewSet):
             print("**Triggered Web based circles**")
             chief_admin = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
             default_admin = CircleRole.objects.get(role=CircleRole.DEFAULT_ADMIN)
+            circle_ids = []
 
             # Single query optimizes circle data & role fetching
             final_circles = (
@@ -441,10 +442,37 @@ class CircleViewSet(BaseCircleViewSet):
                 .exclude(role=default_admin)
                 .values_list("circle__id", flat=True)
             )
+            circle_ids.extend(final_circles)
             print("**Retrieved final circles from database (optimized).**")
 
-            circles = Circle.objects.select_related("parent").filter(id__in=final_circles)
-            print("**Retrieved circles from database.**")
+            # Fetch cheif admins main/genesis circles within the hierarchy
+            subscribed_circle_ids = (
+                CircleSubscriberRole.objects.select_related("subscribers")
+                .filter(
+                    user_id=request.user_id,
+                    role=chief_admin,
+                    circle__parent=None,
+                    circle__total_children_count__gte=1,
+                )
+                .values_list("circle_id", flat=True)
+            )
+            circle_ids.extend(subscribed_circle_ids)
+
+            # Fetch top level circles within the chief admins hierarchy
+            top_level_circle_ids: Set[int] = get_top_level_circles(
+                user_id=request.user_id,
+                chief_admin=chief_admin,
+                subscribed_circle_ids=subscribed_circle_ids,
+            )
+            circle_ids.extend(top_level_circle_ids)
+
+            # Retrieve sub-circles owned by the root circle's admin
+            admin_circle: List[int] = get_admin_circles(
+                user_id=request.user_id, chief_admin=chief_admin
+            )
+            circle_ids.extend(admin_circle)
+
+            circles = Circle.objects.select_related("parent").filter(id__in=circle_ids)
 
         else:
             print("**Triggered all circles list**")
@@ -2440,27 +2468,24 @@ class AssignUserRoomTopicViewV2(APIView):
                     print(f"category payload: {category}")
                     print(f"category_v2 payload: {category_v2}")
                     # Query the circle
-                    circle = self.get_associated_circle(category, category_v2)
-                    if circle:
-                        # Subscribe Users(Student/Faculty) to associate circles
-                        self.subscribe_user_to_circle(
-                            user_id,
-                            user_jid,
-                            user_type,
-                            fcm_token,
-                            circle,
-                            data,
-                            designation,
-                        )
-                        return Response(
-                            {
-                                "message": "User assigned to associated circles and subscribed to room and FCM topic."
-                            },
-                            status=status.HTTP_200_OK,
-                        )
+                    circle = None
+                    if user_type == "Student":
+                        circle = self.get_associated_circle(category, category_v2)
+                    # Subscribe Users(Student/Faculty) to associate circles
+                    self.subscribe_user_to_circle(
+                        user_id,
+                        user_jid,
+                        user_type,
+                        fcm_token,
+                        circle,
+                        data,
+                        designation,
+                    )
                     return Response(
-                        {"details: Circle records not found with the categories provided"},
-                        status=status.HTTP_400_BAD_REQUEST,
+                        {
+                            "message": "User assigned to associated circles and subscribed to room and FCM topic."
+                        },
+                        status=status.HTTP_200_OK,
                     )
 
     def get_associated_circle(
