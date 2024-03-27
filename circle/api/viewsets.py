@@ -2552,13 +2552,13 @@ class AssignUserRoomTopicViewV2(APIView):
         """
         if len(circles) > 1:
             circle = circles.last()
-            if circle.circle_users_count >= 2560:
+            if circle.circle_users_count >= 5:
                 return self.create_circle_with_incremented_version(circle)
             else:
                 return circle
         else:
             circle = circles.first()
-            if circle.circle_users_count >= 2560:
+            if circle.circle_users_count >= 5:
                 return self.create_circle_with_incremented_version(circle)
             else:
                 return circle
@@ -2621,7 +2621,7 @@ class AssignUserRoomTopicViewV2(APIView):
         """
         all_circles = Circle.objects.filter(**category) | Circle.objects.filter(**category_v2)
         if all_circles:
-            if len(all_circles) == 1 and all_circles.first().circle_users_count < 2560:
+            if len(all_circles) == 1 and all_circles.first().circle_users_count < 5:
                 return all_circles.first()
             return self.get_student_circle(all_circles, category, user_type)
 
