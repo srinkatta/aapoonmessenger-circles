@@ -797,3 +797,25 @@ def get_chief_admin_leaf_circles(user_id: int, chief_admin: CircleRole) -> Set[i
             )
             leaf_subscribed_circles.update(leaf_circles)
     return leaf_subscribed_circles
+
+
+def circle_version_increment(circle):
+    """
+    Increment the version number of a circle's name.
+
+    Args:
+        circle (Circle): The circle object.
+
+    Returns:
+        int: The incremented version number of the circle's name.
+    """
+    if "-" in circle.name:
+        circle_name, current_version = circle.name.rsplit("-", 1)
+        try:
+            current_version = int(current_version.strip())
+        except ValueError:
+            # If no version number is found, assume it as the initial version
+            current_version = 1
+    else:
+        current_version = 1
+    return current_version

@@ -61,6 +61,7 @@ from circle.api.utils import (
     get_top_level_circles,
     logged_user_info,
     update_parent_hierarchy,
+    circle_version_increment,
 )
 from circle.helpers.ejjaberd import (
     create_xmpp_room,
@@ -2499,7 +2500,8 @@ class AssignUserRoomTopicViewV2(APIView):
                     # Query the circle
                     circle = None
                     if user_type == "Student":
-                        circle = self.get_associated_circle(category, category_v2)
+                        circle = self.get_associated_circle(category, category_v2, user_type)
+
                     # Subscribe Users(Student/Faculty) to associate circles
                     self.subscribe_user_to_circle(
                         user_id,
@@ -2517,21 +2519,108 @@ class AssignUserRoomTopicViewV2(APIView):
                         status=status.HTTP_200_OK,
                     )
 
+    def get_student_circle(self, all_circles, category_data, user_type):
+        """
+        Retrieves student circles based on the provided category data.
+
+        Parameters:
+            - all_circles (QuerySet): QuerySet of all circles.
+            - category_data (dict): A dictionary containing category data such as specialization.
+            - user_type (str): The type of user.
+
+        Returns:
+            - Circle | None: The student circle if found, or None if not found.
+        """
+        if user_type == "Student":
+            circles = all_circles.filter(
+                name__icontains=category_data.get("specialization"),
+            )
+            return self.check_circle_user_limit_create(circles)
+
+    def check_circle_user_limit_create(self, circles):
+        """
+        Checks circle user limit and creates a new circle if the limit is exceeded.
+
+        Parameters:
+            - circles (QuerySet): QuerySet of circles.
+
+        Returns:
+            - Circle: The existing or new circle.
+        """
+        if len(circles) > 1:
+            circle = circles.last()
+            if circle.circle_users_count >= 2560:
+                return self.create_circle_with_incremented_version(circle)
+            else:
+                return circle
+        else:
+            circle = circles.first()
+            if circle.circle_users_count >= 2560:
+                return self.create_circle_with_incremented_version(circle)
+            else:
+                return circle
+
+    def create_circle_with_incremented_version(self, circle):
+        """
+        Creates a new circle with an incremented version number.
+
+        Parameters:
+            - circle (Circle): The existing circle.
+
+        Returns:
+            - Circle: The new circle.
+        """
+        # Increment version number
+        current_version = circle_version_increment(circle)
+        new_version = current_version + 1
+        new_circle_name = f"{circle.name.strip()}-{new_version}"
+        circle_data = {
+            "name": new_circle_name,
+            "description": circle.description,
+            "privacy": circle.privacy,
+            "hierarchy": circle.hierarchy,
+            "gensis_circle_id": circle.gensis_circle_id,
+            "level_1": circle.level_1,
+            "level_2": circle.level_2,
+            "level_3": circle.level_3,
+            "level_4": circle.level_4,
+            "level_5": circle.level_5,
+            "level_6": circle.level_6,
+            "level_7": circle.level_7,
+            "owner_id": circle.owner_id,
+            "parent": circle.parent,
+            "university": circle.university,
+            "college": circle.college,
+            "program": circle.program,
+            "department": circle.department,
+            "specialization": circle.specialization,
+            "designation": circle.designation,
+        }
+        # Create Circle
+        new_circle = Circle.create_circle(**circle_data)
+
+        # Create XMPP Room
+        create_xmpp_room(new_circle)
+        return new_circle
+
     def get_associated_circle(
-        self, category: Dict[str, Any], category_v2: Dict[str, Any]
+        self, category: Dict[str, Any], category_v2: Dict[str, Any], user_type: str
     ) -> Circle | None:
         """
         Retrieves the associated circle based on the provided category data.
 
         Parameters:
-        - category (Dict[str, Any]): A dictionary containing category data such as university, program, stream, department, specialization, and college.
+            - category (Dict[str, Any]): A dictionary containing category data such as university, program, stream, department, specialization, and college.
+            - user_type (str): The type of the user.
 
         Returns:
-        - Circle | None: The associated circle if found, or None if not found.
+            - Circle | None: The associated circle if found, or None if not found.
         """
-        circles = Circle.objects.filter(**category) | Circle.objects.filter(**category_v2)
-        if circles:
-            return circles.first()
+        all_circles = Circle.objects.filter(**category) | Circle.objects.filter(**category_v2)
+        if all_circles:
+            if len(all_circles) == 1 and all_circles.first().circle_users_count < 2560:
+                return all_circles.first()
+            return self.get_student_circle(all_circles, category, user_type)
 
         raise ValidationError({"detail": "Circle not found with the given details"})
 
@@ -2587,11 +2676,14 @@ class AssignUserRoomTopicViewV2(APIView):
         Returns:
         - Optional[Circle]: The circle associated with the designation, or None if not found.
         """
-        circle_instance = Circle.objects.filter(designation=designation, level=1).first()
-        if not circle_instance:
+        circles = Circle.objects.filter(
+            name__icontains=designation, designation=designation, level=1
+        )
+        if not circles:
             raise ValidationError(
                 {"detail": "Designation circle not found with provided details"},
             )
+        circle_instance = self.check_circle_user_limit_create(circles)
 
         member = CircleRole.objects.get(role=CircleRole.MEMBER)
         # Subscribe user to the ejabberd room and fcm topic
@@ -2639,11 +2731,17 @@ class AssignUserRoomTopicViewV2(APIView):
 
         if designation in university_level_designations:
             # Fetch circle based on university details
-            circle_instance = Circle.objects.filter(
-                name=category_data.get("university"),
-                university=category_data.get("university"),
-            ).first()
-            if not circle_instance:
+            circles = Circle.objects.filter(
+                Q(name__icontains=category_data.get("university"))
+                & Q(university=category_data.get("university"))
+                & (Q(stream=None) | Q(stream=""))
+                & (Q(college=None) | Q(college=""))
+                & (Q(department=None) | Q(department=""))
+                & (Q(program=None) | Q(program=""))
+                & (Q(specialization=None) | Q(specialization=""))
+            )
+            circle_instance = self.check_circle_user_limit_create(circles)
+            if not circles:
                 raise ValidationError(
                     {"detail": "Circle not found with provided details"},
                 )
@@ -2661,13 +2759,14 @@ class AssignUserRoomTopicViewV2(APIView):
 
         elif designation in college_level_designations:
             # Fetch circle based on college details
-            circle_instance = Circle.objects.filter(
-                name=category_data.get("college"),
+            circles = Circle.objects.filter(
+                name__icontains=category_data.get("college"),
                 university=category_data.get("university"),
                 stream=category_data.get("stream"),
                 college=category_data.get("college"),
-            ).first()
-            if not circle_instance:
+            )
+            circle_instance = self.check_circle_user_limit_create(circles)
+            if not circles:
                 raise ValidationError(
                     {"detail": "Circle not found with provided details"},
                 )
