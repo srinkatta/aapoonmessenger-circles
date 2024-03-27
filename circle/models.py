@@ -131,12 +131,6 @@ class Circle(BaseTimeStampedModel, MPTTModel):
     def __str__(self):
         return f"ID: {self.id}, Name: {self.name}"
 
-    @classmethod
-    def create_circle(cls, **kwargs):
-        circle = cls(**kwargs)
-        circle.save()
-        return circle
-
     def set_sites(self, value):
         self.sites = json.dumps(value)
 

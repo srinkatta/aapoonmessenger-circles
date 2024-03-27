@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional, Set
 
 import phonenumbers
 from django.db.models import Q
+from django.db.models.query import QuerySet
 from django.db.models.functions import Lower
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from loguru import logger
@@ -2519,7 +2520,9 @@ class AssignUserRoomTopicViewV2(APIView):
                         status=status.HTTP_200_OK,
                     )
 
-    def get_student_circle(self, all_circles, category_data, user_type):
+    def get_student_circle(
+        self, all_circles: QuerySet[Circle], category_data: Dict[str, Any], user_type: str
+    ) -> Circle:
         """
         Retrieves student circles based on the provided category data.
 
@@ -2537,7 +2540,7 @@ class AssignUserRoomTopicViewV2(APIView):
             )
             return self.check_circle_user_limit_create(circles)
 
-    def check_circle_user_limit_create(self, circles):
+    def check_circle_user_limit_create(self, circles: QuerySet[Circle]) -> Circle:
         """
         Checks circle user limit and creates a new circle if the limit is exceeded.
 
@@ -2560,7 +2563,7 @@ class AssignUserRoomTopicViewV2(APIView):
             else:
                 return circle
 
-    def create_circle_with_incremented_version(self, circle):
+    def create_circle_with_incremented_version(self, circle: QuerySet[Circle]) -> Circle:
         """
         Creates a new circle with an incremented version number.
 
@@ -2597,7 +2600,7 @@ class AssignUserRoomTopicViewV2(APIView):
             "designation": circle.designation,
         }
         # Create Circle
-        new_circle = Circle.create_circle(**circle_data)
+        new_circle = Circle.objects.create(**circle_data)
 
         # Create XMPP Room
         create_xmpp_room(new_circle)
