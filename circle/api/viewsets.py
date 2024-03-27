@@ -2500,7 +2500,7 @@ class AssignUserRoomTopicViewV2(APIView):
                     # Query the circle
                     circle = None
                     if user_type == "Student":
-                        circle = self.get_associated_circle(category, category_v2, user_type)
+                        circle: int = self.get_associated_circle(category, category_v2, user_type)
 
                     # Subscribe Users(Student/Faculty) to associate circles
                     self.subscribe_user_to_circle(
