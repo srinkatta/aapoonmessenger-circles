@@ -799,7 +799,7 @@ def get_chief_admin_leaf_circles(user_id: int, chief_admin: CircleRole) -> Set[i
     return leaf_subscribed_circles
 
 
-def circle_version_increment(circle):
+def circle_version_increment(circle: Circle) -> int:
     """
     Increment the version number of a circle's name.
 
