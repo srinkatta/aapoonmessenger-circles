@@ -715,6 +715,8 @@ class CircleSubscribedUsersSerializer(FlexFieldsModelSerializer):
     user_phone = serializers.SerializerMethodField()
     user_profile_pic = serializers.SerializerMethodField()
     user_profile = serializers.SerializerMethodField()
+    user_phone_number = serializers.SerializerMethodField()
+    user_country_code = serializers.SerializerMethodField()
 
     def get_subscribed_admins(self, obj):
         if obj.role.role in [0, 10, 20, 30, 40]:
@@ -748,6 +750,16 @@ class CircleSubscribedUsersSerializer(FlexFieldsModelSerializer):
         user_details = self.get_subscribed_admins(obj)
         if user_details:
             return user_details["profile_pic"]
+
+    def get_user_phone_number(self, obj):
+        user_details = self.get_subscribed_admins(obj)
+        if user_details:
+            return user_details["phone_number"]
+
+    def get_user_country_code(self, obj):
+        user_details = self.get_subscribed_admins(obj)
+        if user_details:
+            return user_details["country_code"]
 
     def get_user_profile(self, obj):
         user_details = self.get_subscribed_admins(obj)
