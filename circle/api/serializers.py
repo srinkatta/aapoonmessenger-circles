@@ -742,7 +742,11 @@ class CircleSubscribedUsersSerializer(FlexFieldsModelSerializer):
     def get_subscribed_admins(self, obj):
         if obj.role.role in [0, 10, 20, 30, 40]:
             try:
-                return User().details(user_id=obj.user_id)
+                user_details = User().details(user_id=obj.user_id)
+                if not user_details:
+                    CircleSubscriberRole.objects.filter(user_id=obj.user_id).delete()
+                    return user_details
+                return user_details
             except HTTPError:
                 raise serializers.ValidationError({"detail": "User does not exist"})
 
