@@ -2577,7 +2577,30 @@ class AssignUserRoomTopicViewV2(APIView):
         current_version = circle_version_increment(circle)
         new_version = current_version + 1
         new_circle_name = f"{circle.name.strip()}-{new_version}"
-        circle_data = {
+
+        circle_data: Dict[str, Any] = self.extract_circle_data(circle, new_circle_name)
+
+        # Create Circle
+        new_circle = Circle.objects.create(**circle_data)
+
+        # Create Circle Subscribers
+        self.replicate_circle_subscriber_role(circle, new_circle)
+
+        # Create XMPP Room
+        create_xmpp_room(new_circle)
+        return new_circle
+
+    def extract_circle_data(self, circle: Circle, new_circle_name: str) -> Dict[str, Any]:
+        """
+        Extracts relevant data from a circle object.
+
+        Args:
+            circle (Circle): The circle object from which data will be extracted.
+
+        Returns:
+            dict: A dictionary containing extracted circle data.
+        """
+        return {
             "name": new_circle_name,
             "description": circle.description,
             "privacy": circle.privacy,
@@ -2599,12 +2622,29 @@ class AssignUserRoomTopicViewV2(APIView):
             "specialization": circle.specialization,
             "designation": circle.designation,
         }
-        # Create Circle
-        new_circle = Circle.objects.create(**circle_data)
 
-        # Create XMPP Room
-        create_xmpp_room(new_circle)
-        return new_circle
+    def replicate_circle_subscriber_role(self, circle: Circle, new_circle: Circle) -> None:
+        """
+        Replicates circle subscriber roles from one circle to another.
+
+        Args:
+            circle (Circle): The original circle from which roles will be replicated.
+            new_circle (Circle): The new circle to which roles will be replicated.
+
+        Returns:
+            None
+        """
+        # Get the chief admin role
+        chief_admin = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
+
+        # Fetch subscribers with chief admin role from the original circle
+        subscribers = CircleSubscriberRole.objects.filter(circle_id=circle.id, role=chief_admin)
+
+        # Replicate roles for each subscriber in the new circle
+        for subscriber in subscribers:
+            CircleSubscriberRole.objects.get_or_create(
+                circle_id=new_circle.id, role=chief_admin, user_id=subscriber.user_id
+            )
 
     def get_associated_circle(
         self, category: Dict[str, Any], category_v2: Dict[str, Any], user_type: str
