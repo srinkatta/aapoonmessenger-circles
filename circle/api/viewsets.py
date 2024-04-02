@@ -2508,6 +2508,7 @@ class AssignUserRoomTopicViewV2(APIView):
                         },
                         status=status.HTTP_200_OK,
                     )
+                    
     def get_associated_circle(
         self, category: Dict[str, Any], category_v2: Dict[str, Any]
     ) -> Circle | None:
@@ -2523,6 +2524,7 @@ class AssignUserRoomTopicViewV2(APIView):
             return circles.first()
         print(f"Circle not found with the given details with given {category} or {category_v2}")
         raise ValidationError({"detail": "Circle not found with the given details"})
+        
     def subscribe_user_to_room_and_topic(
         self, user_jid: str, fcm_token: str, circle: Circle
     ) -> None:
@@ -2545,6 +2547,7 @@ class AssignUserRoomTopicViewV2(APIView):
             member_subscribe_topic(tokens=[fcm_token], topic=str(circle.room_id))
             logger.info(f"Subscribing User at fcm topic for Circle: {circle}")
             print(f"Subscribing User at fcm topic for Circle: {circle}")
+            
     def subscribe_user_to_circle_and_xmpp_room(
         self, user_id, user_jid, fcm_token, role, circle_instance
     ):
@@ -2560,6 +2563,7 @@ class AssignUserRoomTopicViewV2(APIView):
             # Subscribe user to the ejabberd room and fcm topic
             self.subscribe_user_to_room_and_topic(user_jid, fcm_token, circle_instance)
             logger.info(f"Subscribing User at Circle room and topic: {circle_instance}")
+            
     def subscribe_designation_circle(
         self, user_id, user_jid, fcm_token, designation: str
     ) -> Optional[Circle]:
@@ -2581,6 +2585,7 @@ class AssignUserRoomTopicViewV2(APIView):
             user_id, user_jid, fcm_token, member, circle_instance
         )
         logger.info(f"Subscribing User at Circle room and topic: {circle_instance}")
+        
     def subscribe_designation_based_circle_level(
         self,
         user_id: int,
