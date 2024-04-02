@@ -2440,40 +2440,30 @@ class AssignUserRoomTopicViewV2(APIView):
     API view for assigning a user to a room and topic in a Circle.
     Requires API key authentication.
     """
-
     permission_classes = [HasAPIKey]
     allowed_methods = ("POST",)
-
     def post(self, request):
         """
         Assigns a user to a room and topic in a Circle.
-
         Parameters:
         - request (Request): The HTTP request object containing user data.
-
         Returns:
         - Response: HTTP response containing the result of the operation.
         """
-        print("Triggered AssignUserRoomTopicViewV2 API")
         serializer = AssignUserRoomTopicSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
-
         data = serializer.validated_data
         user_id = data["user_id"]
         user_jid = data["user_jid"]
         user_type = data["user_type"]
         fcm_token = data["fcm_token"]
         designation = data.get("designation", "")
-
         if not data["specialization"]:
             data["specialization"] = [None]
-
         if not data["program"]:
             data["program"] = [None]
-
         if not data["department"]:
             data["department"] = [None]
-
         for specialization in data["specialization"]:
             for program in data["program"]:
                 for department in data["department"]:
@@ -2498,12 +2488,11 @@ class AssignUserRoomTopicViewV2(APIView):
                     }
                     print(f"category payload: {category}")
                     print(f"category_v2 payload: {category_v2}")
-                    # Query the circle
                     circle = None
                     if user_type == "Student":
-                        circle: int = self.get_associated_circle(category, category_v2, user_type)
-
+                        circle = self.get_associated_circle(category, category_v2)
                     # Subscribe Users(Student/Faculty) to associate circles
+                    print(f"Associated circle: {circle}")
                     self.subscribe_user_to_circle(
                         user_id,
                         user_jid,
@@ -2519,165 +2508,30 @@ class AssignUserRoomTopicViewV2(APIView):
                         },
                         status=status.HTTP_200_OK,
                     )
-
-    def get_student_circle(
-        self, all_circles: QuerySet[Circle], category_data: Dict[str, Any], user_type: str
-    ) -> Circle:
-        """
-        Retrieves student circles based on the provided category data.
-
-        Parameters:
-            - all_circles (QuerySet): QuerySet of all circles.
-            - category_data (dict): A dictionary containing category data such as specialization.
-            - user_type (str): The type of user.
-
-        Returns:
-            - Circle | None: The student circle if found, or None if not found.
-        """
-        if user_type == "Student":
-            circles = all_circles.filter(
-                name__icontains=category_data.get("specialization"),
-            )
-            return self.check_circle_user_limit_create(circles)
-
-    def check_circle_user_limit_create(self, circles: QuerySet[Circle]) -> Circle:
-        """
-        Checks circle user limit and creates a new circle if the limit is exceeded.
-
-        Parameters:
-            - circles (QuerySet): QuerySet of circles.
-
-        Returns:
-            - Circle: The existing or new circle.
-        """
-        if len(circles) > 1:
-            circle = circles.last()
-            if circle.circle_users_count >= 5:
-                return self.create_circle_with_incremented_version(circle)
-            else:
-                return circle
-        else:
-            circle = circles.first()
-            if circle.circle_users_count >= 5:
-                return self.create_circle_with_incremented_version(circle)
-            else:
-                return circle
-
-    def create_circle_with_incremented_version(self, circle: QuerySet[Circle]) -> Circle:
-        """
-        Creates a new circle with an incremented version number.
-
-        Parameters:
-            - circle (Circle): The existing circle.
-
-        Returns:
-            - Circle: The new circle.
-        """
-        # Increment version number
-        current_version = circle_version_increment(circle)
-        new_version = current_version + 1
-        new_circle_name = f"{circle.name.strip()}-{new_version}"
-
-        circle_data: Dict[str, Any] = self.extract_circle_data(circle, new_circle_name)
-
-        # Create Circle
-        new_circle = Circle.objects.create(**circle_data)
-
-        # Create Circle Subscribers
-        self.replicate_circle_subscriber_role(circle, new_circle)
-
-        # Create XMPP Room
-        create_xmpp_room(new_circle)
-        return new_circle
-
-    def extract_circle_data(self, circle: Circle, new_circle_name: str) -> Dict[str, Any]:
-        """
-        Extracts relevant data from a circle object.
-
-        Args:
-            circle (Circle): The circle object from which data will be extracted.
-
-        Returns:
-            dict: A dictionary containing extracted circle data.
-        """
-        return {
-            "name": new_circle_name,
-            "description": circle.description,
-            "privacy": circle.privacy,
-            "hierarchy": circle.hierarchy,
-            "gensis_circle_id": circle.gensis_circle_id,
-            "level_1": circle.level_1,
-            "level_2": circle.level_2,
-            "level_3": circle.level_3,
-            "level_4": circle.level_4,
-            "level_5": circle.level_5,
-            "level_6": circle.level_6,
-            "level_7": circle.level_7,
-            "owner_id": circle.owner_id,
-            "parent": circle.parent,
-            "university": circle.university,
-            "college": circle.college,
-            "program": circle.program,
-            "department": circle.department,
-            "specialization": circle.specialization,
-            "designation": circle.designation,
-        }
-
-    def replicate_circle_subscriber_role(self, circle: Circle, new_circle: Circle) -> None:
-        """
-        Replicates circle subscriber roles from one circle to another.
-
-        Args:
-            circle (Circle): The original circle from which roles will be replicated.
-            new_circle (Circle): The new circle to which roles will be replicated.
-
-        Returns:
-            None
-        """
-        # Get the chief admin role
-        chief_admin = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
-
-        # Fetch subscribers with chief admin role from the original circle
-        subscribers = CircleSubscriberRole.objects.filter(circle_id=circle.id, role=chief_admin)
-
-        # Replicate roles for each subscriber in the new circle
-        for subscriber in subscribers:
-            CircleSubscriberRole.objects.get_or_create(
-                circle_id=new_circle.id, role=chief_admin, user_id=subscriber.user_id
-            )
-
     def get_associated_circle(
-        self, category: Dict[str, Any], category_v2: Dict[str, Any], user_type: str
+        self, category: Dict[str, Any], category_v2: Dict[str, Any]
     ) -> Circle | None:
         """
         Retrieves the associated circle based on the provided category data.
-
         Parameters:
-            - category (Dict[str, Any]): A dictionary containing category data such as university, program, stream, department, specialization, and college.
-            - user_type (str): The type of the user.
-
+        - category (Dict[str, Any]): A dictionary containing category data such as university, program, stream, department, specialization, and college.
         Returns:
-            - Circle | None: The associated circle if found, or None if not found.
+        - Circle | None: The associated circle if found, or None if not found.
         """
-        all_circles = Circle.objects.filter(**category) | Circle.objects.filter(**category_v2)
-        if all_circles:
-            if len(all_circles) == 1 and all_circles.first().circle_users_count < 5:
-                return all_circles.first()
-            return self.get_student_circle(all_circles, category, user_type)
-
+        circles = Circle.objects.filter(**category) | Circle.objects.filter(**category_v2)
+        if circles:
+            return circles.first()
+        print(f"Circle not found with the given details with given {category} or {category_v2}")
         raise ValidationError({"detail": "Circle not found with the given details"})
-
     def subscribe_user_to_room_and_topic(
         self, user_jid: str, fcm_token: str, circle: Circle
     ) -> None:
         """
         Subscribes a user to the specified ejabberd room and FCM topic associated with the given circle.
-
         Parameters:
         - user_jid (str): The JID (Jabber Identifier) of the user.
         - fcm_token (str): The Firebase Cloud Messaging token of the user.
         - circle (Circle): The circle to which the user will be subscribed.
-
         Returns:
         - None
         """
@@ -2686,55 +2540,47 @@ class AssignUserRoomTopicViewV2(APIView):
         member_xmpp_room_subscribe(user_jid=user_jid, room_id=str(circle.room_id))
         logger.info(f"Subscribing User at ejabberd room for Circle: {circle}")
         print(f"Subscribing User at ejabberd room for Circle: {circle}")
-
         # Subscribe user to fcm topic
         if fcm_token:
             member_subscribe_topic(tokens=[fcm_token], topic=str(circle.room_id))
             logger.info(f"Subscribing User at fcm topic for Circle: {circle}")
             print(f"Subscribing User at fcm topic for Circle: {circle}")
-
     def subscribe_user_to_circle_and_xmpp_room(
         self, user_id, user_jid, fcm_token, role, circle_instance
     ):
+        # max circle users limit
+        self.max_circle_users_limit(circle_instance)
+
         # Subscribe user to the circle
         circle_subscriber, created = CircleSubscriberRole.objects.get_or_create(
             user_id=user_id, role=role, circle=circle_instance
         )
         logger.info(f"Subscribing User at Web server for Circle: {circle_subscriber}")
-
         if created:
             # Subscribe user to the ejabberd room and fcm topic
             self.subscribe_user_to_room_and_topic(user_jid, fcm_token, circle_instance)
             logger.info(f"Subscribing User at Circle room and topic: {circle_instance}")
-
     def subscribe_designation_circle(
         self, user_id, user_jid, fcm_token, designation: str
     ) -> Optional[Circle]:
         """
         Retrieves the circle associated with the given designation.
-
         Parameters:
         - designation (str): The designation of the user.
-
         Returns:
         - Optional[Circle]: The circle associated with the designation, or None if not found.
         """
-        circles = Circle.objects.filter(
-            name__icontains=designation, designation=designation, level=1
-        )
-        if not circles:
+        circle_instance = Circle.objects.filter(designation=designation, level=1).first()
+        if not circle_instance:
             raise ValidationError(
                 {"detail": "Designation circle not found with provided details"},
             )
-        circle_instance = self.check_circle_user_limit_create(circles)
-
         member = CircleRole.objects.get(role=CircleRole.MEMBER)
         # Subscribe user to the ejabberd room and fcm topic
         self.subscribe_user_to_circle_and_xmpp_room(
             user_id, user_jid, fcm_token, member, circle_instance
         )
         logger.info(f"Subscribing User at Circle room and topic: {circle_instance}")
-
     def subscribe_designation_based_circle_level(
         self,
         user_id: int,
@@ -2745,11 +2591,9 @@ class AssignUserRoomTopicViewV2(APIView):
     ) -> None:
         """
         Fetches the circle based on the designation and category data.
-
         Parameters:
         - designation (str): The designation of the user.
         - category_data (Dict[str, Any]): A dictionary containing category data such as university, program, stream, and college.
-
         Returns:
         - Optional[Circle]: The fetched circle if found, otherwise None.
         """
@@ -2768,23 +2612,15 @@ class AssignUserRoomTopicViewV2(APIView):
             "Placement Officer",
             "BOS Chairman(College)",
         ]
-
         chief_admin = CircleRole.objects.get(role=CircleRole.CHIEF_ADMIN)
         member = CircleRole.objects.get(role=CircleRole.MEMBER)
-
         if designation in university_level_designations:
             # Fetch circle based on university details
-            circles = Circle.objects.filter(
-                Q(name__icontains=category_data.get("university"))
-                & Q(university=category_data.get("university"))
-                & (Q(stream=None) | Q(stream=""))
-                & (Q(college=None) | Q(college=""))
-                & (Q(department=None) | Q(department=""))
-                & (Q(program=None) | Q(program=""))
-                & (Q(specialization=None) | Q(specialization=""))
-            )
-            circle_instance = self.check_circle_user_limit_create(circles)
-            if not circles:
+            circle_instance = Circle.objects.filter(
+                name=category_data.get("university"),
+                university=category_data.get("university"),
+            ).first()
+            if not circle_instance:
                 raise ValidationError(
                     {"detail": "Circle not found with provided details"},
                 )
@@ -2793,27 +2629,23 @@ class AssignUserRoomTopicViewV2(APIView):
                 self.subscribe_user_to_circle_and_xmpp_room(
                     user_id, user_jid, fcm_token, chief_admin, circle_instance
                 )
-
             else:
                 # Subscribe user to the circle and ejabberd room and topic
                 self.subscribe_user_to_circle_and_xmpp_room(
                     user_id, user_jid, fcm_token, member, circle_instance
                 )
-
         elif designation in college_level_designations:
             # Fetch circle based on college details
-            circles = Circle.objects.filter(
-                name__icontains=category_data.get("college"),
+            circle_instance = Circle.objects.filter(
+                name=category_data.get("college"),
                 university=category_data.get("university"),
                 stream=category_data.get("stream"),
                 college=category_data.get("college"),
-            )
-            circle_instance = self.check_circle_user_limit_create(circles)
-            if not circles:
+            ).first()
+            if not circle_instance:
                 raise ValidationError(
                     {"detail": "Circle not found with provided details"},
                 )
-
             if designation not in ["Principal"]:
                 # Subscribe user to the circle and ejabberd room and topic
                 self.subscribe_user_to_circle_and_xmpp_room(
@@ -2824,6 +2656,25 @@ class AssignUserRoomTopicViewV2(APIView):
                 self.subscribe_user_to_circle_and_xmpp_room(
                     user_id, user_jid, fcm_token, chief_admin, circle_instance
                 )
+
+    def max_circle_users_limit(self, circle: Circle) -> None:
+        """
+        Check if the number of users in a circle exceeds the maximum limit.
+        Args:
+        - circle: The Circle object to check the user limit for.
+        Raises:
+        - ValidationError: If the user count exceeds the limit.
+        """
+        # Fetch unique user IDs associated with the circle
+        circle_user_ids = (
+            CircleSubscriberRole.objects.filter(circle=circle)
+            .values_list("user_id", flat=True)
+            .distinct()
+        )
+        user_count = circle_user_ids.count()
+        max_user_limit = 5120
+        if user_count > max_user_limit:
+            raise ValidationError({"detail": "Circle User's limit reached"})
 
     def subscribe_user_to_circle(
         self,
@@ -2837,7 +2688,6 @@ class AssignUserRoomTopicViewV2(APIView):
     ) -> None:
         """
         Subscribes a user to the specified circle based on their type and circle level.
-
         Parameters:
         - user_id (int): The ID of the user to subscribe.
         - user_jid (str): The JID (Jabber Identifier) of the user.
@@ -2845,41 +2695,38 @@ class AssignUserRoomTopicViewV2(APIView):
         - fcm_token (str): The Firebase Cloud Messaging token of the user.
         - circle (Circle): The circle to which the user will be subscribed.
         - category_data (Dict[str, Any]): A dictionary containing category data such as college, specialization, program, and department.
-
         Returns:
         - None
         """
         print("**Triggered subscribe_user_to_circle method**")
         member = CircleRole.objects.get(role=CircleRole.MEMBER)
         if user_type == "Student" and (circle.level == 6 or circle.name == circle.specialization):
+            # max circle users limit
+            self.max_circle_users_limit(circle)
+
             # Subscribe user to the circle
-            circle_subscriber = CircleSubscriberRole.objects.get_or_create(
+            circle_subscriber, _ = CircleSubscriberRole.objects.get_or_create(
                 user_id=user_id, role=member, circle=circle
             )
-            logger.info(f"Subscribing User at Web server for Circle: {circle_subscriber}")
-
+            logger.info(f"Subscribing Student at Web server for Circle: {circle_subscriber}")
             # Subscribe user to the ejabberd room and fcm topic
             self.subscribe_user_to_room_and_topic(user_jid, fcm_token, circle)
-            logger.info(f"Subscribing User at Circle room and topic: {circle}")
-
+            logger.info(f"Subscribing Student at Circle room and topic: {circle}")
         elif user_type == "APSCHE Head Office":
             # Apsche family circle
             circle_instance = Circle.objects.filter(name="APSCHE Family").first()
             member = CircleRole.objects.get(role=CircleRole.MEMBER)
-
             # Subscribe user to the ejabberd room and fcm topic
             self.subscribe_user_to_circle_and_xmpp_room(
                 user_id, user_jid, fcm_token, member, circle_instance
             )
-            logger.info(f"Subscribing User at Circle room and topic: {circle_instance}")
-
+            logger.info(f"Subscribing Head Office at Circle room and topic: {circle_instance}")
         elif user_type == "Faculty":
             print("**Entered Faculty case")
-
             # Subscribe to designation circle
             self.subscribe_designation_circle(user_id, user_jid, fcm_token, designation)
-
             # Subscribe to circle based on designation
             self.subscribe_designation_based_circle_level(
                 user_id, user_jid, fcm_token, category_data, designation
             )
+            
