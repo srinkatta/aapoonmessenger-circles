@@ -436,6 +436,11 @@ class CircleViewSet(BaseCircleViewSet):
             default_admin = CircleRole.objects.get(role=CircleRole.DEFAULT_ADMIN)
             circle_ids = []
 
+            if request.user_id in [162, 423, 2576641, 2576639, 2576638, 1385]:
+                # APSCHE Head Office and family circle's
+                circles = [2008, 2059]
+                circle_ids.extend(circles)
+
             # Single query optimizes circle data & role fetching
             final_circles = (
                 CircleSubscriberRole.objects.select_related("subscribers")
@@ -2440,8 +2445,10 @@ class AssignUserRoomTopicViewV2(APIView):
     API view for assigning a user to a room and topic in a Circle.
     Requires API key authentication.
     """
+
     permission_classes = [HasAPIKey]
     allowed_methods = ("POST",)
+
     def post(self, request):
         """
         Assigns a user to a room and topic in a Circle.
@@ -2508,7 +2515,7 @@ class AssignUserRoomTopicViewV2(APIView):
                         },
                         status=status.HTTP_200_OK,
                     )
-                    
+
     def get_associated_circle(
         self, category: Dict[str, Any], category_v2: Dict[str, Any]
     ) -> Circle | None:
@@ -2524,7 +2531,7 @@ class AssignUserRoomTopicViewV2(APIView):
             return circles.first()
         print(f"Circle not found with the given details with given {category} or {category_v2}")
         raise ValidationError({"detail": "Circle not found with the given details"})
-        
+
     def subscribe_user_to_room_and_topic(
         self, user_jid: str, fcm_token: str, circle: Circle
     ) -> None:
@@ -2547,7 +2554,7 @@ class AssignUserRoomTopicViewV2(APIView):
             member_subscribe_topic(tokens=[fcm_token], topic=str(circle.room_id))
             logger.info(f"Subscribing User at fcm topic for Circle: {circle}")
             print(f"Subscribing User at fcm topic for Circle: {circle}")
-            
+
     def subscribe_user_to_circle_and_xmpp_room(
         self, user_id, user_jid, fcm_token, role, circle_instance
     ):
@@ -2563,7 +2570,7 @@ class AssignUserRoomTopicViewV2(APIView):
             # Subscribe user to the ejabberd room and fcm topic
             self.subscribe_user_to_room_and_topic(user_jid, fcm_token, circle_instance)
             logger.info(f"Subscribing User at Circle room and topic: {circle_instance}")
-            
+
     def subscribe_designation_circle(
         self, user_id, user_jid, fcm_token, designation: str
     ) -> Optional[Circle]:
@@ -2585,7 +2592,7 @@ class AssignUserRoomTopicViewV2(APIView):
             user_id, user_jid, fcm_token, member, circle_instance
         )
         logger.info(f"Subscribing User at Circle room and topic: {circle_instance}")
-        
+
     def subscribe_designation_based_circle_level(
         self,
         user_id: int,
@@ -2734,4 +2741,3 @@ class AssignUserRoomTopicViewV2(APIView):
             self.subscribe_designation_based_circle_level(
                 user_id, user_jid, fcm_token, category_data, designation
             )
-            
