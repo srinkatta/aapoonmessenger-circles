@@ -858,6 +858,9 @@ class CircleHierarchySerializer(CircleListSerializer):
             "parent",
             "gensis_circle_id",
             "max_level",
+            "designation",
+            "university",
+            "college",
         )
 
     def get_sub_circle_count(self, circle):
@@ -877,6 +880,8 @@ class CircleHierarchySerializerV2(CircleListSerializer):
             "image",
             "room_id",
             "designation",
+            "university",
+            "college",
         )
 
 
