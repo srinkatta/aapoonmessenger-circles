@@ -111,7 +111,6 @@ class Circle(BaseTimeStampedModel, MPTTModel):
         on_delete=models.SET_NULL,
         db_index=True,
     )
-    topic = models.ManyToManyField(Topic, blank=True)
 
     # Category
     university = models.CharField(max_length=255, null=True, blank=True, db_index=True)
@@ -393,7 +392,7 @@ class CirclePermission(BaseTimeStampedModel):
     delete_messages = models.IntegerField(default=10)
     ban_users = models.IntegerField(default=10)
     invite_users_via_link = models.IntegerField(default=10)
-    pin_new_messages = models.IntegerField(default=30)
+    pin_new_messages = models.IntegerField(default=20)
     create_sub_circles = models.IntegerField(default=10)
     delete_sub_circles = models.IntegerField(default=10)
     add_delete_other_admins = models.IntegerField(default=10)
@@ -401,7 +400,7 @@ class CirclePermission(BaseTimeStampedModel):
     add_delete_user = models.IntegerField(default=20)
     assign_moderator_in_sub_circles = models.IntegerField(default=10)
     user_join_permissions = models.IntegerField(default=10)
-    post_messages = models.IntegerField(default=40)
+    post_messages = models.IntegerField(default=20)
     circle_privacy_change = models.IntegerField(default=10)
     change_super_admin = models.IntegerField(default=10)  # TODO: renamed this
     shuffle_circles = models.IntegerField(default=10)
