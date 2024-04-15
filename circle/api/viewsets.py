@@ -452,32 +452,39 @@ class CircleViewSet(BaseCircleViewSet):
             circle_ids.extend(final_circles)
             print("**Retrieved final circles from database (optimized).**")
 
-            # Fetch cheif admins main/genesis circles within the hierarchy
-            subscribed_circle_ids = (
-                CircleSubscriberRole.objects.select_related("subscribers")
-                .filter(
-                    user_id=request.user_id,
-                    role=chief_admin,
-                    circle__parent=None,
-                    circle__total_children_count__gte=1,
+            # # Fetch cheif admins main/genesis circles within the hierarchy
+            # subscribed_circle_ids = (
+            #     CircleSubscriberRole.objects.select_related("subscribers")
+            #     .filter(
+            #         user_id=request.user_id,
+            #         role=chief_admin,
+            #         circle__parent=None,
+            #         circle__total_children_count__gte=1,
+            #     )
+            #     .values_list("circle_id", flat=True)
+            # )
+            # circle_ids.extend(subscribed_circle_ids)
+            #
+            # # Fetch top level circles within the chief admins hierarchy
+            # top_level_circle_ids: Set[int] = get_top_level_circles(
+            #     user_id=request.user_id,
+            #     chief_admin=chief_admin,
+            #     subscribed_circle_ids=subscribed_circle_ids,
+            # )
+            # circle_ids.extend(top_level_circle_ids)
+
+            if not request.user_id in [162, 423, 2576641, 2576639, 2576638, 1385]:
+                # Fetch chief admins main/genesis circles within the hierarchy
+                subscribed_circle_ids = (
+                    CircleSubscriberRole.objects.select_related("subscribers")
+                    .filter(
+                        user_id=request.user_id,
+                        role=chief_admin,
+                        # circle__total_children_count__gte=1,
+                    )
+                    .values_list("circle_id", flat=True)
                 )
-                .values_list("circle_id", flat=True)
-            )
-            circle_ids.extend(subscribed_circle_ids)
-
-            # Fetch top level circles within the chief admins hierarchy
-            top_level_circle_ids: Set[int] = get_top_level_circles(
-                user_id=request.user_id,
-                chief_admin=chief_admin,
-                subscribed_circle_ids=subscribed_circle_ids,
-            )
-            circle_ids.extend(top_level_circle_ids)
-
-            # Retrieve sub-circles owned by the root circle's admin
-            admin_circle: List[int] = get_admin_circles(
-                user_id=request.user_id, chief_admin=chief_admin
-            )
-            circle_ids.extend(admin_circle)
+                circle_ids.extend(subscribed_circle_ids)
 
             circles = Circle.objects.select_related("parent").filter(id__in=circle_ids)
 
