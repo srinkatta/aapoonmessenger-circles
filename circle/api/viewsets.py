@@ -2128,7 +2128,7 @@ class GetAssociatedCircles(APIView):
                 description="Filter by list of user_ids",
                 required=False,
                 type=str,
-                many=True
+                many=True,
             ),
             OpenApiParameter(
                 name="user_id",
@@ -2152,7 +2152,7 @@ class GetAssociatedCircles(APIView):
             )
         elif user_ids != "":
             # Convert 'user_ids' from a comma-separated string to a list of integers
-            user_ids_list = [int(user_id) for user_id in user_ids.split(',') if user_id.isdigit()]
+            user_ids_list = [int(user_id) for user_id in user_ids.split(",") if user_id.isdigit()]
 
             circles_ids = (
                 CircleSubscriberRole.objects.select_related("circle")
@@ -2174,6 +2174,7 @@ class GetAssociatedCircles(APIView):
 
         return Response(serializer.data)
 
+
 class GetCirclesInfoByIDS(APIView):
     permission_classes = [
         Authenticate,
@@ -2192,6 +2193,25 @@ class GetCirclesInfoByIDS(APIView):
             circles,
             many=True,
             context={"request": request},
+        )
+
+        return Response(serializer.data)
+
+
+class GetCirclesMembersByIDS(APIView):
+    permission_classes = [
+        Authenticate,
+    ]
+    allowed_methods = ("POST",)
+
+    def post(self, request):
+        serializer = CircleDetailsSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+
+        circles = CircleSubscriberRole.objects.filter(circle__id__in=serializer.data["circle_ids"])
+
+        serializer = CircleSubscribedUsersSerializer(
+            circles[:1], many=True, context={"request": request}
         )
 
         return Response(serializer.data)
