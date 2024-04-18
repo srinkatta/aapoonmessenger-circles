@@ -123,18 +123,9 @@ def app_notification(topic_name, message_from, message, xml):
     print("Circle Notification")
     circle = Circle.objects.get(room_id=topic_name)
 
-    phone = phonenumbers.parse(f"+{message_from}", None)
+    sender_name = get_sender_name_xml(xml)
 
-    user_service = User()
-    from_user: Dict = user_service.get_details_from_phone(
-        phone_number=phone.national_number, country_code=phone.country_code
-    )
-
-    if not from_user:
-        logger.exception(f"No User exists with the given user phone details: {from_user}")
-        return
-
-    title = from_user["name"] + " " + "in" + " " + '"' + circle.name + '"'
+    title = sender_name + " " + "in" + " " + '"' + circle.name + '"'
     try:
         permission = circle.permissions.get()
     except Exception as exc:
@@ -150,7 +141,7 @@ def app_notification(topic_name, message_from, message, xml):
 
     body = re.findall(r"<body>(.*?)</body>", xml)
     if body:
-        name = from_user["name"]
+        name = sender_name
         message_value_dict = get_notification_message(name)
         a = xml.find("<Bubble>") + len("<Bubble>")
         b = xml.find("</Bubble>")
@@ -177,3 +168,22 @@ def app_notification(topic_name, message_from, message, xml):
             print(android_result)
             logger.info(f"Android result: , {android_result}")
             print("Result for Circle")
+
+
+def get_sender_name_xml(xml: str) -> str:
+    """
+    Extracts the sender name from the provided XML string.
+
+    Args:
+        xml (str): The XML string containing message details.
+
+    Returns:
+        str: The sender name extracted from the XML, or an empty string if not found.
+    """
+    if not xml:
+        return ""
+
+    sender_name_match = re.search(r"<senderName>(.*?)</senderName>", xml)
+    if sender_name_match:
+        return sender_name_match.group(1)
+    return ""
