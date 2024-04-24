@@ -2211,7 +2211,7 @@ class GetCirclesMembersByIDS(APIView):
         circles = CircleSubscriberRole.objects.filter(circle__id__in=serializer.data["circle_ids"])
 
         serializer = CircleSubscribedUsersSerializer(
-            circles[:1], many=True, context={"request": request}
+            circles, many=True, context={"request": request}
         )
 
         return Response(serializer.data)
