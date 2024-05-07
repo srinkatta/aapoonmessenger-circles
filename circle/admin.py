@@ -12,7 +12,12 @@ from circle.models import (
     CircleInvite,
 )
 
-admin.site.register(Circle, MPTTModelAdmin)
+
+class CircleAdmin(MPTTModelAdmin):
+    search_fields = ["name"]
+
+
+admin.site.register(Circle, CircleAdmin)
 admin.site.register(CircleRole)
 admin.site.register(CircleSubscriberRole)
 admin.site.register(Customer)

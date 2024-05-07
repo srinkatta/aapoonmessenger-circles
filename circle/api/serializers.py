@@ -969,10 +969,21 @@ class CircleReportSerializer(BaseSerializer):
     """Special serilizer to send response to report service"""
 
     ancestors = serializers.SerializerMethodField()
+    parent_name = serializers.SerializerMethodField()
+    second_parent_name = serializers.SerializerMethodField()
 
     def get_ancestors(self, instance):
         parents = instance.get_parent_circles()
         return [circle.id for circle in parents]
+
+    def get_parent_name(self, instance):
+        return instance.parent.name if instance.parent else None
+
+    def get_second_parent_name(self, instance):
+        if instance.parent:
+            if instance.parent.parent:
+                return instance.parent.parent.name
+        return None
 
     class Meta:
         model = Circle
@@ -981,6 +992,8 @@ class CircleReportSerializer(BaseSerializer):
             "name",
             "parent",
             "ancestors",
+            "parent_name",
+            "second_parent_name",
         )
 
 
