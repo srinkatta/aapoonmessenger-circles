@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.db.models import QuerySet, Q
 
-from circle.middleware.permissions import Authenticate
+from circle.middleware.permissions import Authenticate, ForbiddenAction
 from circle.models import CircleSubscriberRole, Circle
 from circle.services.report import Report
 from circle.services.user import User
@@ -23,7 +23,6 @@ class DashboardView(APIView):
         Handle GET requests.
         """
         circles: QuerySet[Circle] = self.__get_associated_circles(user_id=request.user_id)
-        # for each user fetch all the descendents
         subscribers = []
         circle_with_subscribers = {}
         if circles:
@@ -33,23 +32,17 @@ class DashboardView(APIView):
                 circle_with_subscribers[descendant.id] = subscribers_ids
                 subscribers.extend(subscribers_ids)
 
-                # and I want to display the name and infront of that name show the reports details associated with that.
-                # TODO: make the code in a way so I could implement this easily
         subscribers = list(set(subscribers))
 
         user_details = {}
         if request.role.lower() in ["a ro", "ac ro"]:
             # if the role is ARO, then fetch all SO (one level below)
-            # fetch for each SO/ARO all the reports associated
             user_details = self.__get_users_details(user_ids=subscribers, user_role="S O")
         elif request.role.lower() in ["deo", "pc ro"]:
             # if the role is DEO/PC RO, then fetch all ARO (one level below)
-            # fetch for each SO/ARO all the reports associated
             user_details = self.__get_users_details(user_ids=subscribers, user_role="AC RO")
         else:
-            # TODO: raise forbidden error, you donot have the permission to access this
-            pass
-        # TODO: call reports service to get reports details
+            raise ForbiddenAction()
         mapped_users, reports_payload = self.map_subscribers(user_details, circle_with_subscribers)
 
         report_details = self.get_report_details(circles=reports_payload)
