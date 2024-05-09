@@ -2141,6 +2141,7 @@ class GetAssociatedCircles(APIView):
     def get(self, request):
         user_id = request.GET.get("user_id", "")
         user_ids = request.GET.get("user_ids", "")
+        ids_only = request.GET.get("ids_only", False)
 
         circles_ids = []
 
@@ -2159,20 +2160,21 @@ class GetAssociatedCircles(APIView):
                 .filter(user_id__in=user_ids_list)
                 .values_list("circle__id", flat=True)
             )
+        if not ids_only:
+            circles = (
+                Circle.objects.select_related("parent")
+                .prefetch_related("topic")
+                .filter(id__in=circles_ids)
+            )
 
-        circles = (
-            Circle.objects.select_related("parent")
-            .prefetch_related("topic")
-            .filter(id__in=circles_ids)
-        )
-
-        serializer = CircleReportSerializer(
-            circles,
-            many=True,
-            context={"request": request},
-        )
-
-        return Response(serializer.data)
+            serializer = CircleReportSerializer(
+                circles,
+                many=True,
+                context={"request": request},
+            )
+            return Response(serializer.data)
+        else:
+            return Response(data={"circles": circles_ids})
 
 
 class GetCirclesInfoByIDS(APIView):
