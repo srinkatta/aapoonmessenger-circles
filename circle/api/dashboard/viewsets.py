@@ -41,6 +41,9 @@ class DashboardView(APIView):
         elif request.role.lower() in ["deo", "pc ro"]:
             # if the role is DEO/PC RO, then fetch all ARO (one level below)
             user_details = self.__get_users_details(user_ids=subscribers, user_role="AC RO")
+        elif request.role.lower() in ["ts ceo", "ceo"]:
+            # if the role is DEO/PC RO, then fetch all ARO (one level below)
+            user_details = self.__get_users_details(user_ids=subscribers, user_role="DEO")
         else:
             raise ForbiddenAction()
         mapped_users, reports_payload = self.map_subscribers(user_details, circle_with_subscribers)
