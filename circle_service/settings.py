@@ -9,6 +9,7 @@ https://docs.djangoproject.com/en/4.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.1/ref/settings/
 """
+
 import os
 from pathlib import Path
 from dotenv import load_dotenv
@@ -250,3 +251,7 @@ STATIC_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/"
 STATICFILES_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
 
 KMS_KEY_ARN = os.environ["KMS_KEY_ARN"]
+
+# report service config
+REPORT_MICROSERVICE_URL = os.environ["REPORT_MICROSERVICE_URL"]
+REPORT_MICROSERVICE_API_KEY = os.environ["REPORT_MICROSERVICE_API_KEY"]
