@@ -2119,7 +2119,10 @@ class GetAssociatedCircles(APIView):
     permission_classes = [
         Authenticate,
     ]
-    allowed_methods = ("GET",)
+    allowed_methods = (
+        "GET",
+        "POST",
+    )
 
     @extend_schema(
         parameters=[
@@ -2175,6 +2178,63 @@ class GetAssociatedCircles(APIView):
             return Response(serializer.data)
         else:
             return Response(data={"circles": circles_ids})
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="user_ids",
+                description="Filter by list of user_ids",
+                required=False,
+                type=str,
+                many=True,
+            ),
+            OpenApiParameter(
+                name="user_id",
+                description="Filter by user_id",
+                required=False,
+                type=str,
+            ),
+        ]
+    )
+    def post(self, request):
+        user_id = request.data.get("user_id", "")
+        user_ids = request.data.get("user_ids", "")
+        ids_only = request.data.get("ids_only", False)
+
+        circles_ids = []
+
+        if user_id != "":
+            circles_ids = (
+                CircleSubscriberRole.objects.select_related("circle")
+                .filter(user_id=user_id)
+                .values_list("circle__id", flat=True)
+            )
+        elif user_ids != "":
+            # Convert 'user_ids' from a comma-separated string to a list of integers
+            user_ids_list = [int(user_id) for user_id in user_ids.split(",") if user_id.isdigit()]
+
+            circles_ids = (
+                CircleSubscriberRole.objects.select_related("circle")
+                .filter(user_id__in=user_ids_list)
+                .values_list("circle__id", flat=True)
+            )
+
+        if ids_only:
+            return Response(data={"circles": circles_ids})
+
+        circles = (
+            Circle.objects.select_related("parent")
+            .prefetch_related("topic")
+            .filter(id__in=circles_ids)
+        )
+
+        serializer = CircleReportSerializer(
+            circles,
+            many=True,
+            context={"request": request},
+        )
+
+        return Response(serializer.data)
 
 
 class GetCirclesInfoByIDS(APIView):
