@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.urls import include, path
 from rest_framework import routers
 
+from circle.api.dashboard.viewsets import DashboardView
 from circle.api.direct_message.viewsets import (
     MessageAbuseView,
     NotifyRedirectViewSet,
@@ -109,4 +110,5 @@ urlpatterns = [
         GetCirclesMembersByIDS.as_view(),
         name="member-details-by-ids",
     ),
+    path("dashboard/", DashboardView.as_view(), name="dashboard"),
 ]

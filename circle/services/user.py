@@ -2,6 +2,7 @@ import uuid
 from typing import (
     Any,
     Dict,
+    List,
 )
 
 import requests
@@ -45,6 +46,7 @@ class User:
         self.base_url = settings.USER_MICROSERVICE_URL
         self.user_detail_service_url = f"{self.base_url}api/users/user_details/"
         self.user_detail_phone_service_url = f"{self.base_url}api/users/user_details_phone/"
+        self.user_list_detail_service_url = f"{self.base_url}api/users/user_list_details/"
         self.headers = {"Authorization": settings.USER_MICROSERVICE_API_KEY}
 
     def details(self, user_id: int = None, user_jid=None) -> Dict:  # type: ignore
@@ -114,6 +116,39 @@ class User:
             user_detail = {}
         return user_detail
 
+    def get_details_from_user_ids(self, user_ids: List[int | str], user_role: str) -> List:
+        """
+        Retrieve user details based on the phone number and country code.
+
+        Args:
+            user_ids (List[int, str]):
+            user_role: str
+
+        Returns:
+            dict: A list containing the users details.
+
+        """
+
+        request_data: Dict[str, Any] = {
+            "user_ids": user_ids,
+            "user_role": user_role,
+        }
+        try:
+            response: Response = requests.post(
+                self.user_list_detail_service_url,
+                json=request_data,
+                headers=self.headers,
+            )
+            response.raise_for_status()
+            user_detail = self._prepare_response_body(response)
+        except (
+            requests.exceptions.RequestException,
+            requests.exceptions.HTTPError,
+        ) as exc:
+            logger.exception(f"Error getting user details by ids: {exc}")
+            user_detail = {}
+        return user_detail
+
     def _prepare_request(
         self, user_id: int = None, user_jid: int | uuid.UUID = None
     ) -> Dict[str, Any]:
@@ -151,7 +186,11 @@ class User:
 
 
 def user_notify_chat(
-    message: str = "", message_from: str = "", to: str = "", xml: str = "", vhost: str = ""
+    message: str = "",
+    message_from: str = "",
+    to: str = "",
+    xml: str = "",
+    vhost: str = "",
 ) -> Dict:
     """
     Send a notification to a user using the user microservice's "notify_dm" API endpoint.

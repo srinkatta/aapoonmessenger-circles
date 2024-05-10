@@ -27,6 +27,10 @@ class ExtraJWTAuthentication(JWTAuthentication):
             request.jid = user.get("jid", "")
             request.unique_id = user.get("unique_id", "")
             request.authenticated = True
+            request.role = user.get("role", "")
+            request.election_type = user.get("election_type", "")
+            request.department = user.get("department", "")
+            request.phone = f"+{user.get('country_code', '')}{user.get('phone_number', '')}"
         except Exception as exc:
             print(exc)
 

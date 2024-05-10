@@ -8,6 +8,12 @@ class SessionExpired(APIException):
     default_code = "session_expired"
 
 
+class ForbiddenAction(APIException):
+    status_code = 403
+    default_detail = "You don't have access to perform this aciton"
+    default_code = "forbidden_aciton"
+
+
 class Authenticate(permissions.BasePermission):
     """
     Allows access only to authenticated users.
