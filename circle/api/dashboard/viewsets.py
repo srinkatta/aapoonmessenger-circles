@@ -29,7 +29,10 @@ class DashboardView(APIView):
             descendants = circles[0].get_descendants()
             for descendant in descendants:
                 subscribers_ids = list(descendant.subscribers.values_list("user_id", flat=True))
-                circle_with_subscribers[descendant.id] = subscribers_ids
+                circle_with_subscribers[descendant.id] = {
+                    "name": descendant.name,
+                    "subscribers": subscribers_ids,
+                }
                 subscribers.extend(subscribers_ids)
 
         subscribers = list(set(subscribers))
@@ -84,11 +87,13 @@ class DashboardView(APIView):
         for user in user_details:
             user_id = user["id"]
             # Find circle ID containing user_id
-            for circle_id, subscriber_list in circle_with_subscribers.items():
-                if user_id in subscriber_list:
-                    user["circle_id"] = circle_id
-                    mapped_dict[circle_id] = user
-                    reports_payload.append(circle_id)
-                    break
-
+            for circle_id, circle_info in circle_with_subscribers.items():
+                for k, v in circle_info.items():
+                    if k == "subscribers":
+                        if user_id in v:
+                            user["circle_name"] = circle_info.get("name", "")
+                            user["circle_id"] = circle_id
+                            mapped_dict[circle_id] = user
+                            reports_payload.append(circle_id)
+                            break
         return mapped_dict, reports_payload
