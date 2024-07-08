@@ -1,0 +1,22 @@
+version: 2
+updates:
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    reviewers:
+      - "praveengouda007"
+    commit-message:
+      prefix: "[BUILD]"
+      include: "scope"
+    assignees:
+      - "aliaapoon"
+
+  - package-ecosystem: "pip"  # The package manager for Python projects
+    directory: "/"  # The directory where your dependencies are located, typically the root
+    schedule:
+      interval: "weekly"  # Check for updates weekly
+    commit-message:
+      prefix: "[BUILD]"
+      include: "scope"

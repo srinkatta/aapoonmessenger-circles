@@ -11,10 +11,16 @@ from drf_spectacular.views import (
 from common.choices import EnvironmentChoices
 from circle_service.router_urls import router_urlpatterns, router_admin_urlpatterns
 
+
+def trigger_error(request):
+    division_by_zero = 1 / 0
+
+
 urlpatterns = [
     path("api/circles/", include(router_urlpatterns)),
     path("api/admin/circles/", include(router_admin_urlpatterns)),
     path("api/circles/silk/", include("silk.urls", namespace="silk")),
+    path("api/users/sentry-debug/", trigger_error),
 ]
 
 # Restrict access to schema according to Environment
