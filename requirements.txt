@@ -18,7 +18,7 @@ inflection==0.5.1
 jmespath==1.0.1
 jsonschema==4.19.2
 loguru==0.7.2
-phonenumbers==8.13.24
+phonenumbers==8.13.42
 psycopg2-binary==2.9.9
 pyfcm==1.5.4
 PyJWT==2.8.0
