@@ -11,7 +11,7 @@ django-mptt==0.15.0
 django-silk==5.0.4
 djangorestframework==3.14.0
 drf-flex-fields==1.0.2
-drf-spectacular==0.26.5
+drf-spectacular==0.27.2
 gunicorn==21.2.0
 idna==3.6
 inflection==0.5.1
