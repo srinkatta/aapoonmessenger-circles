@@ -12,7 +12,7 @@ django-silk==5.0.4
 djangorestframework==3.14.0
 drf-flex-fields==1.0.2
 drf-spectacular==0.26.5
-gunicorn==21.2.0
+gunicorn==22.0.0
 idna==3.6
 inflection==0.5.1
 jmespath==1.0.1
