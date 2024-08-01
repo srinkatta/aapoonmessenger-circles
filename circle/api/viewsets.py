@@ -11,6 +11,7 @@ from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.permissions import AllowAny
 
 from circle.api import service as circle_service
 from circle.api.mixins import BulkCreateCircleInviteMixin
@@ -38,6 +39,7 @@ from circle.api.serializers import (
     CircleInviteResponseSerializer,
     CircleInviteAcceptSerializer,
     CircleInputSerializer,
+    ExternalRequestSerializer,
 )
 from circle.api.utils import (
     get_all_children,
@@ -2000,3 +2002,19 @@ class GetCircleUniqueNameView(APIView):
             return Response({"detail": "Name already exists"}, status=400)
         else:
             return Response({"message": "Name doesn't exist"}, status=200)
+
+
+class ExternalRequestView(APIView):
+    """
+    API View to handle external requests.
+    This API view allows external services to make requests to the APSCHE Messenger API.
+    """
+
+    permission_classes = (AllowAny,)
+
+    def post(self, request):
+
+        serializer = ExternalRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        return Response({"success": "Request is allowed"}, status=status.HTTP_200_OK)
