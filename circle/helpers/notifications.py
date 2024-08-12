@@ -8,6 +8,7 @@ from pyfcm import FCMNotification
 
 from circle.models import Circle
 from circle.services.user import User
+from circle.helpers.v2 import notifications as notification_v2
 from circle_service import settings
 from loguru import logger
 
@@ -247,7 +248,8 @@ def app_notification(topic_name, message_from, message, xml):
             message_id = extract_message_id(xml)
 
             # Send iOS notification
-            ios_result = send_ios_notification(
+            notification = notification_v2.FirebaseNotificationService()
+            ios_result = notification.send_ios_notification(
                 ios_topic_name,
                 title,
                 message,
@@ -256,14 +258,13 @@ def app_notification(topic_name, message_from, message, xml):
                 data,
                 topic_name,
                 message_id,
-                name,
             )
             print("ios")
             print(ios_result)
             logger.info(f"ios result: , {ios_result}")
 
             # Send Android notification
-            android_result = send_android_notification(
+            android_result = notification.send_android_notification(
                 android_topic_name,
                 title,
                 message,
@@ -272,7 +273,6 @@ def app_notification(topic_name, message_from, message, xml):
                 data,
                 topic_name,
                 message_id,
-                name,
             )
             print("android")
             print(android_result)
