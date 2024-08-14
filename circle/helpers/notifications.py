@@ -172,11 +172,7 @@ def app_notification(topic_name, message_from, message, xml):
                 ios_topic_name,
                 title,
                 message,
-                sender_jid,
-                bubble_type,
-                data,
-                topic_name,
-                message_id,
+                xml,
             )
             print("ios")
             print(ios_result)
@@ -187,11 +183,6 @@ def app_notification(topic_name, message_from, message, xml):
                 android_topic_name,
                 title,
                 message,
-                sender_jid,
-                bubble_type,
-                data,
-                topic_name,
-                message_id,
             )
             print("android")
             print(android_result)

@@ -58,11 +58,6 @@ class FirebaseNotificationService:
         android_topic_name: str,
         title: str,
         message: str,
-        sender_jid: str,
-        bubble_type: str,
-        data: dict,
-        topic_name: str,
-        message_id: str,
     ) -> str:
         """
         Sends a notification to an Android device.
@@ -71,11 +66,6 @@ class FirebaseNotificationService:
             android_topic_name (str): The topic name for the Android notification.
             title (str): The title of the notification.
             message (str): The message body of the notification.
-            sender_jid (str): The sender JID.
-            bubble_type (str): The type of bubble.
-            data (dict): Additional data for the notification.
-            topic_name (str): The topic name for the room.
-            message_id (str): The message ID.
 
         Returns:
             str: The response from the Firebase messaging service.
@@ -84,11 +74,6 @@ class FirebaseNotificationService:
             "Nick": title,
             "body": message,
             "priority": "high",
-            "sender_jid": sender_jid,
-            "room_id": topic_name,
-            "bubble_type": bubble_type,
-            "data": data,
-            "message_id": message_id,
         }
 
         android_message: messaging.Message = messaging.Message(
@@ -115,11 +100,7 @@ class FirebaseNotificationService:
         ios_topic_name: str,
         title: str,
         message: str,
-        sender_jid: str,
-        bubble_type: str,
-        data: dict,
-        topic_name: str,
-        message_id: str,
+        xml: str,
     ) -> str:
         """
         Sends a notification to an iOS device.
@@ -128,11 +109,7 @@ class FirebaseNotificationService:
             ios_topic_name (str): The topic name for the iOS notification.
             title (str): The title of the notification.
             message (str): The message body of the notification.
-            sender_jid (str): The sender JID.
-            bubble_type (str): The type of bubble.
-            data (dict): Additional data for the notification.
-            topic_name (str): The topic name for the room.
-            message_id (str): The message ID.
+            xml (str): xml content.
 
         Returns:
             str: The response from the Firebase messaging service.
@@ -161,11 +138,7 @@ class FirebaseNotificationService:
                     custom_data={
                         "delivery_receipt_requested": True,
                         "score": "Circle Notification",
-                        "sender_jid": sender_jid,
-                        "room_id": topic_name,
-                        "bubble_type": bubble_type,
-                        "data": data,
-                        "message_id": message_id,
+                        "xml": xml,
                     },
                 ),
             ),
