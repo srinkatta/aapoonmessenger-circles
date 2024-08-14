@@ -165,6 +165,7 @@ def app_notification(topic_name, message_from, message, xml):
                 pass
 
             process_xml_content(xml, c)
+            print(f"xml message: {message}")
 
             # Send iOS notification
             notification = notification_v2.FirebaseNotificationService()

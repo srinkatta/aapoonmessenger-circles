@@ -87,12 +87,11 @@ class FirebaseNotificationService:
             ),
             topic=android_topic_name,
         )
-
         try:
             response: str = messaging.send(android_message, app=self.android_app)
             logging.info(f"Successfully sent Android message: {response}")
             return response
-        except messaging.FirebaseError as e:
+        except Exception as e:
             logging.error(f"Failed to send Android notification: {e}")
 
     def send_ios_notification(
@@ -149,5 +148,5 @@ class FirebaseNotificationService:
             response: str = messaging.send(ios_message, app=self.ios_app)
             logging.info(f"Successfully sent iOS message: {response}")
             return response
-        except messaging.FirebaseError as e:
+        except Exception as e:
             logging.error(f"Failed to send iOS notification: {e}")
