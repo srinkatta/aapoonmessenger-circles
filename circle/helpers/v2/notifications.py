@@ -2,6 +2,7 @@ import firebase_admin
 from firebase_admin import credentials, messaging, App
 import logging
 from circle_service import settings
+from typing import Union, List
 
 
 class FirebaseNotificationService:
@@ -57,25 +58,30 @@ class FirebaseNotificationService:
         self,
         android_topic_name: str,
         title: str,
-        message: str,
+        message: Union[str, List[str]],
     ) -> str:
         """
         Sends a notification to an Android device.
-
+    
         Args:
             android_topic_name (str): The topic name for the Android notification.
             title (str): The title of the notification.
             message (str): The message body of the notification.
-
+    
         Returns:
             str: The response from the Firebase messaging service.
         """
+    
+        # Ensure the message is a string
+        if isinstance(message, list):
+            message = " ".join(message)
+    
         data_message: dict = {
             "Nick": title,
             "body": message,
             "priority": "high",
         }
-
+    
         android_message: messaging.Message = messaging.Message(
             data=data_message,
             android=messaging.AndroidConfig(
@@ -94,25 +100,31 @@ class FirebaseNotificationService:
         except Exception as e:
             logging.error(f"Failed to send Android notification: {e}")
 
+    
     def send_ios_notification(
         self,
         ios_topic_name: str,
         title: str,
-        message: str,
+        message: Union[str, List[str]],  # Accept both string and list
         xml: str,
-    ) -> str:
+        ) -> str:
         """
         Sends a notification to an iOS device.
-
+        
         Args:
             ios_topic_name (str): The topic name for the iOS notification.
             title (str): The title of the notification.
-            message (str): The message body of the notification.
-            xml (str): xml content.
-
+            message (Union[str, List[str]]): The message body of the notification.
+            xml (str): XML content.
+        
         Returns:
             str: The response from the Firebase messaging service.
         """
+        
+        # Convert message to string if it is a list
+        if isinstance(message, list):
+            message = " ".join(message)  # Convert list to string by joining elements with space
+        
         ios_message: messaging.Message = messaging.Message(
             notification=messaging.Notification(
                 title=title,
@@ -143,10 +155,11 @@ class FirebaseNotificationService:
             ),
             topic=ios_topic_name,
         )
-
+        
         try:
             response: str = messaging.send(ios_message, app=self.ios_app)
             logging.info(f"Successfully sent iOS message: {response}")
             return response
         except Exception as e:
             logging.error(f"Failed to send iOS notification: {e}")
+        
