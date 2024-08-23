@@ -4,6 +4,7 @@ from loguru import logger
 
 from rest_flex_fields import FlexFieldsModelSerializer
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 
 from circle.models import (
     AppBranding,
@@ -17,6 +18,7 @@ from circle.models import (
     SubscriptionPlan,
     Topic,
 )
+from common.prevent_ssrf import PreventSSRF
 from circle.services.user import User
 from circle.api import utils as circle_utils
 
@@ -914,3 +916,24 @@ class CircleInviteAcceptSerializer(serializers.Serializer):
     sender = serializers.CharField(required=True)
     recipient = serializers.CharField(required=True)
     circle = serializers.CharField(required=True)
+
+
+class ExternalRequestSerializer(serializers.Serializer):
+    """
+    Serializer class to validate external request
+    """
+
+    url = serializers.URLField(required=True)
+
+    def validate_url(self, url):
+
+        if not PreventSSRF.is_valid_url(url):
+            raise ValidationError("Invalid URL")
+
+        parsed_uri = urlparse(url)
+        hostname = parsed_uri.hostname
+
+        if not PreventSSRF.is_host_allowed(hostname):
+            raise ValidationError("Host is not allowed")
+
+        return url
