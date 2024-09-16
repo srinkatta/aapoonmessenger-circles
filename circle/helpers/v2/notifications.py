@@ -90,6 +90,7 @@ class FirebaseNotificationService:
             "data": data,
             "message_id": message_id,
         }
+        print(f"Android data message: {data_message}")
 
         android_message: messaging.Message = messaging.Message(
             data=data_message,
@@ -102,6 +103,7 @@ class FirebaseNotificationService:
             ),
             topic=android_topic_name,
         )
+        print(f"Android notification message: {android_message}")
 
         try:
             response: str = messaging.send(android_message, app=self.android_app)
@@ -137,6 +139,17 @@ class FirebaseNotificationService:
         Returns:
             str: The response from the Firebase messaging service.
         """
+        data_message = {
+            "delivery_receipt_requested": True,
+            "score": "Circle Notification",
+            "sender_jid": sender_jid,
+            "room_id": topic_name,
+            "bubble_type": bubble_type,
+            "data": data,
+            "message_id": message_id,
+        }
+        print(f"iOS data message: {data_message}")
+
         ios_message: messaging.Message = messaging.Message(
             notification=messaging.Notification(
                 title=title,
@@ -158,19 +171,12 @@ class FirebaseNotificationService:
                         badge=0,
                         content_available=True,
                     ),
-                    custom_data={
-                        "delivery_receipt_requested": True,
-                        "score": "Circle Notification",
-                        "sender_jid": sender_jid,
-                        "room_id": topic_name,
-                        "bubble_type": bubble_type,
-                        "data": data,
-                        "message_id": message_id,
-                    },
+                    custom_data=data_message,
                 ),
             ),
             topic=ios_topic_name,
         )
+        print(f"iOS notification message: {ios_message}")
 
         try:
             response: str = messaging.send(ios_message, app=self.ios_app)
