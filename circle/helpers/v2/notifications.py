@@ -2,7 +2,6 @@ import firebase_admin
 from firebase_admin import credentials, messaging, App
 import logging
 from circle_service import settings
-from typing import Union, List
 
 
 class FirebaseNotificationService:
@@ -58,30 +57,40 @@ class FirebaseNotificationService:
         self,
         android_topic_name: str,
         title: str,
-        message: Union[str, List[str]],
+        message: str,
+        sender_jid: str,
+        bubble_type: str,
+        data: dict,
+        topic_name: str,
+        message_id: str,
     ) -> str:
         """
         Sends a notification to an Android device.
-    
+
         Args:
             android_topic_name (str): The topic name for the Android notification.
             title (str): The title of the notification.
             message (str): The message body of the notification.
-    
+            sender_jid (str): The sender JID.
+            bubble_type (str): The type of bubble.
+            data (dict): Additional data for the notification.
+            topic_name (str): The topic name for the room.
+            message_id (str): The message ID.
+
         Returns:
             str: The response from the Firebase messaging service.
         """
-    
-        # Ensure the message is a string
-        if isinstance(message, list):
-            message = " ".join(message)
-    
         data_message: dict = {
             "Nick": title,
             "body": message,
             "priority": "high",
+            "sender_jid": sender_jid,
+            "room_id": topic_name,
+            "bubble_type": bubble_type,
+            "data": data,
+            "message_id": message_id,
         }
-    
+
         android_message: messaging.Message = messaging.Message(
             data=data_message,
             android=messaging.AndroidConfig(
@@ -93,6 +102,7 @@ class FirebaseNotificationService:
             ),
             topic=android_topic_name,
         )
+
         try:
             response: str = messaging.send(android_message, app=self.android_app)
             logging.info(f"Successfully sent Android message: {response}")
@@ -100,31 +110,33 @@ class FirebaseNotificationService:
         except Exception as e:
             logging.error(f"Failed to send Android notification: {e}")
 
-    
     def send_ios_notification(
         self,
         ios_topic_name: str,
         title: str,
-        message: Union[str, List[str]],  # Accept both string and list
-        xml: str,
-        ) -> str:
+        message: str,
+        sender_jid: str,
+        bubble_type: str,
+        data: dict,
+        topic_name: str,
+        message_id: str,
+    ) -> str:
         """
         Sends a notification to an iOS device.
-        
+
         Args:
             ios_topic_name (str): The topic name for the iOS notification.
             title (str): The title of the notification.
-            message (Union[str, List[str]]): The message body of the notification.
-            xml (str): XML content.
-        
+            message (str): The message body of the notification.
+            sender_jid (str): The sender JID.
+            bubble_type (str): The type of bubble.
+            data (dict): Additional data for the notification.
+            topic_name (str): The topic name for the room.
+            message_id (str): The message ID.
+
         Returns:
             str: The response from the Firebase messaging service.
         """
-        
-        # Convert message to string if it is a list
-        if isinstance(message, list):
-            message = " ".join(message)  # Convert list to string by joining elements with space
-        
         ios_message: messaging.Message = messaging.Message(
             notification=messaging.Notification(
                 title=title,
@@ -149,17 +161,20 @@ class FirebaseNotificationService:
                     custom_data={
                         "delivery_receipt_requested": True,
                         "score": "Circle Notification",
-                        "xml": xml,
+                        "sender_jid": sender_jid,
+                        "room_id": topic_name,
+                        "bubble_type": bubble_type,
+                        "data": data,
+                        "message_id": message_id,
                     },
                 ),
             ),
             topic=ios_topic_name,
         )
-        
+
         try:
             response: str = messaging.send(ios_message, app=self.ios_app)
             logging.info(f"Successfully sent iOS message: {response}")
             return response
         except Exception as e:
             logging.error(f"Failed to send iOS notification: {e}")
-        
