@@ -90,7 +90,6 @@ class FirebaseNotificationService:
             "data": data,
             "message_id": message_id,
         }
-
         print(f"Android data message: {data_message}")
 
         android_message: messaging.Message = messaging.Message(
