@@ -147,8 +147,6 @@ class FirebaseNotificationService:
             "bubble_type": bubble_type,
             "data": data,
             "message_id": message_id,
-            "mutable-content": 1,
-            "content-available": True,
         }
         print(f"iOS data message: {data_message}")
 
@@ -172,6 +170,7 @@ class FirebaseNotificationService:
                         ),
                         badge=0,
                         content_available=True,
+                        mutable_content=1,
                     ),
                     custom_data=data_message,
                 ),
