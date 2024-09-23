@@ -1,6 +1,7 @@
 import firebase_admin
 from firebase_admin import credentials, messaging, App
 import logging
+import json
 from circle_service import settings
 
 
@@ -97,13 +98,11 @@ class FirebaseNotificationService:
             android=messaging.AndroidConfig(
                 ttl=3600,  # time to live in seconds
                 priority="high",
-                notification=messaging.AndroidNotification(
-                    title=title, body=message, icon="stock_ticker_update", color="#f45342"
-                ),
             ),
             topic=android_topic_name,
         )
-        print(f"Android notification message: {android_message}")
+        android_message_json = json.dumps(android_message, default=lambda o: o.__dict__, indent=4)
+        print(f"Android notification message: {android_message_json}")
 
         try:
             response: str = messaging.send(android_message, app=self.android_app)
@@ -170,14 +169,16 @@ class FirebaseNotificationService:
                         ),
                         badge=0,
                         content_available=True,
-                        mutable_content=1,
+                        mutable_content=True,
                     ),
                     custom_data=data_message,
                 ),
             ),
             topic=ios_topic_name,
         )
-        print(f"iOS notification message: {ios_message}")
+
+        ios_message_json = json.dumps(ios_message, default=lambda o: o.__dict__, indent=4)
+        print(f"iOS notification message: {ios_message_json}")
 
         try:
             response: str = messaging.send(ios_message, app=self.ios_app)
