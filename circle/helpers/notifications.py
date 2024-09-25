@@ -235,8 +235,7 @@ def app_notification(topic_name, message_from, message, xml):
         no_info_messages = ["-1", "-3", "-4"]
         if body and "-" not in c:
             try:
-                message_value = message_value_dict[c]
-                message = body.group(1) if message_value == "Text" else message_value
+                message = message_value_dict[c]
             except BaseException:
                 pass
 
