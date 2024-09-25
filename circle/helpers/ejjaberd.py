@@ -76,7 +76,7 @@ def member_xmpp_room_subscribe(user_jid, room_id):
         "user": user_jid,
         "nick": jid,
         "room": "{}@{}.{}".format(room_id, "conference", settings.XMPP_HOST),
-        "nodes": "urn:xmpp:mucsub:nodes:messages",
+        "nodes": ["urn:xmpp:mucsub:nodes:messages"]
     }
     try:
         make_request(url, "POST", data=data)
