@@ -619,9 +619,11 @@ class CircleViewSet(BaseCircleViewSet):
             Response: A response containing the serialized data of the retrieved circle.
         """
         try:
-            circle = self.get_circle_by_id(kwargs.get("pk"))
+            circle_id = kwargs.get("pk", 0)
+            circle = self.get_circle_by_id(circle_id)
         except Circle.DoesNotExist:
             return Response({"detail": "Circle does not exist"}, status=status.HTTP_400_BAD_REQUEST)
+
         serializer = CircleSerializer(circle, context={"request": request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -876,7 +878,7 @@ class CircleViewSet(BaseCircleViewSet):
         Retrieve users associated with a specific circle.
 
         This method retrieves the users associated with a specific circle based on the provided circle ID (pk).
-        The users can be filtered by 'role' and 'name' using the request query parameters.
+        The users can be filtered by 'role', 'name', and 'phone' using the request query parameters.
 
         Args:
             request (HttpRequest): The request object containing the query parameters for filtering users.
@@ -893,6 +895,7 @@ class CircleViewSet(BaseCircleViewSet):
         role = request.GET.get("role", "")
         name = request.GET.get("name", "")
         phone = request.GET.get("phone", "")
+
         if role == "admins":
             role = [10, 20]
             circle_users = CircleSubscriberRole.objects.filter(circle=circle, role__role__in=role)
@@ -909,34 +912,30 @@ class CircleViewSet(BaseCircleViewSet):
             """
             If filter by name is present, trigger this
             """
-            user_ids = []
-            for user_details in serializer.data:
-                if (
-                    user_details.get("user_name")
-                    and name.lower() in user_details.get("user_name").lower()
-                ):
-                    user_ids.append(user_details["id"])
+            user_ids = [
+                user_details["id"]
+                for user_details in serializer.data
+                if user_details.get("user_name") and name.lower() in user_details.get("user_name").lower()
+            ]
 
             circle_users = CircleSubscriberRole.objects.filter(id__in=user_ids)
             page = self.paginate_queryset(circle_users)
-            serializer = CircleSubscribedUsersSerializer(
-                page, many=True, context={"request": request}
-            )
+            serializer = CircleSubscribedUsersSerializer(page, many=True, context={"request": request})
             return self.get_paginated_response(serializer.data)
+
         if phone:
             """
             Filter circle subscribed users by phone.
             """
-            user_ids = []
-            for user_details in serializer.data:
-                if user_details.get("user_phone") and phone in user_details.get("user_phone"):
-                    user_ids.append(user_details["id"])
+            user_ids = [
+                user_details["id"]
+                for user_details in serializer.data
+                if user_details.get("user_phone") and phone in user_details.get("user_phone")
+            ]
 
             circle_users = CircleSubscriberRole.objects.filter(id__in=user_ids)
             page = self.paginate_queryset(circle_users)
-            serializer = CircleSubscribedUsersSerializer(
-                page, many=True, context={"request": request}
-            )
+            serializer = CircleSubscribedUsersSerializer(page, many=True, context={"request": request})
             return self.get_paginated_response(serializer.data)
 
         return self.get_paginated_response(serializer.data)
