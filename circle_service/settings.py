@@ -10,8 +10,11 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 import os
+import sentry_sdk
+import json
 from pathlib import Path
 from dotenv import load_dotenv
+from common.choices import EnvironmentChoices
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -30,6 +33,17 @@ SECRET_KEY = os.environ.get("SECRET")
 DEBUG = False
 
 ALLOWED_HOSTS = ["*"]
+
+# Swagger Auth
+ENVIRONMENT = os.environ.get("ENVIRONMENT", EnvironmentChoices.PRODUCTION.value)
+
+
+def __get_hosts_list(hosts_string: str | None) -> list[str]:
+    return [host.strip().strip("'") for host in hosts_string.split(",")] if hosts_string else []
+
+
+ALLOWED_HOSTS_WHITELIST = __get_hosts_list(os.getenv("ALLOWED_HOSTS_WHITELIST", ""))
+FORBIDDEN_HOSTS_BLACKLIST = __get_hosts_list(os.getenv("FORBIDDEN_HOSTS_BLACKLIST", ""))
 
 
 # Application definition
@@ -70,9 +84,8 @@ CSRF_TRUSTED_ORIGINS = os.environ["CSRF_TRUSTED_ORIGINS"]
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
+    "https://aapoon.com",
 ]
-
-CORS_ALLOW_ALL_ORIGINS = True
 
 
 TEMPLATES = [
@@ -257,3 +270,19 @@ STATIC_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/"
 STATICFILES_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
 
 KMS_KEY_ARN = os.environ["KMS_KEY_ARN"]
+
+
+# Secure Headers
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = "DENY"
+SECURE_BROWSER_XSS_FILTER = True
+
+# Sentry settings
+IS_SENTRY_ENABLED = os.environ.get("IS_SENTRY_ENABLED", False)
+
+if IS_SENTRY_ENABLED:
+    SENTRY_DSN = os.environ.get("SENTRY_DSN", None)
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        enable_tracing=True,
+    )

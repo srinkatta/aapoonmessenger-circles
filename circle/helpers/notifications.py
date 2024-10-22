@@ -7,7 +7,6 @@ from typing import Dict
 from pyfcm import FCMNotification
 
 from circle.models import Circle
-from circle.services.user import User
 from circle.helpers.v2 import notifications as notification_v2
 from circle_service import settings
 from loguru import logger
@@ -61,13 +60,86 @@ def process_xml_content(xml, c):
     return xml
 
 
-def send_ios_notification(ios_topic_name, title, message, xml):
+def extract_bubble_type(xml):
+    """
+    Extracts the bubble type from the provided XML string.
+    Args:
+        xml (str): The XML string containing message details.
+    Returns:
+        str: The bubble type extracted from the XML, or an empty string if not found.
+    """
+    bubble_type = re.search(r"<Bubble>(.*?)</Bubble>", xml)
+    if bubble_type:
+        return bubble_type.group(1)
+    return ""
+
+
+def extract_message_id(xml):
+    """
+    Extracts the message id from the provided XML string.
+    Args:
+        xml (str): The XML string containing message details.
+    Returns:
+        str: The data extracted from the XML, or an empty string if not found.
+    """
+    message_id_match = re.search(r"id=['\"]([^'\"]+)['\"]", xml)
+    if message_id_match:
+        return message_id_match.group(1)
+    return ""
+
+
+def extract_data(xml):
+    """
+    Extracts the data from the provided XML string.
+    Args:
+        xml (str): The XML string containing message details.
+    Returns:
+        str: The data extracted from the XML, or an empty string if not found.
+    """
+    data_match = re.findall(r"<Data>(.*?)</Data>", xml, re.DOTALL)
+    if not data_match:
+        pattern = r"<Data(?: xmlns='urn:xmpp:(?:Data|data)')?>(.*?)</Data>"
+        data_match = re.findall(pattern, xml, re.DOTALL)
+    if data_match:
+        return data_match[0]
+    return ""
+
+
+def extract_sender_jid(xml: str) -> str:
+    """
+    Extracts the sender jid from the provided XML string.
+    Args:
+        xml (str): The XML string containing message details.
+    Returns:
+        str: The sender jid extracted from the XML, or an empty string if not found.
+    """
+    if not xml:
+        return ""
+
+    sender_jid_match = re.search(r"from='([^']+)'", xml)
+    if sender_jid_match:
+        from_value = sender_jid_match.group(1)
+        return from_value.split("/")[0]
+    return ""
+
+
+def send_ios_notification(
+    ios_topic_name, title, message, sender_jid, bubble_type, data, topic_name, message_id, name
+):
     # Build the data payload for iOS notification
     data = {
         "delivery_receipt_requested": True,
         "score": "Circle Notification",
-        "notification": {"xml": xml, "title": ios_topic_name, "body": message},
-        "message_id": str(uuid.uuid4()),
+        "notification": {
+            # "title": ios_topic_name,
+            # "body": message,
+            "sender_name": name,
+            "sender_jid": sender_jid,
+            "room_id": topic_name,
+            "bubble_type": bubble_type,
+            "data": data,
+            "message_id": message_id,
+        },
         "to": "/topics/" + ios_topic_name,
         "priority": "high",
         "content_available": True,
@@ -91,12 +163,24 @@ def send_ios_notification(ios_topic_name, title, message, xml):
     return ios_result
 
 
-def send_android_notification(android_topic_name, title, message):
-    data_message = {"Nick": title, "body": message, "priority": "high"}
+def send_android_notification(
+    android_topic_name, title, message, sender_jid, bubble_type, data, topic_name, message_id, name
+):
+    data_message = {
+        "Nick": title,
+        "body": message,
+        "priority": "high",
+        "sender_jid": sender_jid,
+        "room_id": topic_name,
+        "bubble_type": bubble_type,
+        "data": data,
+        "message_id": message_id,
+        "sender_name": name,
+    }
     print(data_message)
 
     # Send the Android notification
-    push_service = FCMNotification(api_key=settings.FCM_API_KEY)
+    push_service = FCMNotification(api_key=settings.ANDROID_FCM_API_KEY)
     android_result = push_service.notify_topic_subscribers(
         topic_name=android_topic_name, data_message=data_message
     )
@@ -122,20 +206,12 @@ def app_notification(topic_name, message_from, message, xml):
     print("basename:    ", os.path.basename(__file__))
     print("dir_name:     ", os.path.dirname(__file__))
     print("Circle Notification")
+    print(f"xml message: {xml}")
     circle = Circle.objects.get(room_id=topic_name)
 
-    phone = phonenumbers.parse(f"+{message_from}", None)
+    sender_name = get_sender_name_xml(xml)
 
-    user_service = User()
-    from_user: Dict = user_service.get_details_from_phone(
-        phone_number=phone.national_number, country_code=phone.country_code
-    )
-
-    if not from_user:
-        logger.exception(f"No User exists with the given user phone details: {from_user}")
-        return
-
-    title = from_user["name"] + " " + "in" + " " + '"' + circle.name + '"'
+    title = sender_name + " " + "in" + " " + '"' + circle.name + '"'
     try:
         permission = circle.permissions.get()
     except Exception as exc:
@@ -149,9 +225,9 @@ def app_notification(topic_name, message_from, message, xml):
         ios_topic_name = topic_name + "-" + "ios"
     android_topic_name = topic_name + "-" + "android"
 
-    body = re.findall(r"<body>(.*?)</body>", xml)
+    body = re.search(r"<body>(.*?)</body>", xml)
     if body:
-        name = from_user["name"]
+        name = sender_name
         message_value_dict = get_notification_message(name)
         a = xml.find("<Bubble>") + len("<Bubble>")
         b = xml.find("</Bubble>")
@@ -159,13 +235,15 @@ def app_notification(topic_name, message_from, message, xml):
         no_info_messages = ["-1", "-3", "-4"]
         if body and "-" not in c:
             try:
-                message_value = message_value_dict[c]
-                message = body if message_value == "Text" else message_value
+                message = message_value_dict[c]
             except BaseException:
                 pass
 
-            process_xml_content(xml, c)
-            print(f"xml message: {message}")
+            # process_xml_content(xml, c)
+            sender_jid = extract_sender_jid(xml)
+            bubble_type = extract_bubble_type(xml)
+            data = extract_data(xml)
+            message_id = extract_message_id(xml)
 
             # Send iOS notification
             notification = notification_v2.FirebaseNotificationService()
@@ -173,7 +251,11 @@ def app_notification(topic_name, message_from, message, xml):
                 ios_topic_name,
                 title,
                 message,
-                xml,
+                sender_jid,
+                bubble_type,
+                data,
+                topic_name,
+                message_id,
             )
             print("ios")
             print(ios_result)
@@ -184,8 +266,30 @@ def app_notification(topic_name, message_from, message, xml):
                 android_topic_name,
                 title,
                 message,
+                sender_jid,
+                bubble_type,
+                data,
+                topic_name,
+                message_id,
             )
             print("android")
             print(android_result)
             logger.info(f"Android result: , {android_result}")
             print("Result for Circle")
+
+
+def get_sender_name_xml(xml: str) -> str:
+    """
+    Extracts the sender name from the provided XML string.
+    Args:
+        xml (str): The XML string containing message details.
+    Returns:
+        str: The sender name extracted from the XML, or an empty string if not found.
+    """
+    if not xml:
+        return ""
+
+    sender_name_match = re.search(r"<senderName>(.*?)</senderName>", xml)
+    if sender_name_match:
+        return sender_name_match.group(1)
+    return ""
