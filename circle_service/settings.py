@@ -30,7 +30,7 @@ NOTE: Make sure this(SECRET) is same as user microservice otherwise authenticati
 SECRET_KEY = os.environ.get("SECRET")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env["DEBUG"]
 
 ALLOWED_HOSTS = ["*"]
 
