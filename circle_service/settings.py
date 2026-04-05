@@ -60,6 +60,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "circle.middleware.availability.AppAvailabilityMiddleware",
 ]
 
 ROOT_URLCONF = "circle_service.urls"
